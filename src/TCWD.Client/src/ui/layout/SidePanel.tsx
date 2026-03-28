@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useEngine } from '../hooks/useEngine';
 import { events } from '../../core/Events';
 import { BUILDING_LABELS } from '../../simulation/bridge/BuildingFactory';
+import type { BuildingType } from '../../simulation/bridge/BuildingFactory';
 import { EntityType } from '../../simulation/types';
 import type { Entity as SimEntity } from '../../simulation';
 import type { Entity } from '../../entities/Entity';
@@ -11,20 +12,26 @@ export function SidePanel() {
 	const engine = useEngine();
 	const [collapsed, setCollapsed] = useState(true);
 	const [selected, setSelected] = useState<{
-		entity: Entity;
+		cellIndex: number;
+		entity: Entity | null;
 		simEntity: SimEntity;
-		buildingType: string;
+		buildingType: BuildingType;
 	} | null>(null);
 
 	useEffect(() => {
 		const onSelect = (...args: unknown[]) => {
-			const data = args[0] as { cellIndex: number; entity?: Entity };
-			if (!data.entity) { setSelected(null); return; }
+			const data = args[0] as { cellIndex: number; entity?: Entity | null };
+			const cellIndex = data.cellIndex;
+			const selectedEntity = data.entity ?? null;
 			const bridge = engine.getSimulationBridge();
-			const bt = bridge.getBuildingType(data.entity.id);
-			const sim = bridge.getSimEntity(data.entity.id);
+			const bt = selectedEntity
+				? bridge.getBuildingType(selectedEntity.id)
+				: bridge.getBuildingTypeAtCell(cellIndex);
+			const sim = selectedEntity
+				? bridge.getSimEntity(selectedEntity.id)
+				: bridge.getSimEntityAtCell(cellIndex);
 			if (bt && sim) {
-				setSelected({ entity: data.entity, simEntity: sim, buildingType: bt });
+				setSelected({ cellIndex, entity: selectedEntity, simEntity: sim, buildingType: bt });
 				setCollapsed(false);
 			} else {
 				setSelected(null);
@@ -41,7 +48,7 @@ export function SidePanel() {
 	}, [engine]);
 
 	const handleRemove = () => {
-		if (!selected) return;
+		if (!selected?.entity) return;
 		engine.getSimulationBridge().removeBuilding(selected.entity.id);
 		engine.deselectCell();
 		setSelected(null);
@@ -56,19 +63,21 @@ export function SidePanel() {
 					{selected ? (
 						<>
 							<div className={styles.heading}>
-								{BUILDING_LABELS[selected.buildingType as keyof typeof BUILDING_LABELS] ??
+								{BUILDING_LABELS[selected.buildingType] ??
 									selected.buildingType}
 							</div>
 							<div className={styles.stats}>
 								<BuildingStats sim={selected.simEntity} />
 							</div>
-							<button
-								type="button"
-								className={styles.removeBtn}
-								onClick={handleRemove}
-							>
-								Remove
-							</button>
+							{selected.entity && (
+								<button
+									type="button"
+									className={styles.removeBtn}
+									onClick={handleRemove}
+								>
+									Remove
+								</button>
+							)}
 						</>
 					) : (
 						<span>No selection</span>

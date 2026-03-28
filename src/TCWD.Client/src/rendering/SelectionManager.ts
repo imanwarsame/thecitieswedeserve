@@ -34,11 +34,6 @@ export class SelectionManager {
 	update(): void {
 		this.frameCounter++;
 
-		// Handle clicks every frame for responsiveness
-		if (this.input.consumeClick()) {
-			this.handleClick();
-		}
-
 		// Throttle raycasting
 		if (this.frameCounter % RAYCAST_THROTTLE !== 0) return;
 
@@ -64,13 +59,26 @@ export class SelectionManager {
 		return this.selectedObject;
 	}
 
-	clearSelection(): void {
-		if (this.selectedObject) {
-			const prev = this.selectedObject;
+	setSelected(object: THREE.Object3D | null): void {
+		if (object === this.selectedObject) return;
+
+		if (object) {
+			this.selectedObject = object;
+			this.selectOutline.selectedObjects = [object];
+			events.emit('selection:select', { object });
+		} else {
+			if (this.selectedObject) {
+				events.emit('selection:deselect', { object: this.selectedObject });
+			}
 			this.selectedObject = null;
 			this.selectOutline.selectedObjects = [];
-			events.emit('selection:deselect', { object: prev });
 		}
+
+		this.updateHoverOutline();
+	}
+
+	clearSelection(): void {
+		this.setSelected(null);
 	}
 
 	dispose(): void {
@@ -78,24 +86,6 @@ export class SelectionManager {
 		this.selectedObject = null;
 		this.hoverOutline.selectedObjects = [];
 		this.selectOutline.selectedObjects = [];
-	}
-
-	private handleClick(): void {
-		if (this.hoveredObject) {
-			if (this.selectedObject === this.hoveredObject) {
-				// Clicking same object deselects
-				this.clearSelection();
-			} else {
-				// Select new object
-				this.selectedObject = this.hoveredObject;
-				this.selectOutline.selectedObjects = [this.selectedObject];
-				events.emit('selection:select', { object: this.selectedObject });
-			}
-		} else {
-			// Clicking empty space deselects
-			this.clearSelection();
-		}
-		this.updateHoverOutline();
 	}
 
 	private updateHoverOutline(): void {

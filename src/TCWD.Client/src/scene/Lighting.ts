@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SceneGraph } from './SceneGraph';
 import { Palette } from '../rendering/Palette';
 import { WorldClock } from '../gameplay/WorldClock';
+import type { CelestialBodies } from './CelestialBodies';
 import { loadHdr } from '../assets/loaders/HdrLoader';
 
 const LIGHTING_KEYS: {
@@ -25,11 +26,6 @@ const LIGHTING_KEYS: {
 	{ hour: 24, sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
 ];
 
-const SUN_ORBIT_RADIUS = 20;
-const SUN_HEIGHT = 15;
-const MOON_ORBIT_RADIUS = 18;
-const MOON_HEIGHT = 12;
-
 const _colorA = new THREE.Color();
 const _colorB = new THREE.Color();
 const _colorResult = new THREE.Color();
@@ -40,6 +36,9 @@ export class Lighting {
 	private hemisphere!: THREE.HemisphereLight;
 	private envMap: THREE.Texture | null = null;
 	private worldClock: WorldClock | null = null;
+	private celestialBodies: CelestialBodies | null = null;
+	/** World-space centre the shadow frustum is anchored to (tracks camera lookAt). */
+	private readonly shadowCenter = new THREE.Vector3();
 
 	init(graph: SceneGraph): void {
 		// Main directional (sun)
@@ -61,6 +60,9 @@ export class Lighting {
 		shadow.radius = 3;
 
 		graph.addToGroup('environment', this.directional);
+		// The target must live in the scene graph so THREE.js updates its matrixWorld
+		// each frame; without it the shadow camera's lookAt goes stale.
+		graph.addToGroup('environment', this.directional.target);
 
 		// Fill light — opposite side, no shadows
 		this.fill = new THREE.DirectionalLight(Palette.ambient, 0.2);
@@ -121,6 +123,18 @@ export class Lighting {
 		this.worldClock = clock;
 	}
 
+	setCelestialBodies(cb: CelestialBodies): void {
+		this.celestialBodies = cb;
+	}
+
+	/**
+	 * Keep the shadow frustum centred on the camera's look-at point so shadows
+	 * remain correct when the player pans away from world origin.
+	 */
+	setShadowCenter(pos: THREE.Vector3): void {
+		this.shadowCenter.copy(pos);
+	}
+
 	setDirectionalPosition(x: number, y: number, z: number): void {
 		this.directional.position.set(x, y, z);
 	}
@@ -141,33 +155,27 @@ export class Lighting {
 		}
 	}
 
-	private updateSunPosition(hour: number): void {
-		const isDay = hour >= 5.5 && hour <= 18.5;
+	private updateSunPosition(_hour: number): void {
+		if (!this.celestialBodies) return;
 
-		if (isDay) {
-			// Sun arc: rises at 6, sets at 18
-			const sunProgress = THREE.MathUtils.clamp((hour - 6) / 12, 0, 1);
-			const angle = sunProgress * Math.PI;
-			const x = Math.cos(angle) * SUN_ORBIT_RADIUS;
-			const y = Math.sin(angle) * SUN_HEIGHT;
-			const z = SUN_ORBIT_RADIUS * 0.3;
-			this.directional.position.set(x, Math.max(y, 1), z);
-			this.directional.castShadow = true;
-		} else {
-			// Moon arc: rises at 19, peaks at midnight, sets at 5
-			// Map night hours (19→5) to 0→1, wrapping across midnight
-			const nightStart = 19;
-			const nightDuration = 10; // 19 → 5 = 10 hours
-			const nightHour = hour >= nightStart ? hour - nightStart : hour + (24 - nightStart);
-			const moonProgress = THREE.MathUtils.clamp(nightHour / nightDuration, 0, 1);
-			const angle = moonProgress * Math.PI;
-			// Moon orbits from the opposite side (negative x)
-			const x = -Math.cos(angle) * MOON_ORBIT_RADIUS;
-			const y = Math.sin(angle) * MOON_HEIGHT;
-			const z = -MOON_ORBIT_RADIUS * 0.3;
-			this.directional.position.set(x, Math.max(y, 1), z);
-			this.directional.castShadow = true;
+		const sunPos = this.celestialBodies.getSunPosition();
+		const moonPos = this.celestialBodies.getMoonPosition();
+
+		// Use whichever body is above the horizon; sun takes priority.
+		const useSource = sunPos.y > 0 ? sunPos : moonPos;
+
+		const len = useSource.length();
+		if (len > 0.001) {
+			// Place the light at shadowCenter + sun-direction * 25 so the shadow
+			// frustum (±20 units) is always centred on the visible scene area.
+			// The target stays AT shadowCenter so the light direction is preserved.
+			this.directional.position
+				.copy(useSource)
+				.multiplyScalar(25 / len)
+				.add(this.shadowCenter);
+			this.directional.target.position.copy(this.shadowCenter);
 		}
+		this.directional.castShadow = useSource.y > 0;
 	}
 
 	private updateColors(hour: number): void {

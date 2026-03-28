@@ -63,6 +63,7 @@ export class GameScene {
 
 		this.terrain.init(this.graph, this.grid);
 		this.lighting.init(this.graph);
+		this.lighting.setCelestialBodies(this.celestialBodies);
 		this.environment.init(this.root);
 		this.celestialBodies.init(this.graph);
 
