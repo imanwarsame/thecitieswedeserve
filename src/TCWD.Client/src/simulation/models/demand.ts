@@ -4,7 +4,12 @@ import type {
 	Entity,
 	DataCentreEntity,
 	HousingEntity,
-	TransportEntity
+	TransportEntity,
+	OfficeEntity,
+	CommercialEntity,
+	SchoolEntity,
+	LeisureEntity,
+	ParkEntity,
 } from '../entities/types.ts';
 
 // ── Diurnal multiplier curves ───────────────────────────────
@@ -87,6 +92,140 @@ export function transportDemand(
 	return baseMW * multiplier;
 }
 
+// ── Civic building demand curves ────────────────────────────
+
+/**
+ * Office demand — heavy during business hours, minimal overnight.
+ * Pattern: 8–18 full load, 18–22 cleanup/security, 22–8 standby.
+ */
+const OFFICE_HOUR_MULTIPLIER: readonly number[] = [
+	// 0     1     2     3     4     5
+	0.10, 0.10, 0.10, 0.10, 0.10, 0.10,
+	// 6     7     8     9
+	0.20, 0.50, 0.90, 1.00,
+	// 10    11    12    13    14    15    16
+	1.00, 1.00, 0.95, 1.00, 1.00, 1.00, 1.00,
+	// 17    18    19    20    21    22    23
+	0.90, 0.30, 0.25, 0.20, 0.15, 0.10, 0.10,
+];
+
+export function officeDemand(
+	entity: OfficeEntity,
+	hour: number,
+	dayOfYear: number,
+): MWh {
+	const annualMWh = entity.avgConsumptionKWh / 1_000;
+	const hourlyBaseMWh = annualMWh / 8_760;
+	const diurnal = OFFICE_HOUR_MULTIPLIER[hour] ?? 1.0;
+	const seasonal = seasonalMultiplier(dayOfYear);
+	return hourlyBaseMWh * diurnal * seasonal;
+}
+
+/**
+ * Commercial demand — retail hours (10–21), minimal overnight.
+ */
+const COMMERCIAL_HOUR_MULTIPLIER: readonly number[] = [
+	// 0     1     2     3     4     5
+	0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+	// 6     7     8     9
+	0.10, 0.15, 0.30, 0.50,
+	// 10    11    12    13    14    15    16
+	0.90, 1.00, 1.00, 0.95, 1.00, 1.00, 1.00,
+	// 17    18    19    20    21    22    23
+	1.00, 1.00, 0.90, 0.80, 0.40, 0.10, 0.05,
+];
+
+export function commercialDemand(
+	entity: CommercialEntity,
+	hour: number,
+	dayOfYear: number,
+): MWh {
+	const annualMWh = entity.avgConsumptionKWh / 1_000;
+	const hourlyBaseMWh = annualMWh / 8_760;
+	const diurnal = COMMERCIAL_HOUR_MULTIPLIER[hour] ?? 1.0;
+	const seasonal = seasonalMultiplier(dayOfYear);
+	return hourlyBaseMWh * diurnal * seasonal;
+}
+
+/**
+ * School demand — school hours (8–16), after-school activities, minimal overnight.
+ */
+const SCHOOL_HOUR_MULTIPLIER: readonly number[] = [
+	// 0     1     2     3     4     5
+	0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+	// 6     7     8     9
+	0.10, 0.30, 0.80, 1.00,
+	// 10    11    12    13    14    15    16
+	1.00, 1.00, 0.90, 1.00, 1.00, 1.00, 0.60,
+	// 17    18    19    20    21    22    23
+	0.30, 0.15, 0.10, 0.05, 0.05, 0.05, 0.05,
+];
+
+export function schoolDemand(
+	entity: SchoolEntity,
+	hour: number,
+	dayOfYear: number,
+): MWh {
+	const annualMWh = entity.avgConsumptionKWh / 1_000;
+	const hourlyBaseMWh = annualMWh / 8_760;
+	const diurnal = SCHOOL_HOUR_MULTIPLIER[hour] ?? 1.0;
+	const seasonal = seasonalMultiplier(dayOfYear);
+	return hourlyBaseMWh * diurnal * seasonal;
+}
+
+/**
+ * Leisure demand — afternoon/evening heavy, moderate midday.
+ */
+const LEISURE_HOUR_MULTIPLIER: readonly number[] = [
+	// 0     1     2     3     4     5
+	0.10, 0.10, 0.10, 0.10, 0.10, 0.10,
+	// 6     7     8     9
+	0.10, 0.15, 0.20, 0.30,
+	// 10    11    12    13    14    15    16
+	0.40, 0.50, 0.55, 0.60, 0.80, 0.90, 1.00,
+	// 17    18    19    20    21    22    23
+	1.00, 1.00, 1.00, 0.90, 0.70, 0.30, 0.15,
+];
+
+export function leisureDemand(
+	entity: LeisureEntity,
+	hour: number,
+	dayOfYear: number,
+): MWh {
+	const annualMWh = entity.avgConsumptionKWh / 1_000;
+	const hourlyBaseMWh = annualMWh / 8_760;
+	const diurnal = LEISURE_HOUR_MULTIPLIER[hour] ?? 1.0;
+	const seasonal = seasonalMultiplier(dayOfYear);
+	return hourlyBaseMWh * diurnal * seasonal;
+}
+
+/**
+ * Park demand — mostly pathway/amenity lighting at dusk/night,
+ * plus minor irrigation during day.
+ */
+const PARK_HOUR_MULTIPLIER: readonly number[] = [
+	// 0     1     2     3     4     5
+	0.50, 0.50, 0.40, 0.40, 0.40, 0.50,
+	// 6     7     8     9
+	0.30, 0.15, 0.10, 0.10,
+	// 10    11    12    13    14    15    16
+	0.10, 0.10, 0.15, 0.15, 0.10, 0.10, 0.15,
+	// 17    18    19    20    21    22    23
+	0.40, 0.80, 1.00, 1.00, 0.90, 0.70, 0.60,
+];
+
+export function parkDemand(
+	entity: ParkEntity,
+	hour: number,
+	dayOfYear: number,
+): MWh {
+	const annualMWh = entity.avgConsumptionKWh / 1_000;
+	const hourlyBaseMWh = annualMWh / 8_760;
+	const diurnal = PARK_HOUR_MULTIPLIER[hour] ?? 1.0;
+	const seasonal = seasonalMultiplier(dayOfYear);
+	return hourlyBaseMWh * diurnal * seasonal;
+}
+
 // ── Aggregate ───────────────────────────────────────────────
 
 export interface DemandBreakdown {
@@ -115,6 +254,21 @@ export function totalDemand(
 				break;
 			case EntityType.Transport:
 				d = transportDemand(e, hour);
+				break;
+			case EntityType.Office:
+				d = officeDemand(e, hour, dayOfYear);
+				break;
+			case EntityType.Commercial:
+				d = commercialDemand(e, hour, dayOfYear);
+				break;
+			case EntityType.School:
+				d = schoolDemand(e, hour, dayOfYear);
+				break;
+			case EntityType.Leisure:
+				d = leisureDemand(e, hour, dayOfYear);
+				break;
+			case EntityType.Park:
+				d = parkDemand(e, hour, dayOfYear);
 				break;
 			case EntityType.EnergyPlant:
 				continue; // plants don't consume from grid in this model

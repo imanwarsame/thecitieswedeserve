@@ -3,7 +3,7 @@ import { useEngine } from '../hooks/useEngine';
 import { events } from '../../core/Events';
 import type { BuildingType } from '../../simulation/bridge/BuildingFactory';
 import { BUILDING_LABELS } from '../../simulation/bridge/BuildingFactory';
-import { Home, Server, Sun, Wind, Flame, Atom } from 'lucide-react';
+import { Home, Server, Sun, Wind, Flame, Atom, Building2, Store, GraduationCap, Drama, TreePine } from 'lucide-react';
 import styles from './BuildToolbar.module.css';
 
 const TOOLS: { type: BuildingType; icon: typeof Home; shortcut: string }[] = [
@@ -13,6 +13,11 @@ const TOOLS: { type: BuildingType; icon: typeof Home; shortcut: string }[] = [
 	{ type: 'wind', icon: Wind, shortcut: '4' },
 	{ type: 'gas', icon: Flame, shortcut: '5' },
 	{ type: 'nuclear', icon: Atom, shortcut: '6' },
+	{ type: 'office', icon: Building2, shortcut: '7' },
+	{ type: 'commercial', icon: Store, shortcut: '8' },
+	{ type: 'school', icon: GraduationCap, shortcut: '9' },
+	{ type: 'leisure', icon: Drama, shortcut: '0' },
+	{ type: 'park', icon: TreePine, shortcut: '-' },
 ];
 
 export function BuildToolbar() {

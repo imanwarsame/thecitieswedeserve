@@ -3,7 +3,12 @@ import type {
 	DataCentreEntity,
 	HousingEntity,
 	EnergyPlantEntity,
-	TransportEntity
+	TransportEntity,
+	OfficeEntity,
+	CommercialEntity,
+	SchoolEntity,
+	LeisureEntity,
+	ParkEntity,
 } from './types.ts';
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -71,6 +76,74 @@ export function createTransport(
 		evChargerCount: overrides.evChargerCount ?? 200,
 		railLineLengthKm: overrides.railLineLengthKm ?? 25,
 		peakDemandMW: overrides.peakDemandMW ?? 15
+	};
+}
+
+// ── Civic building factories ────────────────────────────────
+
+export function createOffice(
+	overrides: Partial<Omit<OfficeEntity, 'type'>> = {}
+): OfficeEntity {
+	const id = overrides.id ?? uid('of');
+	return {
+		id,
+		name: overrides.name ?? `Office ${id}`,
+		type: EntityType.Office,
+		floorArea: overrides.floorArea ?? 20_000,
+		employeeCount: overrides.employeeCount ?? 2_000,
+		avgConsumptionKWh: overrides.avgConsumptionKWh ?? 4_000_000,
+	};
+}
+
+export function createCommercial(
+	overrides: Partial<Omit<CommercialEntity, 'type'>> = {}
+): CommercialEntity {
+	const id = overrides.id ?? uid('cm');
+	return {
+		id,
+		name: overrides.name ?? `Commercial ${id}`,
+		type: EntityType.Commercial,
+		floorArea: overrides.floorArea ?? 15_000,
+		avgConsumptionKWh: overrides.avgConsumptionKWh ?? 3_500_000,
+	};
+}
+
+export function createSchool(
+	overrides: Partial<Omit<SchoolEntity, 'type'>> = {}
+): SchoolEntity {
+	const id = overrides.id ?? uid('sc');
+	return {
+		id,
+		name: overrides.name ?? `School ${id}`,
+		type: EntityType.School,
+		studentCapacity: overrides.studentCapacity ?? 2_000,
+		avgConsumptionKWh: overrides.avgConsumptionKWh ?? 1_500_000,
+	};
+}
+
+export function createLeisure(
+	overrides: Partial<Omit<LeisureEntity, 'type'>> = {}
+): LeisureEntity {
+	const id = overrides.id ?? uid('ls');
+	return {
+		id,
+		name: overrides.name ?? `Leisure Centre ${id}`,
+		type: EntityType.Leisure,
+		visitorCapacity: overrides.visitorCapacity ?? 1_500,
+		avgConsumptionKWh: overrides.avgConsumptionKWh ?? 2_500_000,
+	};
+}
+
+export function createPark(
+	overrides: Partial<Omit<ParkEntity, 'type'>> = {}
+): ParkEntity {
+	const id = overrides.id ?? uid('pk');
+	return {
+		id,
+		name: overrides.name ?? `Park ${id}`,
+		type: EntityType.Park,
+		areaSqM: overrides.areaSqM ?? 25_000,
+		avgConsumptionKWh: overrides.avgConsumptionKWh ?? 150_000,
 	};
 }
 

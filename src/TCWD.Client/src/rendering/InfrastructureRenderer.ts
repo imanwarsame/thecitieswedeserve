@@ -93,10 +93,7 @@ export class InfrastructureRenderer {
 
 			if (simEntity.type === EntityType.EnergyPlant) {
 				plants.push(e.position.clone());
-			} else if (
-				simEntity.type === EntityType.Housing ||
-				simEntity.type === EntityType.DataCentre
-			) {
+			} else if (simEntity.type !== EntityType.Transport) {
 				consumers.push(e.position.clone());
 			}
 		}
