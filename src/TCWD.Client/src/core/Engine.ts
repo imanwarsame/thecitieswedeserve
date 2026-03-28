@@ -106,6 +106,7 @@ export class Engine {
 		this.simulationBridge = new SimulationBridge(
 			gameScene.getEntityManager(),
 			gameScene.getGridPlacement(),
+			this.worldClock,
 		);
 
 		// Infrastructure power-line visualisation

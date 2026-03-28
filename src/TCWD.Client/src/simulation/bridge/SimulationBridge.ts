@@ -10,6 +10,7 @@ import { events } from '../../core/Events';
 import { Entity } from '../../entities/Entity';
 import { EntityManager } from '../../entities/EntityManager';
 import { GridPlacement } from '../../grid/GridPlacement';
+import type { WorldClock } from '../../gameplay/WorldClock';
 import {
 	createBuildingMesh,
 	simEntityTypeFromBuildingType,
@@ -38,10 +39,19 @@ export class SimulationBridge {
 
 	private lastState: SimulationState;
 
-	constructor(entityManager: EntityManager, gridPlacement: GridPlacement) {
+	constructor(entityManager: EntityManager, gridPlacement: GridPlacement, worldClock: WorldClock) {
 		this.engine = new SimulationEngine();
 		this.entityManager = entityManager;
 		this.gridPlacement = gridPlacement;
+
+		// Sync the simulation clock to the WorldClock's starting hour.
+		// The sim clock starts at tick 0 (= hour 0 midnight) but the world
+		// may start at e.g. hour 8.  Pre-advance so hours match.
+		const startHour = Math.floor(worldClock.getHour());
+		for (let i = 0; i < startHour; i++) {
+			this.engine.step();
+		}
+
 		this.lastState = this.engine.getState();
 
 		events.on('world:hourChanged', this.onHourChanged);
@@ -93,6 +103,11 @@ export class SimulationBridge {
 		this.entityBuildingTypes.set(entity.id, type);
 
 		events.emit('building:placed', { entityId: entity.id, simId: simEntity.id, type, cellIndex });
+
+		// Recompute metrics immediately so the dashboard reflects the new building
+		this.lastState = this.engine.recompute();
+		events.emit('simulation:tick', this.lastState);
+
 		return entity;
 	}
 
@@ -113,6 +128,11 @@ export class SimulationBridge {
 		this.entityBuildingTypes.delete(entityId);
 
 		events.emit('building:removed', { entityId, simId });
+
+		// Recompute metrics immediately so the dashboard reflects the removal
+		this.lastState = this.engine.recompute();
+		events.emit('simulation:tick', this.lastState);
+
 		return true;
 	}
 
