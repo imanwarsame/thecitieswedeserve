@@ -1,7 +1,9 @@
+import * as THREE from 'three';
 import { useState, useEffect, useCallback } from 'react';
 import { useEngine } from '../hooks/useEngine';
 import { events } from '../../core/Events';
 import { BUILDING_LABELS } from '../../simulation/bridge/BuildingFactory';
+import type { BuildingType } from '../../simulation/bridge/BuildingFactory';
 import { EntityType } from '../../simulation/types';
 import { Trash2 } from 'lucide-react';
 import type { Entity as SimEntity } from '../../simulation';
@@ -9,9 +11,10 @@ import type { Entity } from '../../entities/Entity';
 import styles from './EntityTooltip.module.css';
 
 interface Selection {
-	entity: Entity;
+	cellIndex: number;
+	entity: Entity | null;
 	simEntity: SimEntity;
-	buildingType: string;
+	buildingType: BuildingType;
 	screenX: number;
 	screenY: number;
 }
@@ -20,31 +23,51 @@ export function EntityTooltip() {
 	const engine = useEngine();
 	const [selected, setSelected] = useState<Selection | null>(null);
 
-	// Project entity world position to screen coordinates
-	const projectToScreen = useCallback((entity: Entity) => {
+	const projectToScreen = useCallback((worldPos: THREE.Vector3) => {
 		const camera = engine.getIsometricCamera().getCamera();
 		const canvas = engine.getRenderer().getWebGLRenderer().domElement;
-		const pos = entity.position.clone();
-		pos.y += 1.5; // above the object
-
+		const pos = worldPos.clone();
 		pos.project(camera);
 		const x = (pos.x * 0.5 + 0.5) * canvas.clientWidth;
 		const y = (-pos.y * 0.5 + 0.5) * canvas.clientHeight;
 		return { screenX: x, screenY: y };
 	}, [engine]);
 
+	const getSelectionAnchor = useCallback((cellIndex: number, entity: Entity | null): THREE.Vector3 | null => {
+		if (entity) {
+			const pos = entity.position.clone();
+			pos.y += 1.5;
+			return pos;
+		}
+
+		const cell = engine.getGrid().query.getCell(cellIndex);
+		if (!cell) return null;
+
+		return new THREE.Vector3(cell.center.x, 1.2, cell.center.y);
+	}, [engine]);
+
 	useEffect(() => {
 		const onSelect = (...args: unknown[]) => {
-			const data = args[0] as { cellIndex: number; entity?: Entity };
-			if (!data.entity) { setSelected(null); return; }
-
+			const data = args[0] as { cellIndex: number; entity?: Entity | null };
+			const cellIndex = data.cellIndex;
+			const selectedEntity = data.entity ?? null;
 			const bridge = engine.getSimulationBridge();
-			const bt = bridge.getBuildingType(data.entity.id);
-			const sim = bridge.getSimEntity(data.entity.id);
+			const bt = selectedEntity
+				? bridge.getBuildingType(selectedEntity.id)
+				: bridge.getBuildingTypeAtCell(cellIndex);
+			const sim = selectedEntity
+				? bridge.getSimEntity(selectedEntity.id)
+				: bridge.getSimEntityAtCell(cellIndex);
 
 			if (bt && sim) {
-				const { screenX, screenY } = projectToScreen(data.entity);
-				setSelected({ entity: data.entity, simEntity: sim, buildingType: bt, screenX, screenY });
+				const anchor = getSelectionAnchor(cellIndex, selectedEntity);
+				if (!anchor) {
+					setSelected(null);
+					return;
+				}
+
+				const { screenX, screenY } = projectToScreen(anchor);
+				setSelected({ cellIndex, entity: selectedEntity, simEntity: sim, buildingType: bt, screenX, screenY });
 			} else {
 				setSelected(null);
 			}
@@ -58,7 +81,7 @@ export function EntityTooltip() {
 			events.off('grid:cellSelected', onSelect);
 			events.off('grid:cellDeselected', onDeselect);
 		};
-	}, [engine, projectToScreen]);
+	}, [engine, getSelectionAnchor, projectToScreen]);
 
 	// Update screen position each frame for smooth tracking
 	useEffect(() => {
@@ -66,14 +89,19 @@ export function EntityTooltip() {
 		let raf: number;
 
 		const update = () => {
-			const { screenX, screenY } = projectToScreen(selected.entity);
+			const anchor = getSelectionAnchor(selected.cellIndex, selected.entity);
+			if (!anchor) {
+				setSelected(null);
+				return;
+			}
+			const { screenX, screenY } = projectToScreen(anchor);
 			setSelected(prev => prev ? { ...prev, screenX, screenY } : null);
 			raf = requestAnimationFrame(update);
 		};
 		raf = requestAnimationFrame(update);
 
 		return () => cancelAnimationFrame(raf);
-	}, [selected?.entity, projectToScreen]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [selected?.cellIndex, selected?.entity, getSelectionAnchor, projectToScreen]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Delete or ESC with keyboard
 	useEffect(() => {
@@ -91,7 +119,7 @@ export function EntityTooltip() {
 	});
 
 	const handleRemove = () => {
-		if (!selected) return;
+		if (!selected?.entity) return;
 		engine.getSimulationBridge().removeBuilding(selected.entity.id);
 		engine.deselectCell();
 		setSelected(null);
@@ -110,24 +138,28 @@ export function EntityTooltip() {
 		>
 			<div className={styles.header}>
 				<span className={styles.title}>
-					{BUILDING_LABELS[selected.buildingType as keyof typeof BUILDING_LABELS] ?? selected.buildingType}
+					{BUILDING_LABELS[selected.buildingType] ?? selected.buildingType}
 				</span>
-				<button
-					className={styles.deleteBtn}
-					onClick={handleRemove}
-					title="Remove (Delete)"
-				>
-					<Trash2 size={13} strokeWidth={2} />
-				</button>
+				{selected.entity && (
+					<button
+						className={styles.deleteBtn}
+						onClick={handleRemove}
+						title="Remove (Delete)"
+					>
+						<Trash2 size={13} strokeWidth={2} />
+					</button>
+				)}
 			</div>
 
 			<div className={styles.stats}>
 				<BuildingStats sim={selected.simEntity} />
 			</div>
 
-			<div className={styles.hint}>
-				<span className={styles.kbd}>Del</span> remove
-			</div>
+			{selected.entity && (
+				<div className={styles.hint}>
+					<span className={styles.kbd}>Del</span> remove
+				</div>
+			)}
 		</div>
 	);
 }
