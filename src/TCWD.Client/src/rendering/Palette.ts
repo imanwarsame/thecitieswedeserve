@@ -1,17 +1,17 @@
 export const Palette = {
-	// Surfaces
-	background: 0xe8e8e8,
-	ground: 0xc0c0c0,
-	structure: 0xb0b0b0,
-	detail: 0x9a9a9a,
-	accent: 0xd8d8d8,
-	shadow: 0x707070,
+	// Surfaces — milky white tones
+	background: 0xf2f0ed,
+	ground: 0xe6e2dd,
+	structure: 0xddd8d2,
+	detail: 0xd0cbc4,
+	accent: 0xeae6e1,
+	shadow: 0xb0a89e,
 
 	// Atmosphere
-	fog: 0xdcdcdc,
-	ambient: 0xe0e0e0,
-	sun: 0xf5f5f5,
+	fog: 0xefece8,
+	ambient: 0xf0ede9,
+	sun: 0xfdfcfa,
 
-	// Selection (Sprint 04)
+	// Selection
 	selectGlow: 0xffffff,
 } as const;

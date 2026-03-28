@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 import { Entity } from './Entity';
 import { events } from '../core/Events';
+import type { ModelFactory } from '../assets/ModelFactory';
+import type { MaterialRegistry } from '../rendering/MaterialRegistry';
 
 export class EntityManager {
 	private entities = new Map<string, Entity>();
 	private entityGroup: THREE.Group;
+	private materialRegistry: MaterialRegistry | null = null;
 
 	constructor(entityGroup: THREE.Group) {
 		this.entityGroup = entityGroup;
+	}
+
+	setMaterialRegistry(registry: MaterialRegistry): void {
+		this.materialRegistry = registry;
 	}
 
 	spawn(entity: Entity): Entity {
@@ -33,11 +40,31 @@ export class EntityManager {
 
 		if (entity.mesh) {
 			this.entityGroup.remove(entity.mesh);
+			if (this.materialRegistry) {
+				this.materialRegistry.disposeModelMaterials(entity.mesh);
+			}
 		}
 
 		entity.dispose();
 		this.entities.delete(id);
 		events.emit('entity:removed', id);
+	}
+
+	spawnFromCatalog(
+		catalogId: string,
+		position: THREE.Vector3,
+		factory: ModelFactory,
+		options?: { rotationY?: number; scale?: number; materialPreset?: string; cellIndex?: number },
+	): Entity {
+		const mesh = factory.create(catalogId, options);
+		const entity = new Entity({
+			catalogId,
+			mesh,
+			position,
+			cellIndex: options?.cellIndex ?? -1,
+		});
+		entity.position.y = 0;
+		return this.spawn(entity);
 	}
 
 	get(id: string): Entity | undefined {
@@ -52,6 +79,14 @@ export class EntityManager {
 		for (const entity of this.entities.values()) {
 			if (entity.active) {
 				entity.update(delta);
+			}
+		}
+	}
+
+	swapMaterialsForType(catalogId: string, newPreset: string, registry: MaterialRegistry): void {
+		for (const entity of this.entities.values()) {
+			if (entity.catalogId === catalogId && entity.mesh) {
+				registry.swapModelMaterials(entity.mesh, newPreset);
 			}
 		}
 	}

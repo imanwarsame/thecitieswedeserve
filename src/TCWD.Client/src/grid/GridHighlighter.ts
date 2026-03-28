@@ -1,22 +1,39 @@
 import * as THREE from 'three';
 import type { VoronoiCell } from './types';
-import { Palette } from '../rendering/Palette';
+
+const COLOR_DEFAULT = 0xffffff;
+const COLOR_BUILD = 0xc8e6c9;   // soft green — "can build here"
+const COLOR_OCCUPIED = 0xfff9c4; // soft yellow — "already has housing"
+
+const OPACITY_FILL = 0.15;
+const OPACITY_OUTLINE = 0.5;
 
 export class GridHighlighter {
 	private highlightMesh: THREE.Mesh;
 	private outlineMesh: THREE.LineLoop;
 	private currentCell: number = -1;
+	private fillMaterial: THREE.MeshBasicMaterial;
+	private outlineMaterial: THREE.LineBasicMaterial;
 
 	constructor() {
+		this.fillMaterial = new THREE.MeshBasicMaterial({
+			color: COLOR_DEFAULT,
+			transparent: true,
+			opacity: OPACITY_FILL,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+		});
+
+		this.outlineMaterial = new THREE.LineBasicMaterial({
+			color: COLOR_DEFAULT,
+			transparent: true,
+			opacity: OPACITY_OUTLINE,
+			depthWrite: false,
+		});
+
 		this.highlightMesh = new THREE.Mesh(
 			new THREE.BufferGeometry(),
-			new THREE.MeshBasicMaterial({
-				color: Palette.accent,
-				transparent: true,
-				opacity: 0.08,
-				depthWrite: false,
-				side: THREE.DoubleSide,
-			})
+			this.fillMaterial,
 		);
 		this.highlightMesh.name = 'cellHighlight';
 		this.highlightMesh.renderOrder = 1;
@@ -24,12 +41,7 @@ export class GridHighlighter {
 
 		this.outlineMesh = new THREE.LineLoop(
 			new THREE.BufferGeometry(),
-			new THREE.LineBasicMaterial({
-				color: Palette.selectGlow,
-				transparent: true,
-				opacity: 0.25,
-				depthWrite: false,
-			})
+			this.outlineMaterial,
 		);
 		this.outlineMesh.name = 'cellOutline';
 		this.outlineMesh.renderOrder = 2;
@@ -47,12 +59,12 @@ export class GridHighlighter {
 		if (cell.index === this.currentCell) return;
 		this.currentCell = cell.index;
 
-		// Build fill geometry (fan triangulation from center)
-		const fillPositions: number[] = [];
 		const cx = cell.center.x;
 		const cz = cell.center.y;
 		const verts = cell.vertices;
 
+		// Fill geometry (fan from center)
+		const fillPositions: number[] = [];
 		for (let i = 0; i < verts.length; i++) {
 			const a = verts[i];
 			const b = verts[(i + 1) % verts.length];
@@ -69,7 +81,7 @@ export class GridHighlighter {
 		);
 		this.highlightMesh.visible = true;
 
-		// Build outline geometry
+		// Outline geometry
 		const outlinePositions: number[] = [];
 		for (const v of verts) {
 			outlinePositions.push(v.x, 0.025, v.y);
@@ -84,6 +96,27 @@ export class GridHighlighter {
 		this.outlineMesh.visible = true;
 	}
 
+	/** Set the highlight style based on context. */
+	setMode(mode: 'default' | 'build' | 'occupied'): void {
+		switch (mode) {
+			case 'build':
+				this.fillMaterial.color.setHex(COLOR_BUILD);
+				this.outlineMaterial.color.setHex(COLOR_BUILD);
+				this.fillMaterial.opacity = 0.2;
+				break;
+			case 'occupied':
+				this.fillMaterial.color.setHex(COLOR_OCCUPIED);
+				this.outlineMaterial.color.setHex(COLOR_OCCUPIED);
+				this.fillMaterial.opacity = 0.18;
+				break;
+			default:
+				this.fillMaterial.color.setHex(COLOR_DEFAULT);
+				this.outlineMaterial.color.setHex(COLOR_DEFAULT);
+				this.fillMaterial.opacity = OPACITY_FILL;
+				break;
+		}
+	}
+
 	getObjects(): THREE.Object3D[] {
 		return [this.highlightMesh, this.outlineMesh];
 	}
@@ -94,8 +127,8 @@ export class GridHighlighter {
 
 	dispose(): void {
 		this.highlightMesh.geometry.dispose();
-		(this.highlightMesh.material as THREE.Material).dispose();
+		this.fillMaterial.dispose();
 		this.outlineMesh.geometry.dispose();
-		(this.outlineMesh.material as THREE.Material).dispose();
+		this.outlineMaterial.dispose();
 	}
 }

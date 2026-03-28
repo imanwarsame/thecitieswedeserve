@@ -3,6 +3,7 @@ import { useEngine } from '../hooks/useEngine';
 import { Slider } from '../components/Slider';
 import { radialFogUniforms } from '../../rendering/RadialFog';
 import { applyPreset, listPresets } from '../../rendering/MoodPresets';
+import { MaterialDebugPanel } from './MaterialDebugPanel';
 import styles from './DebugPanel.module.css';
 
 export function DebugPanel() {
@@ -45,6 +46,8 @@ export function DebugPanel() {
 				<Slider label="Thr" value={bloomThreshold} min={0} max={1}
 					onChange={v => { setBloomThreshold(v); pp.setBloomParams(bloomStrength, v, 0.4); }} />
 			</div>
+
+			<MaterialDebugPanel />
 
 			<div className={styles.section}>
 				<span className={styles.sectionTitle}>Mood Presets</span>

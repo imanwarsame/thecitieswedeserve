@@ -25,6 +25,10 @@
 .value {
 	font-size: 11px;
 	color: rgba(40, 40, 40, 0.8);
+	min-width: 48px;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
 .warn {
