@@ -58,6 +58,20 @@ export type {
 export type { SimulationState, StepRecord } from './state/types.ts';
 export { createSnapshot, toJSON } from './state/snapshot.ts';
 
+// ── Transport module ────────────────────────────────────────
+export { TransportModule } from './transport/TransportModule.ts';
+export { TransportNetwork } from './transport/TransportNetwork.ts';
+export type {
+	TransportMode,
+	TransportResult,
+	Trip,
+	FlowSegment,
+	OccupancyRate,
+	NetworkEdgeVisual,
+	ArchetypeProfile,
+} from './transport/types.ts';
+export { TransportMode as TransportModeEnum } from './transport/types.ts';
+
 // ── Layers ──────────────────────────────────────────────────
 export { EnergyLayer } from './layers/EnergyLayer.ts';
 export { CityLayer } from './layers/CityLayer.ts';

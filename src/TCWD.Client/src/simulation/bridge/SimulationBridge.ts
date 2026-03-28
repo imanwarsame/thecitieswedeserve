@@ -4,6 +4,7 @@ import {
 	createDataCentre,
 	createHousing,
 	createEnergyPlant,
+	createTransport,
 	createOffice,
 	createCommercial,
 	createSchool,
@@ -18,6 +19,7 @@ import { GridPlacement } from '../../grid/GridPlacement';
 import type { WorldClock } from '../../gameplay/WorldClock';
 import type { ModelFactory } from '../../assets/ModelFactory';
 import type { HousingSystem } from '../../housing/HousingSystem';
+import type { TransportModule } from '../transport/TransportModule';
 import * as THREE from 'three';
 import {
 	createBuildingModel,
@@ -39,6 +41,7 @@ export class SimulationBridge {
 	private gridPlacement: GridPlacement;
 	private modelFactory?: ModelFactory;
 	private housingSystem?: HousingSystem;
+	private transportModule?: TransportModule;
 
 	/** 3D entity id → simulation entity id */
 	private renderToSim = new Map<string, string>();
@@ -80,7 +83,20 @@ export class SimulationBridge {
 		this.housingSystem = housing;
 	}
 
+	/** Connect the transport module for infrastructure placement and entity mapping. */
+	setTransportModule(module: TransportModule): void {
+		this.transportModule = module;
+		this.engine.setTransportModule(module);
+	}
+
 	// ── Building management ──────────────────────────────────
+
+	/** Place an explicit road between two adjacent cells. */
+	addRoad(fromCell: number, toCell: number): void {
+		if (!this.transportModule) return;
+		this.transportModule.addRoad(fromCell, toCell);
+		events.emit('transport:roadPlaced', { fromCell, toCell });
+	}
 
 	addBuilding(type: BuildingType, cellIndex: number): Entity | null {
 		if (!this.gridPlacement.isCellFree(cellIndex)) return null;
@@ -116,6 +132,9 @@ export class SimulationBridge {
 			case EntityType.Park:
 				simEntity = createPark();
 				break;
+			case EntityType.Transport:
+				simEntity = createTransport();
+				break;
 			default:
 				return null;
 		}
@@ -147,6 +166,14 @@ export class SimulationBridge {
 
 		events.emit('building:placed', { entityId: entity.id, simId: simEntity.id, type, cellIndex });
 
+		// Notify transport module of new entity → cell mapping
+		if (this.transportModule) {
+			this.transportModule.mapEntityToCell(simEntity.id, cellIndex);
+			// Infrastructure placement
+			if (type === 'metro') this.transportModule.addMetro(cellIndex);
+			if (type === 'train') this.transportModule.addTrain(cellIndex);
+		}
+
 		// Recompute metrics immediately so the dashboard reflects the new building
 		this.lastState = this.engine.recompute();
 		events.emit('simulation:tick', this.lastState);
@@ -165,6 +192,11 @@ export class SimulationBridge {
 
 		this.engine.removeEntity(simId);
 		this.entityManager.remove(entityId);
+
+		// Notify transport module
+		if (this.transportModule) {
+			this.transportModule.unmapEntity(simId);
+		}
 
 		this.renderToSim.delete(entityId);
 		this.simToRender.delete(simId);
@@ -298,6 +330,11 @@ export class SimulationBridge {
 		this.engine.addEntity(simEntity);
 		this.housingSimIds.set(cellIndex, simEntity.id);
 
+		// Map housing to cell for transport routing
+		if (this.transportModule) {
+			this.transportModule.mapEntityToCell(simEntity.id, cellIndex);
+		}
+
 		this.lastState = this.engine.recompute();
 		events.emit('simulation:tick', this.lastState);
 	};
@@ -312,6 +349,11 @@ export class SimulationBridge {
 
 		this.engine.removeEntity(simId);
 		this.housingSimIds.delete(cellIndex);
+
+		// Unmap from transport
+		if (this.transportModule) {
+			this.transportModule.unmapEntity(simId);
+		}
 
 		this.lastState = this.engine.recompute();
 		events.emit('simulation:tick', this.lastState);
