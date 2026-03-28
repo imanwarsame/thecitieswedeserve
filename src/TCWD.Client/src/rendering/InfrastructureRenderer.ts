@@ -33,6 +33,8 @@ export class InfrastructureRenderer {
 
 		events.on('building:placed', this.rebuild);
 		events.on('building:removed', this.rebuild);
+		events.on('housing:placed', this.rebuild);
+		events.on('housing:demolished', this.rebuild);
 	}
 
 	/** Advance shader time each frame. */
@@ -46,6 +48,8 @@ export class InfrastructureRenderer {
 	dispose(): void {
 		events.off('building:placed', this.rebuild);
 		events.off('building:removed', this.rebuild);
+		events.off('housing:placed', this.rebuild);
+		events.off('housing:demolished', this.rebuild);
 		this.clear();
 		this.group.parent?.remove(this.group);
 	}
@@ -95,6 +99,11 @@ export class InfrastructureRenderer {
 			) {
 				consumers.push(e.position.clone());
 			}
+		}
+
+		// Include WFC-placed housing as consumers
+		for (const pos of this.bridge.getHousingPositions()) {
+			consumers.push(pos);
 		}
 
 		// Connect each plant → consumer (star topology, direction matters)
