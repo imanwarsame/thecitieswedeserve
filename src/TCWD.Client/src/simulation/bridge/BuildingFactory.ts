@@ -17,6 +17,13 @@ const MAT_GAS = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.8
 const MAT_COAL = new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.9, metalness: 0.05 });
 const MAT_NUCLEAR = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.7, metalness: 0.15 });
 const MAT_CHIMNEY = new THREE.MeshStandardMaterial({ color: 0x686868, roughness: 0.85, metalness: 0.1 });
+const MAT_OFFICE = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.6, metalness: 0.15 });
+const MAT_COMMERCIAL = new THREE.MeshStandardMaterial({ color: 0xb8a898, roughness: 0.75, metalness: 0.05 });
+const MAT_SCHOOL = new THREE.MeshStandardMaterial({ color: 0xd0c8b8, roughness: 0.8, metalness: 0.0 });
+const MAT_LEISURE = new THREE.MeshStandardMaterial({ color: 0x9898b0, roughness: 0.7, metalness: 0.1 });
+const MAT_PARK_GROUND = new THREE.MeshStandardMaterial({ color: 0x6a7a5a, roughness: 1.0, metalness: 0.0 });
+const MAT_PARK_TREE = new THREE.MeshStandardMaterial({ color: 0x5a6a4a, roughness: 0.9, metalness: 0.0 });
+const MAT_PARK_TRUNK = new THREE.MeshStandardMaterial({ color: 0x8a7060, roughness: 0.95, metalness: 0.0 });
 
 // Emissive window / LED materials – shared so a single update lights every building
 export const MAT_HOUSING_WINDOW = new THREE.MeshStandardMaterial({
@@ -170,6 +177,78 @@ function createNuclearMesh(): THREE.Group {
 	return group;
 }
 
+function createOfficeMesh(): THREE.Group {
+	const group = new THREE.Group();
+	const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.7), MAT_OFFICE);
+	body.position.y = 0.45;
+	// Window strips on front face
+	const winGeo = new THREE.PlaneGeometry(0.55, 0.06);
+	for (let i = 0; i < 3; i++) {
+		const strip = new THREE.Mesh(winGeo, MAT_DC_WINDOW);
+		strip.position.set(0, 0.25 + i * 0.25, 0.351);
+		group.add(strip);
+	}
+	group.add(body);
+	enableShadows(group);
+	return group;
+}
+
+function createCommercialMesh(): THREE.Group {
+	const group = new THREE.Group();
+	const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, 0.8), MAT_COMMERCIAL);
+	body.position.y = 0.2;
+	// Awning overhang
+	const awning = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.04, 0.25), MAT_CHIMNEY);
+	awning.position.set(0, 0.42, 0.35);
+	group.add(body, awning);
+	enableShadows(group);
+	return group;
+}
+
+function createSchoolMesh(): THREE.Group {
+	const group = new THREE.Group();
+	// L-shaped: main wing + side wing
+	const main = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.45, 0.5), MAT_SCHOOL);
+	main.position.set(0, 0.225, 0);
+	const wing = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.5), MAT_SCHOOL);
+	wing.position.set(-0.3, 0.225, -0.45);
+	group.add(main, wing);
+	enableShadows(group);
+	return group;
+}
+
+function createLeisureMesh(): THREE.Group {
+	const group = new THREE.Group();
+	const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.5, 16), MAT_LEISURE);
+	body.position.y = 0.25;
+	// Small sign plane on front
+	const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.12), MAT_DC_WINDOW);
+	sign.position.set(0, 0.45, 0.451);
+	group.add(body, sign);
+	enableShadows(group);
+	return group;
+}
+
+function createParkMesh(): THREE.Group {
+	const group = new THREE.Group();
+	// Ground disc
+	const ground = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.02, 16), MAT_PARK_GROUND);
+	ground.position.y = 0.01;
+	// Small tree
+	const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.3, 6), MAT_PARK_TRUNK);
+	trunk.position.set(0.1, 0.17, 0.05);
+	const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.35, 8), MAT_PARK_TREE);
+	canopy.position.set(0.1, 0.5, 0.05);
+	// Second smaller tree
+	const trunk2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.22, 6), MAT_PARK_TRUNK);
+	trunk2.position.set(-0.2, 0.13, -0.1);
+	const canopy2 = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.25, 8), MAT_PARK_TREE);
+	canopy2.position.set(-0.2, 0.38, -0.1);
+	group.add(ground, trunk, canopy, trunk2, canopy2);
+	enableShadows(group);
+	return group;
+}
+
 export type BuildingType =
 	| 'housing'
 	| 'dataCentre'
@@ -177,7 +256,12 @@ export type BuildingType =
 	| 'wind'
 	| 'gas'
 	| 'coal'
-	| 'nuclear';
+	| 'nuclear'
+	| 'office'
+	| 'commercial'
+	| 'school'
+	| 'leisure'
+	| 'park';
 
 const MESH_CREATORS: Record<BuildingType, () => THREE.Group> = {
 	housing: createHousingMesh,
@@ -187,6 +271,11 @@ const MESH_CREATORS: Record<BuildingType, () => THREE.Group> = {
 	gas: createGasMesh,
 	coal: createCoalMesh,
 	nuclear: createNuclearMesh,
+	office: createOfficeMesh,
+	commercial: createCommercialMesh,
+	school: createSchoolMesh,
+	leisure: createLeisureMesh,
+	park: createParkMesh,
 };
 
 export function createBuildingMesh(type: BuildingType): THREE.Group {
@@ -226,6 +315,16 @@ export function buildingTypeFromSimEntity(entity: SimEntity): BuildingType {
 			return 'dataCentre';
 		case EntityType.EnergyPlant:
 			return entity.fuelType as BuildingType;
+		case EntityType.Office:
+			return 'office';
+		case EntityType.Commercial:
+			return 'commercial';
+		case EntityType.School:
+			return 'school';
+		case EntityType.Leisure:
+			return 'leisure';
+		case EntityType.Park:
+			return 'park';
 		default:
 			return 'housing';
 	}
@@ -248,6 +347,16 @@ export function simEntityTypeFromBuildingType(bt: BuildingType): { entityType: s
 			return { entityType: EntityType.EnergyPlant, fuelType: FuelType.Coal };
 		case 'nuclear':
 			return { entityType: EntityType.EnergyPlant, fuelType: FuelType.Nuclear };
+		case 'office':
+			return { entityType: EntityType.Office };
+		case 'commercial':
+			return { entityType: EntityType.Commercial };
+		case 'school':
+			return { entityType: EntityType.School };
+		case 'leisure':
+			return { entityType: EntityType.Leisure };
+		case 'park':
+			return { entityType: EntityType.Park };
 	}
 }
 
@@ -259,6 +368,11 @@ export const BUILDING_LABELS: Record<BuildingType, string> = {
 	gas: 'Gas Plant',
 	coal: 'Coal Plant',
 	nuclear: 'Nuclear Plant',
+	office: 'Office',
+	commercial: 'Commercial',
+	school: 'School',
+	leisure: 'Leisure',
+	park: 'Park',
 };
 
 // ── Night-time building lights ───────────────────────────────

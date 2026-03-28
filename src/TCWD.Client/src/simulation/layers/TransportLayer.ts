@@ -1,8 +1,5 @@
-import type { Entity } from '../entities/types.ts';
-import type { ClockState } from '../engine/Clock.ts';
-import type { SimulationConfig } from '../config/types.ts';
 import type { TransportMetrics } from '../metrics/types.ts';
-import type { Layer, LayerOutputMap } from './Layer.ts';
+import type { Layer } from './Layer.ts';
 
 // ── Transport Layer (stub) ──────────────────────────────────
 
@@ -11,12 +8,7 @@ import type { Layer, LayerOutputMap } from './Layer.ts';
  * transport simulation is implemented.
  */
 export class TransportLayer implements Layer<TransportMetrics> {
-	compute(
-		_entities: readonly Entity[],
-		_clock: ClockState,
-		_config: SimulationConfig,
-		_upstreamOutputs: LayerOutputMap,
-	): TransportMetrics {
+	compute(): TransportMetrics {
 		return {
 			totalPassengersPerHour: 0,
 			averageCommuteMins: 0,
