@@ -58,7 +58,7 @@ const ROLE_DEFAULTS: Record<MaterialRole, { color: number; roughness: number; me
 	ground:    { color: Palette.ground,    roughness: 1.0, metalness: 0.0 },
 	glass:     { color: 0xffffff,          roughness: 1.0, metalness: 0.0 },   // matte white
 	metal:     { color: 0xffffff,          roughness: 1.0, metalness: 0.0 },   // matte white
-	foliage:   { color: 0xd0d0d0,          roughness: 0.95, metalness: 0.0 },  // neutral gray
+	foliage:   { color: 0xb8d8b8,          roughness: 0.95, metalness: 0.0 },  // pastel green
 	custom:    { color: Palette.structure,  roughness: 1.0, metalness: 0.0 },
 };
 
@@ -157,6 +157,7 @@ export class MaterialRegistry {
 			// Clone so each mesh instance has its own material
 			const baseMat = this.get(materialKey);
 			const cloned = baseMat.clone();
+			cloned.side = THREE.DoubleSide;
 			patchMaterialUniforms(cloned);
 			this.clonedMaterials.add(cloned);
 

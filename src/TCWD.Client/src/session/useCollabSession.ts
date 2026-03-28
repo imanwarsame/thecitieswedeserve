@@ -4,8 +4,25 @@ import { createSession } from './api';
 import { events } from '../core/Events';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? '';
+const STORAGE_KEY = 'tcwd-collab-session';
 
 export type CollabRole = 'creator' | 'collaborator';
+
+function saveSession(sessionId: string, role: CollabRole) {
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId, role }));
+}
+
+function loadSession(): { sessionId: string; role: CollabRole } | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function clearSession() {
+  sessionStorage.removeItem(STORAGE_KEY);
+}
 
 export interface UserInfo {
   id: string;
@@ -72,6 +89,7 @@ export function useCollabSession() {
     });
 
     socket.on('session-closed', () => {
+      clearSession();
       setState({
         active: false, sessionId: null, role: null,
         shareUrl: null, users: [], me: null, error: 'Session ended by creator.',
@@ -143,6 +161,7 @@ export function useCollabSession() {
     socket.connect();
     socket.emit('create-session', session.sessionId);
     wireLocalEvents(socket);
+    saveSession(session.sessionId, 'creator');
   }, [getSocket, setupListeners, wireLocalEvents]);
 
   const joinCollab = useCallback((sessionId: string) => {
@@ -150,6 +169,16 @@ export function useCollabSession() {
     setupListeners(socket, 'collaborator');
     socket.connect();
     socket.emit('join-session', sessionId);
+    wireLocalEvents(socket);
+    saveSession(sessionId, 'collaborator');
+  }, [getSocket, setupListeners, wireLocalEvents]);
+
+  // Rejoin creator session (after refresh)
+  const rejoinCollab = useCallback((sessionId: string) => {
+    const socket = getSocket();
+    setupListeners(socket, 'creator');
+    socket.connect();
+    socket.emit('rejoin-session', sessionId);
     wireLocalEvents(socket);
   }, [getSocket, setupListeners, wireLocalEvents]);
 
@@ -161,7 +190,7 @@ export function useCollabSession() {
       socket.disconnect();
       socketRef.current = null;
     }
-    // Navigate back to root
+    clearSession();
     window.history.replaceState(null, '', '/');
     setState({
       active: false, sessionId: null, role: null,
@@ -177,6 +206,21 @@ export function useCollabSession() {
   const sendCursor = useCallback((x: number, y: number, z: number) => {
     socketRef.current?.emit('cursor-move', { x, y, z });
   }, []);
+
+  // Auto-rejoin saved session on mount (handles page refresh)
+  const autoRejoinedRef = useRef(false);
+  useEffect(() => {
+    if (autoRejoinedRef.current) return;
+    const saved = loadSession();
+    if (!saved) return;
+    autoRejoinedRef.current = true;
+
+    if (saved.role === 'creator') {
+      rejoinCollab(saved.sessionId);
+    } else {
+      joinCollab(saved.sessionId);
+    }
+  }, [rejoinCollab, joinCollab]);
 
   useEffect(() => {
     return () => {
