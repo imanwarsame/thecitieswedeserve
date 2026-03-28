@@ -5,15 +5,14 @@ import { Lighting } from './Lighting';
 import { Environment } from './Environment';
 import { CelestialBodies } from './CelestialBodies';
 import { Palette } from '../rendering/Palette';
-import { createStructureMaterial, createDetailMaterial, createAccentMaterial } from '../rendering/Materials';
 import type { MaterialRegistry } from '../rendering/MaterialRegistry';
 import { WorldClock } from '../gameplay/WorldClock';
 import { AssetManager } from '../assets/AssetManager';
 import type { ModelFactory } from '../assets/ModelFactory';
-import { AssetCatalog, getPreloadEntries } from '../assets/AssetCatalog';
+
 import type { GeometryFactory } from '../geometry/GeometryFactory';
 import { EntityManager } from '../entities/EntityManager';
-import { Entity } from '../entities/Entity';
+
 import { GridHighlighter } from '../grid/GridHighlighter';
 import { GridPlacement } from '../grid/GridPlacement';
 import type { BuiltGrid } from '../grid/GridBuilder';
@@ -64,6 +63,7 @@ export class GameScene {
 
 		this.terrain.init(this.graph, this.grid);
 		this.lighting.init(this.graph);
+		this.lighting.setCelestialBodies(this.celestialBodies);
 		this.environment.init(this.root);
 		this.celestialBodies.init(this.graph);
 
@@ -71,8 +71,6 @@ export class GameScene {
 		for (const obj of this.gridHighlighter.getObjects()) {
 			this.graph.addToGroup('effects', obj);
 		}
-
-		this.spawnTestEntities();
 
 		console.log('[GameScene] Initialized.');
 	}
@@ -150,63 +148,5 @@ export class GameScene {
 		this.entityManager.clear();
 		this.graph.dispose();
 		console.log('[GameScene] Disposed.');
-	}
-
-	private spawnTestEntities(): void {
-		if (AssetCatalog.length > 0) {
-			this.spawnCatalogEntities();
-		} else {
-			this.spawnTestCubes();
-		}
-
-		console.log(`[GameScene] Spawned ${this.entityManager.count()} test entities on grid cells.`);
-	}
-
-	private spawnCatalogEntities(): void {
-		const preloadEntries = getPreloadEntries();
-		const testCells = this.grid.query.findNearestCells(0, 0, Math.min(preloadEntries.length, 5));
-
-		for (let i = 0; i < testCells.length && i < preloadEntries.length; i++) {
-			const entry = preloadEntries[i];
-			const cell = testCells[i];
-			const worldPos = this.gridPlacement.getCellWorldPosition(cell.index, 0.5);
-			if (!worldPos) continue;
-
-			this.entityManager.spawnFromCatalog(entry.id, worldPos, this.modelFactory, {
-				cellIndex: cell.index,
-			});
-			this.gridPlacement.occupyCell(cell.index);
-		}
-	}
-
-	private spawnTestCubes(): void {
-		const materials = [
-			createStructureMaterial(),
-			createDetailMaterial(),
-			createAccentMaterial(),
-		];
-
-		const testCells = this.grid.query.findNearestCells(0, 0, 3);
-
-		for (let i = 0; i < testCells.length; i++) {
-			const cell = testCells[i];
-			const worldPos = this.gridPlacement.getCellWorldPosition(cell.index, 0.5);
-			if (!worldPos) continue;
-
-			const geometry = new THREE.BoxGeometry(1, 1, 1);
-			const mesh = new THREE.Mesh(geometry, materials[i]);
-			mesh.castShadow = true;
-			mesh.receiveShadow = true;
-
-			const entity = new Entity({
-				name: `test-cube-${i}`,
-				mesh,
-				position: worldPos,
-				cellIndex: cell.index,
-			});
-
-			this.gridPlacement.occupyCell(cell.index);
-			this.entityManager.spawn(entity);
-		}
 	}
 }
