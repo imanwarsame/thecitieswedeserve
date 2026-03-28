@@ -21,7 +21,7 @@ const MAT_GAS = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.8
 const MAT_COAL = new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.9, metalness: 0.05, fog: false });
 const MAT_NUCLEAR = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.7, metalness: 0.15, fog: false });
 const MAT_CHIMNEY = new THREE.MeshStandardMaterial({ color: 0x686868, roughness: 0.85, metalness: 0.1, fog: false });
-const MAT_OFFICE = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.6, metalness: 0.15, fog: false });
+const MAT_OFFICE = new THREE.MeshStandardMaterial({ color: 0xf0e6a0, roughness: 0.7, metalness: 0.05, fog: false });
 const MAT_COMMERCIAL = new THREE.MeshStandardMaterial({ color: 0xb8a898, roughness: 0.75, metalness: 0.05, fog: false });
 const MAT_SCHOOL = new THREE.MeshStandardMaterial({ color: 0xd0c8b8, roughness: 0.8, metalness: 0.0, fog: false });
 const MAT_LEISURE = new THREE.MeshStandardMaterial({ color: 0x9898b0, roughness: 0.7, metalness: 0.1, fog: false });
@@ -434,10 +434,78 @@ function createDataCentreCellMesh(cell: VoronoiCell): THREE.Group {
 	return group;
 }
 
+function createOfficeCellMesh(cell: VoronoiCell): THREE.Group {
+	const height = 4;
+	const group = new THREE.Group();
+
+	const base = new THREE.Mesh(createCellExtrudedGeometry(cell, height), MAT_OFFICE);
+	base.castShadow = true;
+	base.receiveShadow = true;
+	group.add(base);
+
+	// Window strips on the front-facing wall
+	const winGeo = new THREE.PlaneGeometry(1.2, 0.2);
+	for (let i = 0; i < 3; i++) {
+		const strip = new THREE.Mesh(winGeo, MAT_DC_WINDOW);
+		strip.position.set(0, 0.8 + i * 1.1, 2.5);
+		group.add(strip);
+	}
+
+	return group;
+}
+
+function createParkCellMesh(cell: VoronoiCell): THREE.Group {
+	const group = new THREE.Group();
+
+	// Grass ground — thin extruded cell
+	const ground = new THREE.Mesh(createCellExtrudedGeometry(cell, 0.15), MAT_PARK_GROUND);
+	ground.receiveShadow = true;
+	group.add(ground);
+
+	// Scatter trees within the cell using vertex positions as guides
+	const cx = cell.center.x;
+	const cz = cell.center.y;
+	const verts = cell.vertices;
+
+	// Place trees at midpoints between center and each vertex (fits any cell shape)
+	const treeCount = Math.min(verts.length, 5);
+	for (let i = 0; i < treeCount; i++) {
+		const v = verts[i];
+		const tx = (v.x - cx) * 0.55;
+		const tz = (v.y - cz) * 0.55;
+
+		// Vary tree sizes
+		const scale = 0.7 + (i % 3) * 0.25;
+		const trunkH = 1.2 * scale;
+		const canopyR = 0.8 * scale;
+		const canopyH = 1.6 * scale;
+
+		const trunk = new THREE.Mesh(
+			new THREE.CylinderGeometry(0.12 * scale, 0.18 * scale, trunkH, 6),
+			MAT_PARK_TRUNK,
+		);
+		trunk.position.set(tx, 0.15 + trunkH / 2, tz);
+		trunk.castShadow = true;
+
+		const canopy = new THREE.Mesh(
+			new THREE.ConeGeometry(canopyR, canopyH, 8),
+			MAT_PARK_TREE,
+		);
+		canopy.position.set(tx, 0.15 + trunkH + canopyH * 0.35, tz);
+		canopy.castShadow = true;
+
+		group.add(trunk, canopy);
+	}
+
+	return group;
+}
+
 const CELL_MESH_CREATORS: Partial<Record<BuildingType, (cell: VoronoiCell) => THREE.Group>> = {
 	nuclear: createNuclearCellMesh,
 	gas: createGasCellMesh,
 	dataCentre: createDataCentreCellMesh,
+	office: createOfficeCellMesh,
+	park: createParkCellMesh,
 };
 
 /** Map of BuildingType → AssetCatalog id for GLB-based models. */

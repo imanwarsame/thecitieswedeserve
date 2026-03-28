@@ -58,6 +58,7 @@ export class Engine {
 	private _placementMode: BuildingType | null = null;
 	/** Tint applied to the next housing placement at the clicked cell. */
 	private _housingColor = HOUSING_COLORS[0].hex;
+	private onDeleteKey: (e: KeyboardEvent) => void = () => {};
 
 	constructor() {
 		this.renderer = new Renderer();
@@ -212,6 +213,20 @@ export class Engine {
 		});
 		this.resizeObserver.observe(canvas);
 
+		// Delete/Backspace removes selected Forma mesh
+		this.onDeleteKey = (e: KeyboardEvent) => {
+			if (e.key === 'Delete' || e.key === 'Backspace') {
+				const selected = this.selectionManager.getSelected();
+				if (selected && selected instanceof THREE.Mesh) {
+					selected.geometry.dispose();
+					if (selected.parent) selected.parent.remove(selected);
+					this.selectionManager.clearSelection();
+					console.log(`[Engine] Deleted mesh: ${selected.name || '(unnamed)'}`);
+				}
+			}
+		};
+		window.addEventListener('keydown', this.onDeleteKey);
+
 		console.log('[Engine] Initialized.');
 	}
 
@@ -232,6 +247,7 @@ export class Engine {
 		this.input?.dispose();
 		this.cameraController?.dispose();
 		this.resizeObserver?.disconnect();
+		window.removeEventListener('keydown', this.onDeleteKey);
 		this.sceneManager.dispose();
 		this.materialRegistry?.dispose();
 		this.assetManager.dispose();
@@ -465,42 +481,40 @@ export class Engine {
 				}
 			}
 
-			// Shift+Click: remove a Forma model mesh under cursor
-			if (this.input.shiftDown && this.input.consumeClick()) {
-				this.raycaster.setFromCamera(this.input.mouse, camera);
-				gameScene.removeFormaMeshAt(this.raycaster);
-				return;
-			}
-
-			// Click
-			if (this.input.consumeClick() && cell) {
-				if (this._placementMode) {
-					if (this._placementMode === 'housing') {
-						// Housing placement mode — place or stack
-						const hasHousing = this.housingSystem.hasHousing(cellIndex);
-						const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
-						if (isFree || hasHousing) {
-							this.housingSystem.setHousingColor(cellIndex, this._housingColor);
-							this.housingController.setAction('build');
-							events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
-							this.forceSelectCell(cellIndex);
-							return;
-						}
-					} else {
-						// Non-housing placement (solar, wind, etc.)
-						const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
-						if (placed) this.forceSelectCell(cellIndex);
-						return;
-					}
+			// Click — Forma mesh selection takes priority over grid cell
+			if (this.input.consumeClick()) {
+				const hoveredMesh = this.selectionManager.getHovered();
+				if (hoveredMesh) {
+					this.selectionManager.setSelected(hoveredMesh);
+					return;
 				}
 
-				// No placement mode — select/deselect
-				const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
-				events.emit('grid:cellClicked', { cellIndex, cell, entity });
-				if (this.selectedCellIndex === cellIndex) {
-					this.deselectCell();
-				} else {
-					this.selectCell(cellIndex);
+				if (cell) {
+					if (this._placementMode) {
+						if (this._placementMode === 'housing') {
+							const hasHousing = this.housingSystem.hasHousing(cellIndex);
+							const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
+							if (isFree || hasHousing) {
+								this.housingSystem.setHousingColor(cellIndex, this._housingColor);
+								this.housingController.setAction('build');
+								events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
+								this.forceSelectCell(cellIndex);
+								return;
+							}
+						} else {
+							const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+							if (placed) this.forceSelectCell(cellIndex);
+							return;
+						}
+					}
+
+					const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
+					events.emit('grid:cellClicked', { cellIndex, cell, entity });
+					if (this.selectedCellIndex === cellIndex) {
+						this.deselectCell();
+					} else {
+						this.selectCell(cellIndex);
+					}
 				}
 			}
 		} else {
