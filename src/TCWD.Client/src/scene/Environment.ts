@@ -1,42 +1,43 @@
 import * as THREE from 'three';
 import { EngineConfig } from '../app/config';
+import { Palette } from '../rendering/Palette';
+import { radialFogUniforms } from '../rendering/RadialFog';
 import { WorldClock } from '../gameplay/WorldClock';
 
 interface EnvironmentPreset {
 	backgroundColor: number;
 	fogColor: number;
-	fogNear: number;
-	fogFar: number;
+	fogInnerRadius: number;
+	fogOuterRadius: number;
 }
 
 const presets: Record<string, EnvironmentPreset> = {
 	day: {
-		backgroundColor: 0x87ceeb,
-		fogColor: 0xc8d8e4,
-		fogNear: 50,
-		fogFar: 200,
+		backgroundColor: Palette.background,
+		fogColor: Palette.fog,
+		fogInnerRadius: 30,
+		fogOuterRadius: 120,
 	},
 	sunset: {
-		backgroundColor: 0xff6b35,
-		fogColor: 0xe8a87c,
-		fogNear: 40,
-		fogFar: 150,
+		backgroundColor: 0xc8c8c8,
+		fogColor: 0xbababa,
+		fogInnerRadius: 25,
+		fogOuterRadius: 100,
 	},
 	night: {
-		backgroundColor: 0x0a0a2e,
-		fogColor: 0x1a1a3e,
-		fogNear: 20,
-		fogFar: 100,
+		backgroundColor: 0x404048,
+		fogColor: 0x484850,
+		fogInnerRadius: 15,
+		fogOuterRadius: 60,
 	},
 	foggy: {
-		backgroundColor: 0x9e9e9e,
-		fogColor: 0xaaaaaa,
-		fogNear: 10,
-		fogFar: 60,
+		backgroundColor: 0xb0b0b0,
+		fogColor: 0xb8b8b8,
+		fogInnerRadius: 10,
+		fogOuterRadius: 50,
 	},
 };
 
-// Time-of-day keyframes: [hour, presetName]
 const TIME_PRESETS: { hour: number; preset: string }[] = [
 	{ hour: 0, preset: 'night' },
 	{ hour: 5, preset: 'night' },
@@ -56,12 +57,10 @@ const _colorResult = new THREE.Color();
 
 export class Environment {
 	private scene!: THREE.Scene;
-	private fog!: THREE.Fog;
 	private fogEnabled: boolean;
 	private currentPresetName: string;
 	private worldClock: WorldClock | null = null;
 
-	// Transition state
 	private transitioning = false;
 	private transitionFrom!: EnvironmentPreset;
 	private transitionTo!: EnvironmentPreset;
@@ -76,9 +75,10 @@ export class Environment {
 	init(scene: THREE.Scene): void {
 		this.scene = scene;
 
-		this.fog = new THREE.Fog(0xc8d8e4, 50, 200);
+		// Use a dummy THREE.Fog so that materials compile with USE_FOG defined.
+		// Actual fog calculation is done by our custom shader chunks in RadialFog.ts.
 		if (this.fogEnabled) {
-			this.scene.fog = this.fog;
+			this.scene.fog = new THREE.Fog(Palette.fog, 9999, 10000);
 		}
 
 		this.setPreset(this.currentPresetName);
@@ -87,6 +87,11 @@ export class Environment {
 
 	setWorldClock(clock: WorldClock): void {
 		this.worldClock = clock;
+	}
+
+	/** Update the world-space fog center point (should track camera target) */
+	setFogCenter(position: THREE.Vector3): void {
+		radialFogUniforms.fogCenter.value.copy(position);
 	}
 
 	update(_delta: number): void {
@@ -127,7 +132,16 @@ export class Environment {
 
 	setFogEnabled(enabled: boolean): void {
 		this.fogEnabled = enabled;
-		this.scene.fog = enabled ? this.fog : null;
+		if (enabled) {
+			this.scene.fog = new THREE.Fog(Palette.fog, 9999, 10000);
+		} else {
+			this.scene.fog = null;
+		}
+	}
+
+	setFogRadii(inner: number, outer: number): void {
+		radialFogUniforms.fogInnerRadius.value = inner;
+		radialFogUniforms.fogOuterRadius.value = outer;
 	}
 
 	getCurrentPreset(): string {
@@ -137,7 +151,6 @@ export class Environment {
 	private updateFromWorldClock(): void {
 		const hour = this.worldClock!.getHour();
 
-		// Find surrounding keyframes
 		let lower = TIME_PRESETS[0];
 		let upper = TIME_PRESETS[1];
 
@@ -169,9 +182,9 @@ export class Environment {
 
 	private applyPreset(preset: EnvironmentPreset): void {
 		(this.scene.background as THREE.Color).set(preset.backgroundColor);
-		this.fog.color.set(preset.fogColor);
-		this.fog.near = preset.fogNear;
-		this.fog.far = preset.fogFar;
+		radialFogUniforms.fogColor.value.set(preset.fogColor);
+		radialFogUniforms.fogInnerRadius.value = preset.fogInnerRadius;
+		radialFogUniforms.fogOuterRadius.value = preset.fogOuterRadius;
 	}
 
 	private applyInterpolated(a: EnvironmentPreset, b: EnvironmentPreset, t: number): void {
@@ -183,18 +196,18 @@ export class Environment {
 		_colorA.set(a.fogColor);
 		_colorB.set(b.fogColor);
 		_colorResult.copy(_colorA).lerp(_colorB, t);
-		this.fog.color.copy(_colorResult);
+		radialFogUniforms.fogColor.value.copy(_colorResult);
 
-		this.fog.near = THREE.MathUtils.lerp(a.fogNear, b.fogNear, t);
-		this.fog.far = THREE.MathUtils.lerp(a.fogFar, b.fogFar, t);
+		radialFogUniforms.fogInnerRadius.value = THREE.MathUtils.lerp(a.fogInnerRadius, b.fogInnerRadius, t);
+		radialFogUniforms.fogOuterRadius.value = THREE.MathUtils.lerp(a.fogOuterRadius, b.fogOuterRadius, t);
 	}
 
 	private captureCurrentState(): EnvironmentPreset {
 		return {
 			backgroundColor: (this.scene.background as THREE.Color).getHex(),
-			fogColor: this.fog.color.getHex(),
-			fogNear: this.fog.near,
-			fogFar: this.fog.far,
+			fogColor: radialFogUniforms.fogColor.value.getHex(),
+			fogInnerRadius: radialFogUniforms.fogInnerRadius.value,
+			fogOuterRadius: radialFogUniforms.fogOuterRadius.value,
 		};
 	}
 }

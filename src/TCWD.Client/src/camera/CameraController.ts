@@ -76,6 +76,27 @@ export class CameraController {
 		this.zoomEnabled = enabled;
 	}
 
+	/** Returns the ground-plane point the camera is looking at (fog center) */
+	getTargetPosition(): THREE.Vector3 {
+		// The camera target in world space: project from camera position
+		// along the isometric direction to the ground plane (y=0)
+		const camera = this.isoCamera.getCamera();
+		const dir = new THREE.Vector3();
+		camera.getWorldDirection(dir);
+
+		if (Math.abs(dir.y) > 0.001) {
+			const t = -camera.position.y / dir.y;
+			return new THREE.Vector3(
+				camera.position.x + dir.x * t,
+				0,
+				camera.position.z + dir.z * t,
+			);
+		}
+
+		// Fallback: just project xz from camera position
+		return new THREE.Vector3(camera.position.x, 0, camera.position.z);
+	}
+
 	dispose(): void {
 		this.domElement.removeEventListener('pointerdown', this.onPointerDown);
 		this.domElement.removeEventListener('pointermove', this.onPointerMove);

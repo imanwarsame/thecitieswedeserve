@@ -1,39 +1,56 @@
 import * as THREE from 'three';
+import { Palette } from './Palette';
+import { patchMaterialUniforms } from './RadialFog';
 
-interface StandardMaterialOptions {
-	color?: THREE.ColorRepresentation;
-	roughness?: number;
-	metalness?: number;
-	map?: THREE.Texture;
+function withFog<T extends THREE.Material>(material: T): T {
+	patchMaterialUniforms(material);
+	return material;
 }
 
-interface BasicMaterialOptions {
-	color?: THREE.ColorRepresentation;
-	wireframe?: boolean;
-	transparent?: boolean;
-	opacity?: number;
+export function createGroundMaterial(): THREE.MeshLambertMaterial {
+	return withFog(new THREE.MeshLambertMaterial({
+		color: Palette.ground,
+	}));
 }
 
-export function createStandardMaterial(options: StandardMaterialOptions = {}): THREE.MeshStandardMaterial {
-	return new THREE.MeshStandardMaterial({
-		color: options.color ?? 0x888888,
-		roughness: options.roughness ?? 0.8,
-		metalness: options.metalness ?? 0.0,
-		map: options.map,
-	});
+export function createStructureMaterial(): THREE.MeshStandardMaterial {
+	return withFog(new THREE.MeshStandardMaterial({
+		color: Palette.structure,
+		roughness: 0.9,
+		metalness: 0.0,
+	}));
 }
 
-export function createBasicMaterial(options: BasicMaterialOptions = {}): THREE.MeshBasicMaterial {
-	return new THREE.MeshBasicMaterial({
-		color: options.color ?? 0x888888,
-		wireframe: options.wireframe ?? false,
-		transparent: options.transparent ?? false,
-		opacity: options.opacity ?? 1.0,
-	});
+export function createDetailMaterial(): THREE.MeshStandardMaterial {
+	return withFog(new THREE.MeshStandardMaterial({
+		color: Palette.detail,
+		roughness: 0.85,
+		metalness: 0.0,
+	}));
+}
+
+export function createAccentMaterial(): THREE.MeshLambertMaterial {
+	return withFog(new THREE.MeshLambertMaterial({
+		color: Palette.accent,
+	}));
 }
 
 export const MaterialPresets = {
-	default: () => createStandardMaterial(),
-	terrain: () => createStandardMaterial({ color: 0x2d5a27, roughness: 0.9 }),
-	debugWireframe: () => createBasicMaterial({ color: 0x00ff00, wireframe: true }),
+	ground: createGroundMaterial,
+	structure: createStructureMaterial,
+	detail: createDetailMaterial,
+	accent: createAccentMaterial,
+	debugWireframe: () => new THREE.MeshBasicMaterial({
+		color: 0x888888,
+		wireframe: true,
+	}),
 };
+
+/** Replace all materials on a model with monochrome structure material */
+export function applyMonochromeMaterials(object: THREE.Object3D): void {
+	object.traverse((child) => {
+		if (child instanceof THREE.Mesh) {
+			child.material = createStructureMaterial();
+		}
+	});
+}
