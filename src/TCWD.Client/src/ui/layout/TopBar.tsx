@@ -1,28 +1,65 @@
 import { useWorldClock } from '../hooks/useWorldClock';
+import { useTimeController } from '../hooks/useTimeController';
 import { EnergyDashboard } from '../controls/EnergyDashboard';
 import { CityDashboard } from '../controls/CityDashboard';
-import { SeasonControls } from '../controls/SeasonControls';
+import { formatWorldHour } from '../utils/formatWorldHour';
+import { Play, Pause, Clock } from 'lucide-react';
 import styles from './TopBar.module.css';
 
-function formatHour(hour: number): string {
-	const h = Math.floor(hour);
-	const m = Math.floor((hour - h) * 60);
-	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
+const SPEED_PRESETS = [
+	{ label: 'x1', value: 1 },
+	{ label: 'x2', value: 2 },
+	{ label: 'x4', value: 4 },
+];
 
 export function TopBar() {
 	const { hour, phase, dayCount } = useWorldClock();
+	const { paused, speed, tc } = useTimeController();
 
 	return (
-		<div className={styles.bar}>
-			<span className={styles.time}>{formatHour(hour)}</span>
-			<span className={styles.separator} />
-			<span>{phase}</span>
-			<span className={styles.separator} />
-			<span>Day {dayCount + 1}</span>
-			<SeasonControls />
-			<EnergyDashboard />
-			<CityDashboard />
-		</div>
+		<>
+			{/* Left panel — time info + controls */}
+			<div className={styles.panelLeft}>
+				<button
+					className={styles.iconBtn}
+					onClick={() => paused ? tc.play() : tc.pause()}
+					title={paused ? 'Play (Space)' : 'Pause (Space)'}
+				>
+					{paused
+						? <Play size={12} strokeWidth={2.2} />
+						: <Pause size={12} strokeWidth={2.2} />
+					}
+				</button>
+
+				<div className={styles.speeds}>
+					{SPEED_PRESETS.map(p => (
+						<button
+							key={p.label}
+							className={`${styles.speedBtn} ${speed === p.value && !paused ? styles.speedActive : ''}`}
+							onClick={() => { tc.play(); tc.setSpeed(p.value); }}
+						>
+							{p.label}
+						</button>
+					))}
+				</div>
+
+				<span className={styles.sep} />
+
+				<span className={styles.clock}>
+					<Clock size={10} strokeWidth={2} />
+					{formatWorldHour(hour)}
+				</span>
+
+				<span className={styles.phase}>{phase}</span>
+
+				<span className={styles.day}>D{dayCount + 1}</span>
+			</div>
+
+			{/* Right panel — dashboards */}
+			<div className={styles.panelRight}>
+				<EnergyDashboard />
+				<CityDashboard />
+			</div>
+		</>
 	);
 }

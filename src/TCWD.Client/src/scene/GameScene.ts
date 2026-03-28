@@ -5,9 +5,15 @@ import { Lighting } from './Lighting';
 import { Environment } from './Environment';
 import { CelestialBodies } from './CelestialBodies';
 import { Palette } from '../rendering/Palette';
+import { createStructureMaterial, createDetailMaterial, createAccentMaterial } from '../rendering/Materials';
+import type { MaterialRegistry } from '../rendering/MaterialRegistry';
 import { WorldClock } from '../gameplay/WorldClock';
 import { AssetManager } from '../assets/AssetManager';
+import type { ModelFactory } from '../assets/ModelFactory';
+import { AssetCatalog, getPreloadEntries } from '../assets/AssetCatalog';
+import type { GeometryFactory } from '../geometry/GeometryFactory';
 import { EntityManager } from '../entities/EntityManager';
+import { Entity } from '../entities/Entity';
 import { GridHighlighter } from '../grid/GridHighlighter';
 import { GridPlacement } from '../grid/GridPlacement';
 import type { BuiltGrid } from '../grid/GridBuilder';
@@ -22,12 +28,15 @@ export class GameScene {
 	private environment: Environment;
 	private celestialBodies: CelestialBodies;
 	private assetManager: AssetManager;
+	private materialRegistry: MaterialRegistry;
+	private modelFactory: ModelFactory;
+	private geometryFactory: GeometryFactory;
 	private entityManager!: EntityManager;
 	private grid: BuiltGrid;
 	private gridHighlighter: GridHighlighter;
 	private gridPlacement: GridPlacement;
 
-	constructor(assetManager: AssetManager, grid: BuiltGrid) {
+	constructor(assetManager: AssetManager, grid: BuiltGrid, materialRegistry: MaterialRegistry, modelFactory: ModelFactory, geometryFactory: GeometryFactory) {
 		this.root = new THREE.Scene();
 		this.root.background = new THREE.Color(Palette.background);
 
@@ -37,6 +46,9 @@ export class GameScene {
 		this.environment = new Environment();
 		this.celestialBodies = new CelestialBodies();
 		this.assetManager = assetManager;
+		this.materialRegistry = materialRegistry;
+		this.modelFactory = modelFactory;
+		this.geometryFactory = geometryFactory;
 		this.grid = grid;
 		this.gridHighlighter = new GridHighlighter();
 		this.gridPlacement = new GridPlacement(grid);
@@ -48,6 +60,7 @@ export class GameScene {
 		}
 
 		this.entityManager = new EntityManager(this.graph.getGroup('entity'));
+		this.entityManager.setMaterialRegistry(this.materialRegistry);
 
 		this.terrain.init(this.graph, this.grid);
 		this.lighting.init(this.graph);
@@ -58,6 +71,8 @@ export class GameScene {
 		for (const obj of this.gridHighlighter.getObjects()) {
 			this.graph.addToGroup('effects', obj);
 		}
+
+		this.spawnTestEntities();
 
 		console.log('[GameScene] Initialized.');
 	}
@@ -71,7 +86,7 @@ export class GameScene {
 	update(delta: number): void {
 		this.entityManager.update(delta);
 		this.celestialBodies.update();
-		this.lighting.update(delta, this.celestialBodies.getSunPosition());
+		this.lighting.update(delta);
 		this.environment.update(delta);
 	}
 
@@ -99,6 +114,18 @@ export class GameScene {
 		return this.gridHighlighter;
 	}
 
+	getMaterialRegistry(): MaterialRegistry {
+		return this.materialRegistry;
+	}
+
+	getModelFactory(): ModelFactory {
+		return this.modelFactory;
+	}
+
+	getGeometryFactory(): GeometryFactory {
+		return this.geometryFactory;
+	}
+
 	getGridPlacement(): GridPlacement {
 		return this.gridPlacement;
 	}
@@ -123,5 +150,63 @@ export class GameScene {
 		this.entityManager.clear();
 		this.graph.dispose();
 		console.log('[GameScene] Disposed.');
+	}
+
+	private spawnTestEntities(): void {
+		if (AssetCatalog.length > 0) {
+			this.spawnCatalogEntities();
+		} else {
+			this.spawnTestCubes();
+		}
+
+		console.log(`[GameScene] Spawned ${this.entityManager.count()} test entities on grid cells.`);
+	}
+
+	private spawnCatalogEntities(): void {
+		const preloadEntries = getPreloadEntries();
+		const testCells = this.grid.query.findNearestCells(0, 0, Math.min(preloadEntries.length, 5));
+
+		for (let i = 0; i < testCells.length && i < preloadEntries.length; i++) {
+			const entry = preloadEntries[i];
+			const cell = testCells[i];
+			const worldPos = this.gridPlacement.getCellWorldPosition(cell.index, 0.5);
+			if (!worldPos) continue;
+
+			this.entityManager.spawnFromCatalog(entry.id, worldPos, this.modelFactory, {
+				cellIndex: cell.index,
+			});
+			this.gridPlacement.occupyCell(cell.index);
+		}
+	}
+
+	private spawnTestCubes(): void {
+		const materials = [
+			createStructureMaterial(),
+			createDetailMaterial(),
+			createAccentMaterial(),
+		];
+
+		const testCells = this.grid.query.findNearestCells(0, 0, 3);
+
+		for (let i = 0; i < testCells.length; i++) {
+			const cell = testCells[i];
+			const worldPos = this.gridPlacement.getCellWorldPosition(cell.index, 0.5);
+			if (!worldPos) continue;
+
+			const geometry = new THREE.BoxGeometry(1, 1, 1);
+			const mesh = new THREE.Mesh(geometry, materials[i]);
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
+
+			const entity = new Entity({
+				name: `test-cube-${i}`,
+				mesh,
+				position: worldPos,
+				cellIndex: cell.index,
+			});
+
+			this.gridPlacement.occupyCell(cell.index);
+			this.entityManager.spawn(entity);
+		}
 	}
 }
