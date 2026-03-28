@@ -1,0 +1,10 @@
+.bar {
+	pointer-events: auto;
+	grid-column: 1 / -1;
+	padding: 8px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #f0f0f0;
+	border-top: 1px solid rgba(180, 180, 180, 0.3);
+}
