@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { EntityType, FuelType } from '../types';
 import type { Entity as SimEntity } from '../entities/types';
+import type { ModelFactory, AnimatedModel } from '../../assets/ModelFactory';
 
 /**
  * Creates procedural 3D meshes for simulation entity types.
@@ -148,6 +149,30 @@ const MESH_CREATORS: Record<BuildingType, () => THREE.Group> = {
 
 export function createBuildingMesh(type: BuildingType): THREE.Group {
 	return MESH_CREATORS[type]();
+}
+
+/** Map of BuildingType → AssetCatalog id for GLB-based models. */
+const GLB_MODEL_IDS: Partial<Record<BuildingType, string>> = {
+	wind: 'wind-turbine',
+};
+
+/**
+ * Create a building mesh, preferring a loaded GLB model when available.
+ * Returns an AnimatedModel with a mixer if the model has animations.
+ */
+export function createBuildingModel(
+	type: BuildingType,
+	modelFactory?: ModelFactory,
+): AnimatedModel {
+	const catalogId = GLB_MODEL_IDS[type];
+	if (catalogId && modelFactory) {
+		try {
+			return modelFactory.createAnimated(catalogId);
+		} catch {
+			// Fall back to procedural mesh if asset not loaded
+		}
+	}
+	return { root: MESH_CREATORS[type](), mixer: null };
 }
 
 /** Derive the BuildingType from a simulation entity. */
