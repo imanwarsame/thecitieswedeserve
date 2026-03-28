@@ -19,7 +19,7 @@ const MAT_NUCLEAR = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness:
 const MAT_CHIMNEY = new THREE.MeshStandardMaterial({ color: 0x686868, roughness: 0.85, metalness: 0.1 });
 
 // Emissive window / LED materials – shared so a single update lights every building
-const MAT_HOUSING_WINDOW = new THREE.MeshStandardMaterial({
+export const MAT_HOUSING_WINDOW = new THREE.MeshStandardMaterial({
 	color: 0x332211,
 	roughness: 1.0,
 	metalness: 0.0,
