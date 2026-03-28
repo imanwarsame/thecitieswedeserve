@@ -6,6 +6,7 @@ let nextId = 0;
 export class Entity {
 	readonly id: string;
 	name: string;
+	readonly catalogId?: string;
 	readonly position: THREE.Vector3;
 	readonly rotation: THREE.Euler;
 	readonly scale: THREE.Vector3;
@@ -21,6 +22,7 @@ export class Entity {
 	constructor(options: {
 		id?: string;
 		name?: string;
+		catalogId?: string;
 		mesh?: THREE.Object3D;
 		position?: THREE.Vector3;
 		cellIndex?: number;
@@ -28,6 +30,7 @@ export class Entity {
 	} = {}) {
 		this.id = options.id ?? `entity_${nextId++}`;
 		this.name = options.name ?? this.id;
+		this.catalogId = options.catalogId;
 		this.mesh = options.mesh ?? null;
 		this.position = options.position?.clone() ?? new THREE.Vector3();
 		this.rotation = new THREE.Euler();

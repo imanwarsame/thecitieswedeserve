@@ -8,7 +8,9 @@
       "Bash(ls \"C:\\\\Users\\\\ARZE\\\\github\\\\thecitieswedeserve\\\\src\\\\TCWD.Client\\\\node_modules\\\\three\\\\examples\\\\jsm\\\\loaders\\\\RGBELoader\"*)",
       "Bash(ls \"C:\\\\Users\\\\ARZE\\\\github\\\\thecitieswedeserve\\\\src\\\\TCWD.Client\\\\node_modules\\\\three\\\\src\\\\loaders\\\\UltraHDRLoader\"*)",
       "Bash(find C:UsersARZEgithubthecitieswedeservesrcTCWD.Clientnode_modulesthree -name *HDR* -o -name *RGBE* -o -name *hdr*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }

@@ -70,6 +70,7 @@ export class MaterialRegistry {
 	private materials = new Map<string, THREE.MeshStandardMaterial>();
 	private definitions = new Map<string, MaterialDef>();
 	private presets = new Map<string, MaterialPreset>();
+	private clonedMaterials = new Set<THREE.MeshStandardMaterial>();
 
 	constructor() {
 		// Register built-in materials that match the existing factory functions
@@ -154,6 +155,7 @@ export class MaterialRegistry {
 			const baseMat = this.get(materialKey);
 			const cloned = baseMat.clone();
 			patchMaterialUniforms(cloned);
+			this.clonedMaterials.add(cloned);
 
 			// Dispose the original material(s) from the GLTF
 			if (Array.isArray(child.material)) {
@@ -168,15 +170,44 @@ export class MaterialRegistry {
 		});
 	}
 
+	// ---- Lifecycle --------------------------------------------------------
+
+	/** Dispose all cloned materials on a model (call when removing an entity). */
+	disposeModelMaterials(root: THREE.Object3D): void {
+		root.traverse((child) => {
+			if (!(child instanceof THREE.Mesh)) return;
+			const mats = Array.isArray(child.material) ? child.material : [child.material];
+			for (const mat of mats) {
+				mat.dispose();
+				this.clonedMaterials.delete(mat as THREE.MeshStandardMaterial);
+			}
+		});
+	}
+
+	/** Swap all materials on a model to a new preset without removing it from scene. */
+	swapModelMaterials(root: THREE.Object3D, newPresetName: string): void {
+		this.disposeModelMaterials(root);
+		this.applyToModel(root, newPresetName);
+	}
+
+	/** Get count of active cloned materials (for debug UI). */
+	getClonedCount(): number {
+		return this.clonedMaterials.size;
+	}
+
 	// ---- Cleanup ----------------------------------------------------------
 
 	dispose(): void {
 		for (const mat of this.materials.values()) {
 			mat.dispose();
 		}
+		for (const mat of this.clonedMaterials) {
+			mat.dispose();
+		}
 		this.materials.clear();
 		this.definitions.clear();
 		this.presets.clear();
+		this.clonedMaterials.clear();
 	}
 
 	// ---- Private ----------------------------------------------------------
