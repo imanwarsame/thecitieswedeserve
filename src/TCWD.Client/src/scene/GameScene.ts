@@ -86,7 +86,7 @@ export class GameScene {
 	update(delta: number): void {
 		this.entityManager.update(delta);
 		this.celestialBodies.update();
-		this.lighting.update(delta, this.celestialBodies.getSunPosition());
+		this.lighting.update(delta);
 		this.environment.update(delta);
 	}
 

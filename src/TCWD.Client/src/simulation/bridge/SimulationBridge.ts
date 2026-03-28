@@ -12,6 +12,7 @@ import { EntityManager } from '../../entities/EntityManager';
 import { GridPlacement } from '../../grid/GridPlacement';
 import type { WorldClock } from '../../gameplay/WorldClock';
 import type { ModelFactory } from '../../assets/ModelFactory';
+import type { HousingSystem } from '../../housing/HousingSystem';
 import * as THREE from 'three';
 import {
 	createBuildingModel,
@@ -32,6 +33,7 @@ export class SimulationBridge {
 	private entityManager: EntityManager;
 	private gridPlacement: GridPlacement;
 	private modelFactory?: ModelFactory;
+	private housingSystem?: HousingSystem;
 
 	/** 3D entity id → simulation entity id */
 	private renderToSim = new Map<string, string>();
@@ -41,6 +43,9 @@ export class SimulationBridge {
 	private entityBuildingTypes = new Map<string, BuildingType>();
 	/** 3D entity id → AnimationMixer (for animated GLB models) */
 	private mixers = new Map<string, THREE.AnimationMixer>();
+
+	/** cell index → simulation entity id for WFC-placed housing */
+	private housingSimIds = new Map<number, string>();
 
 	private lastState: SimulationState;
 
@@ -61,6 +66,13 @@ export class SimulationBridge {
 		this.lastState = this.engine.getState();
 
 		events.on('world:hourChanged', this.onHourChanged);
+		events.on('housing:placed', this.onHousingPlaced);
+		events.on('housing:demolished', this.onHousingDemolished);
+	}
+
+	/** Connect the WFC housing system so housing placements register as energy demand. */
+	setHousingSystem(housing: HousingSystem): void {
+		this.housingSystem = housing;
 	}
 
 	// ── Building management ──────────────────────────────────
@@ -176,6 +188,16 @@ export class SimulationBridge {
 		return this.engine.getEntities().find(e => e.id === simId);
 	}
 
+	/** Return world positions for all WFC-placed housing cells (for infrastructure lines). */
+	getHousingPositions(): THREE.Vector3[] {
+		const positions: THREE.Vector3[] = [];
+		for (const cellIndex of this.housingSimIds.keys()) {
+			const pos = this.gridPlacement.getCellWorldPosition(cellIndex, 0);
+			if (pos) positions.push(pos);
+		}
+		return positions;
+	}
+
 	// ── Tick ─────────────────────────────────────────────────
 
 	/** Manually advance the simulation by one tick. */
@@ -196,6 +218,8 @@ export class SimulationBridge {
 
 	dispose(): void {
 		events.off('world:hourChanged', this.onHourChanged);
+		events.off('housing:placed', this.onHousingPlaced);
+		events.off('housing:demolished', this.onHousingDemolished);
 		for (const mixer of this.mixers.values()) {
 			mixer.stopAllAction();
 		}
@@ -206,5 +230,44 @@ export class SimulationBridge {
 
 	private onHourChanged = (): void => {
 		this.tick();
+	};
+
+	/**
+	 * When WFC housing is placed, create or update a simulation HousingEntity
+	 * so the energy layer counts its demand.
+	 */
+	private onHousingPlaced = (data: unknown): void => {
+		const { cellIndex } = data as { cellIndex: number; height: number };
+		if (!this.housingSystem) return;
+
+		const units = this.housingSystem.getHousingUnits(cellIndex);
+		const existingId = this.housingSimIds.get(cellIndex);
+
+		if (existingId) {
+			// Remove the old entity and replace with updated unit count
+			this.engine.removeEntity(existingId);
+		}
+
+		const simEntity = createHousing({ units });
+		this.engine.addEntity(simEntity);
+		this.housingSimIds.set(cellIndex, simEntity.id);
+
+		this.lastState = this.engine.recompute();
+		events.emit('simulation:tick', this.lastState);
+	};
+
+	/**
+	 * When WFC housing is demolished, remove the corresponding simulation entity.
+	 */
+	private onHousingDemolished = (data: unknown): void => {
+		const { cellIndex } = data as { cellIndex: number };
+		const simId = this.housingSimIds.get(cellIndex);
+		if (!simId) return;
+
+		this.engine.removeEntity(simId);
+		this.housingSimIds.delete(cellIndex);
+
+		this.lastState = this.engine.recompute();
+		events.emit('simulation:tick', this.lastState);
 	};
 }

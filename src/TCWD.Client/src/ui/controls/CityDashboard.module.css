@@ -1,0 +1,42 @@
+.dashboard {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 0 16px;
+	font-size: 11px;
+	font-family: ui-monospace, Consolas, monospace;
+	color: rgba(80, 80, 80, 0.7);
+}
+
+.metric {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+}
+
+.label {
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: rgba(80, 80, 80, 0.45);
+}
+
+.value {
+	font-size: 11px;
+	color: rgba(40, 40, 40, 0.8);
+}
+
+.warn {
+	color: rgba(160, 60, 60, 0.8);
+}
+
+.ok {
+	color: rgba(60, 120, 60, 0.8);
+}
+
+.separator {
+	width: 1px;
+	height: 14px;
+	background: rgba(160, 160, 160, 0.3);
+}

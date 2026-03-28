@@ -81,9 +81,9 @@ export class HousingSystem {
 		return this.voxelGrid.getOccupiedCells();
 	}
 
-	/** Housing units for simulation (each floor = 4 units). */
+	/** Housing units for simulation (each floor ≈ 250 households). */
 	getHousingUnits(cellIndex: number): number {
-		return this.voxelGrid.getHeight(cellIndex) * 4;
+		return this.voxelGrid.getHeight(cellIndex) * 250;
 	}
 
 	dispose(): void {
