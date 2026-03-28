@@ -35,7 +35,8 @@ export function addWindowToWall(
 	const recess = 0.02;
 	const geo = new THREE.PlaneGeometry(windowWidth, windowHeight);
 	const mat = registry.get('detail').clone();
-	mat.color.multiplyScalar(0.4); // darken for recess effect
+	mat.side = THREE.DoubleSide;
+	mat.color.multiplyScalar(0.4);
 	patchMaterialUniforms(mat);
 
 	const window = new THREE.Mesh(geo, mat);

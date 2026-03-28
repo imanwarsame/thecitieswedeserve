@@ -225,10 +225,10 @@ export class CameraController {
 			this.targetLookAt.addScaledVector(right, speed);
 		}
 		if (this.keysDown.has('ArrowUp') || this.keysDown.has('w')) {
-			this.targetLookAt.addScaledVector(forward, -speed);
+			this.targetLookAt.addScaledVector(forward, speed);
 		}
 		if (this.keysDown.has('ArrowDown') || this.keysDown.has('s')) {
-			this.targetLookAt.addScaledVector(forward, speed);
+			this.targetLookAt.addScaledVector(forward, -speed);
 		}
 	}
 

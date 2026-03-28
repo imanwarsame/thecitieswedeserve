@@ -17,7 +17,8 @@ export function SidePanel() {
 	} | null>(null);
 
 	useEffect(() => {
-		const onSelect = (data: { cellIndex: number; entity?: Entity }) => {
+		const onSelect = (...args: unknown[]) => {
+			const data = args[0] as { cellIndex: number; entity?: Entity };
 			if (!data.entity) { setSelected(null); return; }
 			const bridge = engine.getSimulationBridge();
 			const bt = bridge.getBuildingType(data.entity.id);

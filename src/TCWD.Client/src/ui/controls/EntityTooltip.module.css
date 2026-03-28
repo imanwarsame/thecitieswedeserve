@@ -1,0 +1,98 @@
+.tooltip {
+	position: fixed;
+	z-index: 25;
+	pointer-events: auto;
+	background: #f0f0f0;
+	border: 1px solid rgba(180, 180, 180, 0.4);
+	border-radius: 8px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+	padding: 10px 12px;
+	min-width: 160px;
+	max-width: 220px;
+	font-family: 'Inter', system-ui, sans-serif;
+	transform: translateX(-50%);
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.title {
+	font-size: 12px;
+	font-weight: 600;
+	color: rgba(40, 40, 40, 0.9);
+	letter-spacing: 0.02em;
+}
+
+.deleteBtn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border: none;
+	background: transparent;
+	color: rgba(180, 60, 60, 0.6);
+	cursor: pointer;
+	border-radius: 4px;
+	padding: 0;
+	transition: background 0.12s ease, color 0.12s ease;
+	flex-shrink: 0;
+}
+
+.deleteBtn:hover {
+	background: rgba(220, 60, 60, 0.1);
+	color: rgba(200, 40, 40, 0.9);
+}
+
+.stats {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.stat {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 12px;
+}
+
+.statLabel {
+	font-size: 10px;
+	color: rgba(80, 80, 80, 0.5);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+}
+
+.statValue {
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 11px;
+	color: rgba(50, 50, 50, 0.8);
+	text-align: right;
+	white-space: nowrap;
+}
+
+.hint {
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px solid rgba(180, 180, 180, 0.25);
+	font-size: 9px;
+	color: rgba(120, 120, 120, 0.5);
+	text-align: center;
+	letter-spacing: 0.03em;
+}
+
+.kbd {
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 9px;
+	background: rgba(180, 180, 180, 0.2);
+	padding: 1px 4px;
+	border-radius: 2px;
+	margin: 0 2px;
+}

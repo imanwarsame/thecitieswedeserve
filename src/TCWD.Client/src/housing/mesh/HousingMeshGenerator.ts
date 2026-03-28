@@ -83,27 +83,27 @@ export class HousingMeshGenerator {
 
 			case 'wall':
 			case 'wall-windowed':
-				return this.buildWall(cell, layer, morph.openFaces, morph.shape === 'wall-windowed');
+				return this.buildWall(cell, layer, morph.openEdges, morph.shape === 'wall-windowed');
 
 			case 'corner':
 			case 'stair':
 			case 'courtyard-wall':
-				return this.buildWall(cell, layer, morph.openFaces, morph.shape === 'courtyard-wall');
+				return this.buildWall(cell, layer, morph.openEdges, morph.shape === 'courtyard-wall');
 
 			case 'pillar':
 				return this.buildPillar(cell, layer);
 
 			case 'roof-flat':
-				return buildFlatRoof(cell, layer, this.registry);
+				return this.buildRoofWithWalls(cell, layer, morph.openEdges, 'flat');
 
 			case 'roof-peaked':
-				return buildPeakedRoof(cell, layer, this.registry);
+				return this.buildRoofWithWalls(cell, layer, morph.openEdges, 'peaked');
 
 			case 'arch':
-				return this.buildArch(cell, layer, morph.openFaces);
+				return this.buildArch(cell, layer, morph.openEdges);
 
 			case 'balcony':
-				return this.buildBalcony(cell, layer, morph.openFaces);
+				return this.buildBalcony(cell, layer, morph.openEdges);
 
 			default:
 				return this.buildSolid(cell, layer);
@@ -155,20 +155,34 @@ export class HousingMeshGenerator {
 		return group;
 	}
 
-	private buildPillar(cell: VoronoiCell, layer: number): THREE.Group {
+	private buildRoofWithWalls(
+		cell: VoronoiCell, layer: number, openEdges: number[],
+		style: 'flat' | 'peaked',
+	): THREE.Group {
 		const group = new THREE.Group();
 
-		const allEdges = cell.vertices.map((_, i) => i);
-		const walls = buildWalls(cell, layer, allEdges, this.registry, 'accent');
-		walls.scale.set(0.3, 1, 0.3);
-		walls.position.set(
-			cell.center.x * 0.7,
-			0,
-			cell.center.y * 0.7,
-		);
+		// Walls on open edges for this layer (closes the gap below the roof)
+		const edgesToWall = openEdges.length > 0
+			? openEdges
+			: cell.vertices.map((_, i) => i);
+		const walls = buildWalls(cell, layer, edgesToWall, this.registry);
 		group.add(walls);
 
+		// Roof geometry on top
+		if (style === 'flat') {
+			const roof = buildFlatRoof(cell, layer, this.registry);
+			group.add(roof);
+		} else {
+			const roof = buildPeakedRoof(cell, layer, this.registry);
+			group.add(roof);
+		}
+
 		return group;
+	}
+
+	private buildPillar(cell: VoronoiCell, layer: number): THREE.Group {
+		// Pillar = walls on all edges + top cap (same as solid, just uses accent material)
+		return this.buildSolid(cell, layer);
 	}
 
 	private buildArch(cell: VoronoiCell, layer: number, openFaces: number[]): THREE.Group {

@@ -1,3 +1,4 @@
+import type { OrganicGrid } from '../grid/types';
 import type { VoxelGrid } from './VoxelGrid';
 import { NeighborAnalyzer, type NeighborContext } from './NeighborAnalyzer';
 import { evaluateMorphShape, type MorphResult } from './StackingRules';
@@ -24,11 +25,13 @@ export class MorphEvaluator {
 	private voxelGrid: VoxelGrid;
 	private analyzer: NeighborAnalyzer;
 	private solver: WFCSolver;
+	private grid: OrganicGrid;
 
-	constructor(voxelGrid: VoxelGrid, analyzer: NeighborAnalyzer, solver: WFCSolver) {
+	constructor(voxelGrid: VoxelGrid, analyzer: NeighborAnalyzer, solver: WFCSolver, grid: OrganicGrid) {
 		this.voxelGrid = voxelGrid;
 		this.analyzer = analyzer;
 		this.solver = solver;
+		this.grid = grid;
 	}
 
 	/** Place a block and compute the full morph cascade. */
@@ -97,7 +100,7 @@ export class MorphEvaluator {
 				if (!voxel) continue;
 
 				const context = this.analyzer.analyze(cellIndex, layer);
-				const morph = evaluateMorphShape(context);
+				const morph = evaluateMorphShape(context, this.grid);
 
 				updates.push({
 					cellIndex,
