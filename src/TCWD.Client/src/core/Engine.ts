@@ -35,6 +35,8 @@ export class Engine {
 	private grid!: BuiltGrid;
 	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 	private raycaster = new THREE.Raycaster();
+	private hoveredCellIndex = -1;
+	private selectedCellIndex = -1;
 
 	constructor() {
 		this.renderer = new Renderer();
@@ -215,6 +217,35 @@ export class Engine {
 		return this.sceneManager;
 	}
 
+	getSelectedCellIndex(): number {
+		return this.selectedCellIndex;
+	}
+
+	getHoveredCellIndex(): number {
+		return this.hoveredCellIndex;
+	}
+
+	selectCell(cellIndex: number): void {
+		if (this.selectedCellIndex === cellIndex) return;
+		const prev = this.selectedCellIndex;
+		this.selectedCellIndex = cellIndex;
+		if (prev !== -1) {
+			events.emit('grid:cellDeselected', { cellIndex: prev });
+		}
+		if (cellIndex !== -1) {
+			const cell = this.grid.query.getCell(cellIndex);
+			const entity = this.sceneManager.getActiveScene().getEntityManager().getEntityAtCell(cellIndex);
+			events.emit('grid:cellSelected', { cellIndex, cell, entity });
+		}
+	}
+
+	deselectCell(): void {
+		if (this.selectedCellIndex === -1) return;
+		const prev = this.selectedCellIndex;
+		this.selectedCellIndex = -1;
+		events.emit('grid:cellDeselected', { cellIndex: prev });
+	}
+
 	private updateCellHover(gameScene: GameScene, camera: THREE.Camera): void {
 		this.raycaster.setFromCamera(this.input.mouse, camera);
 
@@ -222,11 +253,45 @@ export class Engine {
 		const hit = this.raycaster.ray.intersectPlane(this.groundPlane, intersection);
 
 		const highlighter = gameScene.getGridHighlighter();
+
 		if (hit) {
 			const cell = this.grid.query.getCellAt(intersection.x, intersection.z);
 			highlighter.setCell(cell);
+
+			const cellIndex = cell ? cell.index : -1;
+
+			// Hover changed
+			if (cellIndex !== this.hoveredCellIndex) {
+				this.hoveredCellIndex = cellIndex;
+				if (cell) {
+					const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
+					events.emit('grid:cellHovered', { cellIndex, cell, entity });
+				}
+			}
+
+			// Click
+			if (this.input.consumeClick() && cell) {
+				const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
+				events.emit('grid:cellClicked', { cellIndex, cell, entity });
+
+				// Toggle selection
+				if (this.selectedCellIndex === cellIndex) {
+					this.deselectCell();
+				} else {
+					this.selectCell(cellIndex);
+				}
+			}
 		} else {
 			highlighter.setCell(null);
+
+			if (this.hoveredCellIndex !== -1) {
+				this.hoveredCellIndex = -1;
+			}
+
+			// Click on empty space deselects
+			if (this.input.consumeClick()) {
+				this.deselectCell();
+			}
 		}
 	}
 }

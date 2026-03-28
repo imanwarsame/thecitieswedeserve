@@ -16,6 +16,7 @@ export const EngineConfig = {
 	environment: {
 		fog: true,
 		preset: 'day' as const,
+		hdrPath: '' as string,  // e.g. '/assets/environment/studio.hdr' — leave empty for fallback
 	},
 	postProcessing: {
 		enabled: true,

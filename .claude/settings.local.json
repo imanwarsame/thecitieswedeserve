@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(ls \"C:\\\\Users\\\\ARZE\\\\github\\\\thecitieswedeserve\\\\src\\\\TCWD.Client\\\\node_modules\\\\three\\\\examples\\\\jsm\\\\loaders\\\\UltraHDRLoader\"*)",
+      "Bash(ls \"C:\\\\Users\\\\ARZE\\\\github\\\\thecitieswedeserve\\\\src\\\\TCWD.Client\\\\node_modules\\\\three\\\\examples\\\\jsm\\\\loaders\\\\RGBELoader\"*)",
+      "Bash(ls \"C:\\\\Users\\\\ARZE\\\\github\\\\thecitieswedeserve\\\\src\\\\TCWD.Client\\\\node_modules\\\\three\\\\src\\\\loaders\\\\UltraHDRLoader\"*)",
+      "Bash(find C:UsersARZEgithubthecitieswedeservesrcTCWD.Clientnode_modulesthree -name *HDR* -o -name *RGBE* -o -name *hdr*)",
+      "Bash(git commit:*)"
     ]
   }
 }
