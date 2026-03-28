@@ -178,6 +178,19 @@ export class SimulationBridge {
 		return this.entityBuildingTypes.get(entityId);
 	}
 
+	getBuildingTypeAtCell(cellIndex: number): BuildingType | undefined {
+		const renderEntity = this.entityManager.getEntityAtCell(cellIndex);
+		if (renderEntity) {
+			return this.entityBuildingTypes.get(renderEntity.id);
+		}
+
+		if (this.housingSimIds.has(cellIndex)) {
+			return 'housing';
+		}
+
+		return undefined;
+	}
+
 	getSimEntityId(renderEntityId: string): string | undefined {
 		return this.renderToSim.get(renderEntityId);
 	}
@@ -186,6 +199,18 @@ export class SimulationBridge {
 		const simId = this.renderToSim.get(renderEntityId);
 		if (!simId) return undefined;
 		return this.engine.getEntities().find(e => e.id === simId);
+	}
+
+	getSimEntityAtCell(cellIndex: number): SimEntity | undefined {
+		const renderEntity = this.entityManager.getEntityAtCell(cellIndex);
+		if (renderEntity) {
+			return this.getSimEntity(renderEntity.id);
+		}
+
+		const housingSimId = this.housingSimIds.get(cellIndex);
+		if (!housingSimId) return undefined;
+
+		return this.engine.getEntities().find(e => e.id === housingSimId);
 	}
 
 	/** Return world positions for all WFC-placed housing cells (for infrastructure lines). */

@@ -179,9 +179,11 @@ export class Engine {
 			// Use unscaledDelta so animations play regardless of game time speed
 			this.simulationBridge.updateAnimations(unscaledDelta);
 
-			// Track fog center to camera's ground-plane target
+			// Track fog center and shadow frustum center to camera's ground-plane target
 			const env = gameScene.getEnvironment();
-			env.setFogCenter(this.cameraController.getTargetPosition());
+			const cameraTarget = this.cameraController.getTargetPosition();
+			env.setFogCenter(cameraTarget);
+			gameScene.getLighting().setShadowCenter(cameraTarget);
 
 			// Cell hover highlight
 			this.updateCellHover(gameScene, camera);
@@ -220,7 +222,10 @@ export class Engine {
 		this.assetManager.dispose();
 		this.renderPipeline?.dispose();
 		this.renderer.dispose();
-		events.clear();
+		// NOTE: Do NOT call events.clear() here. Each component's dispose()
+		// already removes its own listeners. A blanket clear() on the global
+		// singleton destroys listeners belonging to a *new* Engine instance
+		// when React StrictMode causes overlapping init/teardown cycles.
 		console.log('[Engine] Stopped.');
 	}
 
@@ -326,6 +331,9 @@ export class Engine {
 
 	setPlacementMode(type: BuildingType | null): void {
 		this._placementMode = type;
+		if (type !== 'housing') {
+			this.housingController.setAction('none');
+		}
 		events.emit('placement:modeChanged', type);
 	}
 
@@ -349,6 +357,7 @@ export class Engine {
 			const entity = this.sceneManager.getActiveScene().getEntityManager().getEntityAtCell(cellIndex);
 			events.emit('grid:cellSelected', { cellIndex, cell, entity });
 		}
+		this.syncSelectionOutline(cellIndex);
 	}
 
 	selectCell(cellIndex: number): void {
@@ -363,6 +372,7 @@ export class Engine {
 			const entity = this.sceneManager.getActiveScene().getEntityManager().getEntityAtCell(cellIndex);
 			events.emit('grid:cellSelected', { cellIndex, cell, entity });
 		}
+		this.syncSelectionOutline(cellIndex);
 	}
 
 	deselectCell(): void {
@@ -370,6 +380,17 @@ export class Engine {
 		const prev = this.selectedCellIndex;
 		this.selectedCellIndex = -1;
 		events.emit('grid:cellDeselected', { cellIndex: prev });
+		this.selectionManager.setSelected(null);
+	}
+
+	private syncSelectionOutline(cellIndex: number): void {
+		if (cellIndex === -1) {
+			this.selectionManager.setSelected(null);
+			return;
+		}
+
+		const entity = this.sceneManager.getActiveScene().getEntityManager().getEntityAtCell(cellIndex);
+		this.selectionManager.setSelected(entity?.mesh ?? null);
 	}
 
 	private updateCellHover(gameScene: GameScene, camera: THREE.Camera): void {

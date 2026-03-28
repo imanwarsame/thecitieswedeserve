@@ -63,33 +63,14 @@ function createSunMesh(): THREE.Group {
 	const group = new THREE.Group();
 	group.name = 'celestial-sun';
 
+	// Bright emissive core — the bloom post-process pass will create the glow
 	const core = new THREE.Mesh(
 		new THREE.SphereGeometry(1.5, 24, 24),
 		new THREE.MeshBasicMaterial({ color: 0xfff8e0 }),
 	);
+	core.layers.disableAll();
+	core.layers.enable(0);
 	group.add(core);
-
-	const glow = new THREE.Mesh(
-		new THREE.SphereGeometry(3.0, 24, 24),
-		new THREE.MeshBasicMaterial({
-			color: 0xffeeaa,
-			transparent: true,
-			opacity: 0.25,
-			depthWrite: false,
-		}),
-	);
-	group.add(glow);
-
-	const halo = new THREE.Mesh(
-		new THREE.SphereGeometry(5.5, 24, 24),
-		new THREE.MeshBasicMaterial({
-			color: 0xfff5cc,
-			transparent: true,
-			opacity: 0.08,
-			depthWrite: false,
-		}),
-	);
-	group.add(halo);
 
 	return group;
 }
@@ -102,18 +83,9 @@ function createMoonMesh(): THREE.Group {
 		new THREE.SphereGeometry(1.0, 20, 20),
 		new THREE.MeshBasicMaterial({ color: 0x9aa4bf }),
 	);
+	core.layers.disableAll();
+	core.layers.enable(0);
 	group.add(core);
-
-	const glow = new THREE.Mesh(
-		new THREE.SphereGeometry(1.8, 20, 20),
-		new THREE.MeshBasicMaterial({
-			color: 0x7080a0,
-			transparent: true,
-			opacity: 0.08,
-			depthWrite: false,
-		}),
-	);
-	group.add(glow);
 
 	return group;
 }
@@ -147,6 +119,11 @@ export class CelestialBodies {
 		return this.sunPos;
 	}
 
+	/** Returns the current moon world-space position (for directional light alignment at night). */
+	getMoonPosition(): THREE.Vector3 {
+		return this.moonPos;
+	}
+
 	update(): void {
 		if (!this.worldClock) return;
 
@@ -169,17 +146,13 @@ export class CelestialBodies {
 	}
 
 	dispose(): void {
-		this.sun.traverse(child => {
+		const disposeChild = (child: THREE.Object3D) => {
 			if (child instanceof THREE.Mesh) {
 				child.geometry.dispose();
 				(child.material as THREE.Material).dispose();
 			}
-		});
-		this.moon.traverse(child => {
-			if (child instanceof THREE.Mesh) {
-				child.geometry.dispose();
-				(child.material as THREE.Material).dispose();
-			}
-		});
+		};
+		this.sun.traverse(disposeChild);
+		this.moon.traverse(disposeChild);
 	}
 }
