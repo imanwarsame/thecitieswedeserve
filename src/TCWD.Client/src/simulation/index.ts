@@ -48,3 +48,13 @@ export { createSnapshot, toJSON } from './state/snapshot.ts';
 // ── Layers ──────────────────────────────────────────────────
 export { EnergyLayer } from './layers/EnergyLayer.ts';
 export type { Layer } from './layers/EnergyLayer.ts';
+
+// ── Bridge (3D ↔ Simulation) ────────────────────────────────
+export { SimulationBridge } from './bridge/SimulationBridge.ts';
+export {
+	createBuildingMesh,
+	buildingTypeFromSimEntity,
+	simEntityTypeFromBuildingType,
+	BUILDING_LABELS,
+} from './bridge/BuildingFactory.ts';
+export type { BuildingType } from './bridge/BuildingFactory.ts';

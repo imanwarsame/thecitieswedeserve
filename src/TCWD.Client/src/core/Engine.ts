@@ -14,8 +14,11 @@ import { AssetManager } from '../assets/AssetManager';
 import { RenderPipeline } from '../rendering/RenderPipeline';
 import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
+import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
 import { EngineConfig } from '../app/config';
 import { buildGrid, type BuiltGrid } from '../grid/GridBuilder';
+import { SimulationBridge } from '../simulation/bridge/SimulationBridge';
+import type { BuildingType } from '../simulation/bridge/BuildingFactory';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -33,10 +36,13 @@ export class Engine {
 	private sceneManager: SceneManager;
 	private assetManager: AssetManager;
 	private grid!: BuiltGrid;
+	private simulationBridge!: SimulationBridge;
+	private infrastructureRenderer!: InfrastructureRenderer;
 	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 	private raycaster = new THREE.Raycaster();
 	private hoveredCellIndex = -1;
 	private selectedCellIndex = -1;
+	private _placementMode: BuildingType | null = null;
 
 	constructor() {
 		this.renderer = new Renderer();
@@ -96,14 +102,32 @@ export class Engine {
 			pp.getSelectOutlinePass(),
 		);
 
+		// Simulation bridge — connects the 3D world to the headless simulation
+		this.simulationBridge = new SimulationBridge(
+			gameScene.getEntityManager(),
+			gameScene.getGridPlacement(),
+		);
+
+		// Infrastructure power-line visualisation
+		this.infrastructureRenderer = new InfrastructureRenderer(
+			gameScene.getGroup('effects'),
+			this.simulationBridge,
+			gameScene.getEntityManager(),
+		);
+
 		this.loop = new Loop(this.renderPipeline, gameScene.root, camera, this.time);
 
-		// WorldClock is NOT auto-advanced here — shadows stay fixed at startHour.
-		// Call worldClock.setHour() manually to change time of day.
 		this.loop.register((delta, unscaledDelta) => {
-			this.selectionManager.update();
+			// Advance world clock each frame so time-of-day and simulation ticks progress
+			this.worldClock.update(delta);
+
+			// Only let SelectionManager consume clicks when NOT in placement mode
+			if (!this._placementMode) {
+				this.selectionManager.update();
+			}
 			this.sceneManager.update(delta);
 			this.cameraController.update(unscaledDelta);
+			this.infrastructureRenderer.update(delta);
 
 			// Track fog center to camera's ground-plane target
 			const env = gameScene.getEnvironment();
@@ -133,6 +157,8 @@ export class Engine {
 
 	stop(): void {
 		this.loop?.stop();
+		this.simulationBridge?.dispose();
+		this.infrastructureRenderer?.dispose();
 		this.selectionManager?.dispose();
 		this.input?.dispose();
 		this.cameraController?.dispose();
@@ -217,6 +243,19 @@ export class Engine {
 		return this.sceneManager;
 	}
 
+	getSimulationBridge(): SimulationBridge {
+		return this.simulationBridge;
+	}
+
+	getPlacementMode(): BuildingType | null {
+		return this._placementMode;
+	}
+
+	setPlacementMode(type: BuildingType | null): void {
+		this._placementMode = type;
+		events.emit('placement:modeChanged', type);
+	}
+
 	getSelectedCellIndex(): number {
 		return this.selectedCellIndex;
 	}
@@ -271,6 +310,15 @@ export class Engine {
 
 			// Click
 			if (this.input.consumeClick() && cell) {
+				// Placement mode: place a building on the clicked cell
+				if (this._placementMode) {
+					const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+					if (placed) {
+						this.selectCell(cellIndex);
+					}
+					return;
+				}
+
 				const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
 				events.emit('grid:cellClicked', { cellIndex, cell, entity });
 
