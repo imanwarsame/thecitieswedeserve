@@ -13,7 +13,12 @@ export const EntityType = {
 	DataCentre: 'DataCentre',
 	Housing: 'Housing',
 	EnergyPlant: 'EnergyPlant',
-	Transport: 'Transport'
+	Transport: 'Transport',
+	Office: 'Office',
+	Commercial: 'Commercial',
+	School: 'School',
+	Leisure: 'Leisure',
+	Park: 'Park',
 } as const;
 export type EntityType = (typeof EntityType)[keyof typeof EntityType];
 

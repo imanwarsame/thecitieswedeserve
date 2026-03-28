@@ -4,6 +4,11 @@ import {
 	createDataCentre,
 	createHousing,
 	createEnergyPlant,
+	createOffice,
+	createCommercial,
+	createSchool,
+	createLeisure,
+	createPark,
 } from '../index';
 import type { SimulationState, Entity as SimEntity } from '../index';
 import { events } from '../../core/Events';
@@ -95,6 +100,21 @@ export class SimulationBridge {
 				break;
 			case EntityType.EnergyPlant:
 				simEntity = createEnergyPlant(info.fuelType!);
+				break;
+			case EntityType.Office:
+				simEntity = createOffice();
+				break;
+			case EntityType.Commercial:
+				simEntity = createCommercial();
+				break;
+			case EntityType.School:
+				simEntity = createSchool();
+				break;
+			case EntityType.Leisure:
+				simEntity = createLeisure();
+				break;
+			case EntityType.Park:
+				simEntity = createPark();
 				break;
 			default:
 				return null;
