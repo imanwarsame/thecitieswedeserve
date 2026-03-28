@@ -4,11 +4,9 @@ import { Terrain } from './Terrain';
 import { Lighting } from './Lighting';
 import { Environment } from './Environment';
 import { Palette } from '../rendering/Palette';
-import { createStructureMaterial, createDetailMaterial, createAccentMaterial } from '../rendering/Materials';
 import { WorldClock } from '../gameplay/WorldClock';
 import { AssetManager } from '../assets/AssetManager';
 import { EntityManager } from '../entities/EntityManager';
-import { Entity } from '../entities/Entity';
 import { GridHighlighter } from '../grid/GridHighlighter';
 import { GridPlacement } from '../grid/GridPlacement';
 import type { BuiltGrid } from '../grid/GridBuilder';
@@ -56,8 +54,6 @@ export class GameScene {
 		for (const obj of this.gridHighlighter.getObjects()) {
 			this.graph.addToGroup('effects', obj);
 		}
-
-		this.spawnTestEntities();
 
 		console.log('[GameScene] Initialized.');
 	}
@@ -120,39 +116,5 @@ export class GameScene {
 		this.entityManager.clear();
 		this.graph.dispose();
 		console.log('[GameScene] Disposed.');
-	}
-
-	private spawnTestEntities(): void {
-		const materials = [
-			createStructureMaterial(),
-			createDetailMaterial(),
-			createAccentMaterial(),
-		];
-
-		// Place test entities on grid cells near the center
-		const testCells = this.grid.query.findNearestCells(0, 0, 3);
-
-		for (let i = 0; i < testCells.length; i++) {
-			const cell = testCells[i];
-			const worldPos = this.gridPlacement.getCellWorldPosition(cell.index, 0.5);
-			if (!worldPos) continue;
-
-			const geometry = new THREE.BoxGeometry(1, 1, 1);
-			const mesh = new THREE.Mesh(geometry, materials[i]);
-			mesh.castShadow = true;
-			mesh.receiveShadow = true;
-
-			const entity = new Entity({
-				name: `test-cube-${i}`,
-				mesh,
-				position: worldPos,
-				cellIndex: cell.index,
-			});
-
-			this.gridPlacement.occupyCell(cell.index);
-			this.entityManager.spawn(entity);
-		}
-
-		console.log(`[GameScene] Spawned ${this.entityManager.count()} test entities on grid cells.`);
 	}
 }

@@ -26,11 +26,13 @@ export class WorldClock {
 	private dayLengthInSeconds: number;
 	private dayCount = 0;
 	private lastPhase: TimePhase;
+	private lastWholeHour: number;
 
 	constructor() {
 		this.currentHour = EngineConfig.world.startHour;
 		this.dayLengthInSeconds = EngineConfig.world.dayLengthInSeconds;
 		this.lastPhase = this.getPhase();
+		this.lastWholeHour = Math.floor(this.currentHour);
 	}
 
 	update(delta: number): void {
@@ -40,7 +42,15 @@ export class WorldClock {
 		if (this.currentHour >= 24) {
 			this.currentHour -= 24;
 			this.dayCount++;
+			this.lastWholeHour = -1; // force hourChanged on wrap
 			events.emit('world:newDay', this.dayCount);
+		}
+
+		// Emit once per whole-hour crossing (drives simulation tick)
+		const wholeHour = Math.floor(this.currentHour);
+		if (wholeHour !== this.lastWholeHour) {
+			this.lastWholeHour = wholeHour;
+			events.emit('world:hourChanged', wholeHour);
 		}
 
 		const phase = this.getPhase();
