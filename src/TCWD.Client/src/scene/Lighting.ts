@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SceneGraph } from './SceneGraph';
 import { Palette } from '../rendering/Palette';
 import { WorldClock } from '../gameplay/WorldClock';
+import { loadHdr } from '../assets/loaders/HdrLoader';
 
 const LIGHTING_KEYS: {
 	hour: number;
@@ -69,11 +70,10 @@ export class Lighting {
 		console.log('[Lighting] Initialized.');
 	}
 
-	/** Generate an IBL environment map for MeshStandardMaterial. */
+	/** Generate a fallback IBL environment map from a simple hemisphere scene. */
 	initEnvironmentMap(renderer: THREE.WebGLRenderer, scene: THREE.Scene): void {
 		const pmrem = new THREE.PMREMGenerator(renderer);
 
-		// Simple sky-ground gradient scene for soft IBL
 		const envScene = new THREE.Scene();
 		envScene.add(new THREE.HemisphereLight(0xf0f0f0, 0x808080, 1.0));
 
@@ -81,7 +81,35 @@ export class Lighting {
 		scene.environment = this.envMap;
 
 		pmrem.dispose();
-		console.log('[Lighting] Environment map generated.');
+		console.log('[Lighting] Fallback environment map generated.');
+	}
+
+	/**
+	 * Load an HDR equirectangular texture for IBL.
+	 * Supports .hdr (RGBE) and .hdr.jpg (UltraHDR).
+	 * Sets scene.environment only (not background — background stays palette-controlled).
+	 */
+	async loadEnvironmentHdr(
+		renderer: THREE.WebGLRenderer,
+		scene: THREE.Scene,
+		path: string,
+	): Promise<void> {
+		try {
+			const texture = await loadHdr(path);
+			const pmrem = new THREE.PMREMGenerator(renderer);
+			const envMap = pmrem.fromEquirectangular(texture).texture;
+
+			if (this.envMap) this.envMap.dispose();
+			this.envMap = envMap;
+			scene.environment = envMap;
+
+			texture.dispose();
+			pmrem.dispose();
+			console.log(`[Lighting] HDR environment loaded from "${path}".`);
+		} catch {
+			console.warn('[Lighting] HDR load failed, using fallback environment map.');
+			this.initEnvironmentMap(renderer, scene);
+		}
 	}
 
 	setWorldClock(clock: WorldClock): void {

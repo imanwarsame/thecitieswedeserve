@@ -1,32 +1,44 @@
 import * as THREE from 'three';
 import { SceneGraph } from './SceneGraph';
-import { Palette } from '../rendering/Palette';
 import { createGroundMaterial } from '../rendering/Materials';
+import { GridRenderer } from '../grid/GridRenderer';
+import { GridConfig } from '../grid/GridConfig';
+import type { OrganicGrid } from '../grid/types';
 
 export class Terrain {
-	init(graph: SceneGraph): void {
-		const size = 40;
+	private gridRenderer = new GridRenderer();
+
+	init(graph: SceneGraph, grid: OrganicGrid): void {
+		const size = GridConfig.size;
+
+		// Ground plane
 		const geometry = new THREE.PlaneGeometry(size, size);
 		const material = createGroundMaterial();
-
 		const plane = new THREE.Mesh(geometry, material);
 		plane.rotation.x = -Math.PI / 2;
 		plane.receiveShadow = true;
 		plane.name = 'groundPlane';
-
 		graph.addToGroup('terrain', plane);
 
-		this.addGrid(graph, size);
+		// Organic grid edges (replaces GridHelper)
+		const edgeLines = this.gridRenderer.buildEdgeLines(grid);
+		graph.addToGroup('terrain', edgeLines);
 
-		console.log('[Terrain] Initialized.');
+		// Debug overlays (hidden by default)
+		const delaunayDebug = this.gridRenderer.buildDelaunayDebug(grid);
+		graph.addToGroup('debug', delaunayDebug);
+
+		const centerPoints = this.gridRenderer.buildCenterPoints(grid);
+		graph.addToGroup('debug', centerPoints);
+
+		console.log('[Terrain] Initialized with organic grid.');
 	}
 
-	private addGrid(graph: SceneGraph, size: number): void {
-		const grid = new THREE.GridHelper(size, size, Palette.detail, Palette.detail);
-		grid.position.y = 0.01;
-		(grid.material as THREE.Material).opacity = 0.15;
-		(grid.material as THREE.Material).transparent = true;
+	getGridRenderer(): GridRenderer {
+		return this.gridRenderer;
+	}
 
-		graph.addToGroup('terrain', grid);
+	dispose(): void {
+		this.gridRenderer.dispose();
 	}
 }

@@ -4,9 +4,17 @@ import { extractVoronoiCells } from './VoronoiBuilder';
 import { relax } from './Relaxation';
 import { extractTriangles } from './DelaunayHelper';
 import { GridConfig } from './GridConfig';
+import { GridQuery } from './GridQuery';
+import { GridPathfinder } from './GridPathfinder';
 import type { OrganicGrid } from './types';
 
-export function buildGrid(): OrganicGrid {
+/** OrganicGrid augmented with query and pathfinder instances. */
+export type BuiltGrid = OrganicGrid & {
+	query: GridQuery;
+	pathfinder: GridPathfinder;
+};
+
+export function buildGrid(): BuiltGrid {
 	// Step 1: Generate seed points
 	const seedPoints = generateSeedPoints();
 	const realCount = seedPoints.length;
@@ -34,13 +42,7 @@ export function buildGrid(): OrganicGrid {
 
 	const halfSize = GridConfig.size / 2;
 
-	console.log(`[GridBuilder] Built organic grid:`);
-	console.log(`  Points: ${finalPoints.length}`);
-	console.log(`  Cells: ${cells.length}`);
-	console.log(`  Triangles: ${triangles.length}`);
-	console.log(`  Relaxation: ${GridConfig.relaxIterations} iters (weight ${GridConfig.relaxWeight})`);
-
-	return {
+	const grid: OrganicGrid = {
 		points: finalPoints,
 		triangles,
 		cells,
@@ -49,10 +51,22 @@ export function buildGrid(): OrganicGrid {
 			minY: -halfSize, maxY: halfSize,
 		},
 	};
+
+	// Step 8: Attach query and pathfinder
+	const query = new GridQuery(grid);
+	const pathfinder = new GridPathfinder(grid);
+
+	console.log(`[GridBuilder] Built organic grid:`);
+	console.log(`  Points: ${finalPoints.length}`);
+	console.log(`  Cells: ${cells.length}`);
+	console.log(`  Triangles: ${triangles.length}`);
+	console.log(`  Relaxation: ${GridConfig.relaxIterations} iters (weight ${GridConfig.relaxWeight})`);
+
+	return { ...grid, query, pathfinder };
 }
 
 /** Rebuild the grid with optional config overrides (for debug panel). */
-export function regenerateGrid(overrides?: Partial<typeof GridConfig>): OrganicGrid {
+export function regenerateGrid(overrides?: Partial<typeof GridConfig>): BuiltGrid {
 	if (overrides) {
 		Object.assign(GridConfig, overrides);
 	}
