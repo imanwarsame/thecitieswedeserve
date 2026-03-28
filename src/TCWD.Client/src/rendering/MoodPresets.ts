@@ -98,6 +98,42 @@ const presets: Record<string, MoodPreset> = {
 	},
 };
 
+// ---------------------------------------------------------------------------
+// Material overrides per mood (prepared for future per-material tinting)
+// ---------------------------------------------------------------------------
+
+export interface MoodMaterialOverrides {
+	/** Multiplier applied to all material colors (tints the world). */
+	colorTint: number;
+	/** Added to all roughness values. Negative = shinier (wet look). */
+	roughnessOffset: number;
+	/** Grayscale intensity for the post-processing pass. */
+	grayscaleIntensity: number;
+}
+
+export const MOOD_MATERIAL_OVERRIDES: Record<string, MoodMaterialOverrides> = {
+	overcast: {
+		colorTint: 0xe0e0e0,
+		roughnessOffset: 0.05,
+		grayscaleIntensity: 1.0,
+	},
+	dawn: {
+		colorTint: 0xf0e8e0,
+		roughnessOffset: -0.05,
+		grayscaleIntensity: 0.85,
+	},
+	midnight: {
+		colorTint: 0xc0c0d0,
+		roughnessOffset: -0.1,
+		grayscaleIntensity: 1.0,
+	},
+	clinical: {
+		colorTint: 0xffffff,
+		roughnessOffset: 0.0,
+		grayscaleIntensity: 1.0,
+	},
+};
+
 let currentPresetName = 'overcast';
 
 export function getPreset(name: string): MoodPreset {

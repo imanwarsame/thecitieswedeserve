@@ -1,0 +1,40 @@
+.border {
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	z-index: 50;
+	border: 3px solid rgba(50, 120, 220, 0.6);
+	border-radius: 0;
+	opacity: 0;
+	transition: opacity 0.2s ease;
+}
+
+.visible {
+	opacity: 1;
+}
+
+.hint {
+	position: absolute;
+	top: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	pointer-events: none;
+	background: rgba(50, 120, 220, 0.85);
+	color: #fff;
+	font-family: 'Inter', system-ui, sans-serif;
+	font-size: 11px;
+	font-weight: 500;
+	padding: 4px 12px;
+	border-radius: 4px;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
+}
+
+.esc {
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 10px;
+	background: rgba(255, 255, 255, 0.2);
+	padding: 1px 5px;
+	border-radius: 3px;
+	margin-left: 8px;
+}

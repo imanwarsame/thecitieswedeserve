@@ -11,17 +11,20 @@ import { CameraController } from '../camera/CameraController';
 import { WorldClock } from '../gameplay/WorldClock';
 import { TimeController } from '../gameplay/TimeController';
 import { AssetManager } from '../assets/AssetManager';
-import { ModelFactory } from '../assets/ModelFactory';
-import { AssetCatalog } from '../assets/AssetCatalog';
 import { MaterialRegistry } from '../rendering/MaterialRegistry';
 import { RenderPipeline } from '../rendering/RenderPipeline';
 import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
 import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
+import { ModelFactory } from '../assets/ModelFactory';
+import { AssetCatalog, DefaultMaterialPresets } from '../assets/AssetCatalog';
+import { GeometryFactory } from '../geometry/GeometryFactory';
 import { EngineConfig } from '../app/config';
 import { buildGrid, type BuiltGrid } from '../grid/GridBuilder';
 import { SimulationBridge } from '../simulation/bridge/SimulationBridge';
 import { updateBuildingLights, type BuildingType } from '../simulation/bridge/BuildingFactory';
+import { HousingSystem } from '../housing/HousingSystem';
+import { HousingController } from '../housing/HousingController';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -38,10 +41,13 @@ export class Engine {
 	private resizeObserver!: ResizeObserver;
 	private sceneManager: SceneManager;
 	private assetManager: AssetManager;
-	private modelFactory!: ModelFactory;
 	private materialRegistry!: MaterialRegistry;
+	private modelFactory!: ModelFactory;
+	private geometryFactory!: GeometryFactory;
 	private grid!: BuiltGrid;
 	private simulationBridge!: SimulationBridge;
+	private housingSystem!: HousingSystem;
+	private housingController!: HousingController;
 	private infrastructureRenderer!: InfrastructureRenderer;
 	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 	private raycaster = new THREE.Raycaster();
@@ -66,17 +72,25 @@ export class Engine {
 
 		this.timeController = new TimeController(this.time, this.worldClock);
 
-		// Set up ModelFactory and register catalog entries before preloading
+		// Material registry & presets
 		this.materialRegistry = new MaterialRegistry();
+		for (const preset of DefaultMaterialPresets) {
+			this.materialRegistry.definePreset(preset);
+		}
+
+		// Model factory & catalog registration
 		this.modelFactory = new ModelFactory(this.assetManager, this.materialRegistry);
 		this.modelFactory.registerCatalog(AssetCatalog);
+
+		// Geometry factory
+		this.geometryFactory = new GeometryFactory(this.materialRegistry);
 
 		await this.assetManager.preload();
 
 		// Build the organic grid
 		this.grid = buildGrid();
 
-		const gameScene = new GameScene(this.assetManager, this.grid);
+		const gameScene = new GameScene(this.assetManager, this.grid, this.materialRegistry, this.modelFactory, this.geometryFactory);
 		this.sceneManager.loadScene(gameScene);
 		gameScene.setWorldClock(this.worldClock);
 
@@ -118,6 +132,22 @@ export class Engine {
 			gameScene.getGridPlacement(),
 			this.worldClock,
 			this.modelFactory,
+		);
+
+		// Housing system — WFC-driven stackable housing on the Voronoi grid
+		const housingGroup = new THREE.Group();
+		housingGroup.name = 'housing';
+		gameScene.root.add(housingGroup);
+
+		this.housingSystem = new HousingSystem(
+			this.grid,
+			this.materialRegistry,
+			housingGroup,
+		);
+
+		this.housingController = new HousingController(
+			this.housingSystem,
+			gameScene.getGridPlacement(),
 		);
 
 		// Infrastructure power-line visualisation
@@ -174,6 +204,8 @@ export class Engine {
 
 	stop(): void {
 		this.loop?.stop();
+		this.housingController?.dispose();
+		this.housingSystem?.dispose();
 		this.simulationBridge?.dispose();
 		this.infrastructureRenderer?.dispose();
 		this.selectionManager?.dispose();
@@ -181,6 +213,7 @@ export class Engine {
 		this.cameraController?.dispose();
 		this.resizeObserver?.disconnect();
 		this.sceneManager.dispose();
+		this.materialRegistry?.dispose();
 		this.assetManager.dispose();
 		this.renderPipeline?.dispose();
 		this.renderer.dispose();
@@ -232,6 +265,18 @@ export class Engine {
 		return this.assetManager;
 	}
 
+	getMaterialRegistry(): MaterialRegistry {
+		return this.materialRegistry;
+	}
+
+	getModelFactory(): ModelFactory {
+		return this.modelFactory;
+	}
+
+	getGeometryFactory(): GeometryFactory {
+		return this.geometryFactory;
+	}
+
 	getScene(): GameScene {
 		return this.sceneManager.getActiveScene();
 	}
@@ -264,6 +309,14 @@ export class Engine {
 		return this.simulationBridge;
 	}
 
+	getHousingSystem(): HousingSystem {
+		return this.housingSystem;
+	}
+
+	getHousingController(): HousingController {
+		return this.housingController;
+	}
+
 	getPlacementMode(): BuildingType | null {
 		return this._placementMode;
 	}
@@ -279,6 +332,20 @@ export class Engine {
 
 	getHoveredCellIndex(): number {
 		return this.hoveredCellIndex;
+	}
+
+	/** Select a cell, always emitting the event (even if already selected — used after placement). */
+	forceSelectCell(cellIndex: number): void {
+		const prev = this.selectedCellIndex;
+		this.selectedCellIndex = cellIndex;
+		if (prev !== -1 && prev !== cellIndex) {
+			events.emit('grid:cellDeselected', { cellIndex: prev });
+		}
+		if (cellIndex !== -1) {
+			const cell = this.grid.query.getCell(cellIndex);
+			const entity = this.sceneManager.getActiveScene().getEntityManager().getEntityAtCell(cellIndex);
+			events.emit('grid:cellSelected', { cellIndex, cell, entity });
+		}
 	}
 
 	selectCell(cellIndex: number): void {
@@ -316,6 +383,17 @@ export class Engine {
 
 			const cellIndex = cell ? cell.index : -1;
 
+			// Set highlight mode based on context
+			if (cell && this._placementMode === 'housing') {
+				highlighter.setMode(
+					this.housingSystem.hasHousing(cellIndex) ? 'occupied' : 'build'
+				);
+			} else if (cell && this._placementMode) {
+				highlighter.setMode('build');
+			} else {
+				highlighter.setMode('default');
+			}
+
 			// Hover changed
 			if (cellIndex !== this.hoveredCellIndex) {
 				this.hoveredCellIndex = cellIndex;
@@ -327,11 +405,19 @@ export class Engine {
 
 			// Click
 			if (this.input.consumeClick() && cell) {
-				// Placement mode: place a building on the clicked cell
 				if (this._placementMode) {
-					const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
-					if (placed) {
-						this.selectCell(cellIndex);
+					if (this._placementMode === 'housing') {
+						// Housing: delegate to HousingController (supports stacking)
+						this.housingController.setAction('build');
+						events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
+						// Select the cell after housing placement to show tooltip
+						this.forceSelectCell(cellIndex);
+					} else {
+						// Non-housing: one-shot placement via SimulationBridge
+						const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+						if (placed) {
+							this.forceSelectCell(cellIndex);
+						}
 					}
 					return;
 				}

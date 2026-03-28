@@ -6,6 +6,7 @@ import { extractTriangles } from './DelaunayHelper';
 import { GridConfig } from './GridConfig';
 import { GridQuery } from './GridQuery';
 import { GridPathfinder } from './GridPathfinder';
+import { buildTownGrid } from './TownGridBuilder';
 import type { OrganicGrid } from './types';
 
 /** OrganicGrid augmented with query and pathfinder instances. */
@@ -15,6 +16,13 @@ export type BuiltGrid = OrganicGrid & {
 };
 
 export function buildGrid(): BuiltGrid {
+	if (GridConfig.gridType === 'town') {
+		return buildTownGrid();
+	}
+	return buildVoronoiGrid();
+}
+
+function buildVoronoiGrid(): BuiltGrid {
 	// Step 1: Generate seed points
 	const seedPoints = generateSeedPoints();
 	const realCount = seedPoints.length;
