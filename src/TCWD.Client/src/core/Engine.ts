@@ -150,6 +150,9 @@ export class Engine {
 			gameScene.getGridPlacement(),
 		);
 
+		// Connect housing system to simulation so placed housing registers as energy demand
+		this.simulationBridge.setHousingSystem(this.housingSystem);
+
 		// Infrastructure power-line visualisation
 		this.infrastructureRenderer = new InfrastructureRenderer(
 			gameScene.getGroup('effects'),

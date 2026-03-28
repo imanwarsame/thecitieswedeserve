@@ -38,6 +38,9 @@ export {
 export type {
 	EnergyMetrics,
 	EconomicMetrics,
+	CityMetrics,
+	TransportMetrics,
+	WaterMetrics,
 	EnergyLayerOutput
 } from './metrics/types.ts';
 
@@ -47,7 +50,14 @@ export { createSnapshot, toJSON } from './state/snapshot.ts';
 
 // ── Layers ──────────────────────────────────────────────────
 export { EnergyLayer } from './layers/EnergyLayer.ts';
-export type { Layer } from './layers/EnergyLayer.ts';
+export { CityLayer } from './layers/CityLayer.ts';
+export { TransportLayer } from './layers/TransportLayer.ts';
+export { WaterLayer } from './layers/WaterLayer.ts';
+export { LayerRegistry } from './layers/Layer.ts';
+export type { Layer, LayerOutputMap } from './layers/Layer.ts';
+
+// ── City models ─────────────────────────────────────────────
+export { computeCityMetrics } from './models/city.ts';
 
 // ── Bridge (3D ↔ Simulation) ────────────────────────────────
 export { SimulationBridge } from './bridge/SimulationBridge.ts';

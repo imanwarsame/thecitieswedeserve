@@ -44,3 +44,38 @@ export interface EnergyLayerOutput {
 	readonly energy: EnergyMetrics;
 	readonly economics: EconomicMetrics;
 }
+
+// ── City-wide metrics (aggregated across all layers) ────────
+
+export interface CityMetrics {
+	/** Gross domestic product (hourly slice, currency units) */
+	readonly gdp: Currency;
+	/** Average land value index (currency units per cell) */
+	readonly landValue: Currency;
+	/** Municipal tax revenue (hourly slice) */
+	readonly taxRevenue: Currency;
+	/** Population health index (0 = critical, 1 = excellent) */
+	readonly healthIndex: number;
+	/** Crime index (0 = safe, 1 = severe) */
+	readonly crimeIndex: number;
+	/** Tourism attractiveness index (0 = none, 1 = world-class) */
+	readonly tourismIndex: number;
+}
+
+// ── Transport metrics (stub — future layer) ─────────────────
+
+export interface TransportMetrics {
+	readonly totalPassengersPerHour: number;
+	readonly averageCommuteMins: number;
+	readonly congestionIndex: number;
+	readonly evAdoptionRate: number;
+}
+
+// ── Water metrics (stub — future layer) ─────────────────────
+
+export interface WaterMetrics {
+	readonly totalDemandLitres: number;
+	readonly totalSupplyLitres: number;
+	readonly waterQualityIndex: number;
+	readonly wastewaterTreatedPct: number;
+}

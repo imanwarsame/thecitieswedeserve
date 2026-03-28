@@ -1,6 +1,8 @@
 import { useWorldClock } from '../hooks/useWorldClock';
 import { useTimeController } from '../hooks/useTimeController';
 import { EnergyDashboard } from '../controls/EnergyDashboard';
+import { CityDashboard } from '../controls/CityDashboard';
+import { SeasonControls } from '../controls/SeasonControls';
 import { formatWorldHour } from '../utils/formatWorldHour';
 import { Play, Pause, Clock } from 'lucide-react';
 import styles from './TopBar.module.css';
@@ -52,11 +54,14 @@ export function TopBar() {
 				<span className={styles.phase}>{phase}</span>
 
 				<span className={styles.day}>D{dayCount + 1}</span>
+
+				<SeasonControls />
 			</div>
 
-			{/* Right panel — energy info */}
+			{/* Right panel — dashboards */}
 			<div className={styles.panelRight}>
 				<EnergyDashboard />
+				<CityDashboard />
 			</div>
 		</>
 	);

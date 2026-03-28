@@ -16,6 +16,16 @@ export interface SimulationConfig {
 	/** Carbon tax charged per tonne of CO₂ */
 	readonly carbonTaxPerTonne: Currency;
 
+	// ── City-wide parameters ─────────────────────────────────
+	/** Base land value per cell (currency units) */
+	readonly baseLandValue: Currency;
+	/** Baseline health index before modifiers (0–1) */
+	readonly baseHealthIndex: number;
+	/** Baseline crime index before modifiers (0–1) */
+	readonly baseCrimeIndex: number;
+	/** Baseline tourism index before modifiers (0–1) */
+	readonly baseTourismIndex: number;
+
 	// ── History ──────────────────────────────────────────────
 	/** Maximum step records kept in the rolling history buffer */
 	readonly maxHistoryLength: number;

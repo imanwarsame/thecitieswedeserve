@@ -132,6 +132,7 @@ let totalCarbon = 0;
 let totalCost = 0;
 let totalTax = 0;
 let totalGDP = 0;
+let totalCityGDP = 0;
 
 for (const rec of yearHistory) {
 	totalDemand += rec.energy.totalDemandMWh;
@@ -140,6 +141,7 @@ for (const rec of yearHistory) {
 	totalCost += rec.energy.operatingCost;
 	totalTax += rec.economics.taxRevenue;
 	totalGDP += rec.economics.gdpContribution;
+	totalCityGDP += rec.city.gdp;
 }
 
 console.log(`  Total demand:     ${fmt(totalDemand, 0)} MWh`);
@@ -148,8 +150,17 @@ console.log(`  Total CO₂:        ${fmt(totalCarbon, 0)} tonnes`);
 console.log(`  Total op. cost:   ${fmt(totalCost, 0)} currency units`);
 console.log(`  Total tax rev.:   ${fmt(totalTax, 0)} currency units`);
 console.log(`  Total GDP:        ${fmt(totalGDP, 0)} currency units`);
+console.log(`  Total city GDP:   ${fmt(totalCityGDP, 0)} currency units`);
 console.log(`  Avg. grid stab.:  ${fmt(totalSupply / totalDemand, 3)}`);
 console.log(`  Avg. renew. %:    ${fmt((yearHistory.reduce((s, r) => s + r.energy.renewableFraction, 0) / yearHistory.length) * 100, 1)}%`);
+
+// City-layer assertions
+const lastYear = yearEngine.getState();
+assert(lastYear.city.healthIndex >= 0 && lastYear.city.healthIndex <= 1, 'Health index ∈ [0,1]');
+assert(lastYear.city.crimeIndex >= 0 && lastYear.city.crimeIndex <= 1, 'Crime index ∈ [0,1]');
+assert(lastYear.city.tourismIndex >= 0 && lastYear.city.tourismIndex <= 1, 'Tourism index ∈ [0,1]');
+assert(lastYear.city.landValue > 0, 'Land value > 0');
+assert(totalCityGDP > 0, 'Yearly city GDP > 0');
 
 assert(totalDemand > 0, 'Yearly demand > 0');
 assert(totalSupply > 0, 'Yearly supply > 0');

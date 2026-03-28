@@ -3,6 +3,7 @@ import type { GridPoint } from '../../grid/types';
 import type { MaterialRegistry } from '../../rendering/MaterialRegistry';
 import { patchMaterialUniforms } from '../../rendering/RadialFog';
 import { HousingConfig } from '../HousingConfig';
+import { MAT_HOUSING_WINDOW } from '../../simulation/bridge/BuildingFactory';
 
 /**
  * Add a window recess to a wall.
@@ -34,10 +35,8 @@ export function addWindowToWall(
 	// Slightly recessed from wall surface
 	const recess = 0.02;
 	const geo = new THREE.PlaneGeometry(windowWidth, windowHeight);
-	const mat = registry.get('detail').clone();
-	mat.side = THREE.DoubleSide;
-	mat.color.multiplyScalar(0.4);
-	patchMaterialUniforms(mat);
+	// Use shared emissive material so updateBuildingLights() controls glow
+	const mat = MAT_HOUSING_WINDOW;
 
 	const window = new THREE.Mesh(geo, mat);
 	window.position.set(
