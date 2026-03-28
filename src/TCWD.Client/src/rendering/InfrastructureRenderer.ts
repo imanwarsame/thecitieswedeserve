@@ -13,14 +13,17 @@ import type { SimulationBridge } from '../simulation/bridge/SimulationBridge';
  */
 export class InfrastructureRenderer {
 	private group: THREE.Group;
+	private scene: THREE.Scene;
 	private bridge: SimulationBridge;
 	private entityManager: EntityManager;
 	private lines: THREE.Line[] = [];
 	private materials: THREE.ShaderMaterial[] = [];
 	private elapsed = 0;
+	private bgLum = new THREE.Color();
 
 	constructor(
 		parent: THREE.Group,
+		scene: THREE.Scene,
 		bridge: SimulationBridge,
 		entityManager: EntityManager,
 	) {
@@ -28,6 +31,7 @@ export class InfrastructureRenderer {
 		this.group.name = 'infrastructure';
 		parent.add(this.group);
 
+		this.scene = scene;
 		this.bridge = bridge;
 		this.entityManager = entityManager;
 
@@ -40,8 +44,20 @@ export class InfrastructureRenderer {
 	/** Advance shader time each frame. */
 	update(delta: number): void {
 		this.elapsed += delta;
+
+		// Derive darkness from scene background luminance (0 = bright day, 1 = dark night)
+		let darkness = 0.0;
+		const bg = this.scene.background;
+		if (bg && (bg as THREE.Color).isColor) {
+			this.bgLum.copy(bg as THREE.Color);
+			const hsl = { h: 0, s: 0, l: 0 };
+			this.bgLum.getHSL(hsl);
+			darkness = 1.0 - hsl.l;
+		}
+
 		for (const mat of this.materials) {
 			mat.uniforms.uTime.value = this.elapsed;
+			mat.uniforms.uDarkness.value = darkness;
 		}
 	}
 
@@ -67,6 +83,7 @@ export class InfrastructureRenderer {
 				uPulseSpeed:  { value: EnergyLineShader.uniforms.uPulseSpeed.value },
 				uPulseSize:   { value: EnergyLineShader.uniforms.uPulseSize.value },
 				uPulseBright: { value: EnergyLineShader.uniforms.uPulseBright.value },
+				uDarkness:    { value: 0 },
 			},
 			vertexShader: EnergyLineShader.vertexShader,
 			fragmentShader: EnergyLineShader.fragmentShader,
@@ -132,9 +149,6 @@ export class InfrastructureRenderer {
 		}
 		this.lines = [];
 		this.materials = [];
-		// Remove all children at once
-		while (this.group.children.length) {
-			this.group.remove(this.group.children[0]);
-		}
+		this.group.clear();
 	}
 }

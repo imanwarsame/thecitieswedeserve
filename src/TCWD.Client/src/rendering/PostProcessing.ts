@@ -30,7 +30,10 @@ export class PostProcessing {
 
 		// 2. GTAO pass — screen-space ambient occlusion for smoother shadows
 		const aoConfig = EngineConfig.postProcessing.ao;
-		this.gtaoPass = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
+		// Half-resolution AO — visually near-identical but ~4× cheaper
+		const aoW = Math.ceil(window.innerWidth / 2);
+		const aoH = Math.ceil(window.innerHeight / 2);
+		this.gtaoPass = new GTAOPass(scene, camera, aoW, aoH);
 		this.gtaoPass.output = GTAOPass.OUTPUT.Default;
 		this.gtaoPass.enabled = aoConfig.enabled;
 		this.gtaoPass.blendIntensity = aoConfig.intensity;
@@ -38,9 +41,10 @@ export class PostProcessing {
 		this.composer.addPass(this.gtaoPass);
 		this.effects.set('ao', { pass: this.gtaoPass });
 
-		// 3. Grayscale pass — desaturate any remaining color
+		// 3. Grayscale pass — off by default (pastel palette provides colour)
 		this.grayscalePass = new ShaderPass(GrayscaleShader);
-		this.grayscalePass.uniforms.intensity.value = 1.0;
+		this.grayscalePass.uniforms.intensity.value = 0.0;
+		this.grayscalePass.enabled = false;
 		this.composer.addPass(this.grayscalePass);
 		this.effects.set('grayscale', { pass: this.grayscalePass });
 
@@ -94,7 +98,7 @@ export class PostProcessing {
 
 	resize(width: number, height: number): void {
 		this.composer.setSize(width, height);
-		this.gtaoPass.setSize(width, height);
+		this.gtaoPass.setSize(Math.ceil(width / 2), Math.ceil(height / 2));
 	}
 
 	setCamera(camera: THREE.Camera): void {

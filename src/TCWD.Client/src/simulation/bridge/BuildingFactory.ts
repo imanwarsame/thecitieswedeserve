@@ -2,44 +2,53 @@ import * as THREE from 'three';
 import { EntityType, FuelType } from '../types';
 import type { Entity as SimEntity } from '../entities/types';
 import type { ModelFactory, AnimatedModel } from '../../assets/ModelFactory';
+import type { VoronoiCell } from '../../grid/types';
 
 /**
  * Creates procedural 3D meshes for simulation entity types.
  * All meshes use monochrome materials consistent with the project's palette.
  */
 
-const MAT_HOUSING = new THREE.MeshStandardMaterial({ color: 0xc8c8c8, roughness: 0.9, metalness: 0.0 });
-const MAT_DATACENTRE = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, roughness: 0.6, metalness: 0.2 });
-const MAT_SOLAR = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.3, metalness: 0.4 });
-const MAT_WIND_POLE = new THREE.MeshStandardMaterial({ color: 0xd0d0d0, roughness: 0.5, metalness: 0.3 });
-const MAT_WIND_BLADE = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.4, metalness: 0.2 });
-const MAT_GAS = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.8, metalness: 0.1 });
-const MAT_COAL = new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.9, metalness: 0.05 });
-const MAT_NUCLEAR = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.7, metalness: 0.15 });
-const MAT_CHIMNEY = new THREE.MeshStandardMaterial({ color: 0x686868, roughness: 0.85, metalness: 0.1 });
-const MAT_OFFICE = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.6, metalness: 0.15 });
-const MAT_COMMERCIAL = new THREE.MeshStandardMaterial({ color: 0xb8a898, roughness: 0.75, metalness: 0.05 });
-const MAT_SCHOOL = new THREE.MeshStandardMaterial({ color: 0xd0c8b8, roughness: 0.8, metalness: 0.0 });
-const MAT_LEISURE = new THREE.MeshStandardMaterial({ color: 0x9898b0, roughness: 0.7, metalness: 0.1 });
-const MAT_PARK_GROUND = new THREE.MeshStandardMaterial({ color: 0x6a7a5a, roughness: 1.0, metalness: 0.0 });
-const MAT_PARK_TREE = new THREE.MeshStandardMaterial({ color: 0x5a6a4a, roughness: 0.9, metalness: 0.0 });
-const MAT_PARK_TRUNK = new THREE.MeshStandardMaterial({ color: 0x8a7060, roughness: 0.95, metalness: 0.0 });
+// fog:false prevents these materials from using the patched radial fog shader
+// (which requires uniforms injected via patchMaterialUniforms). Without this,
+// the shader compiles with undefined uniform references → black output.
+const MAT_HOUSING = new THREE.MeshStandardMaterial({ color: 0xc8c8c8, roughness: 0.9, metalness: 0.0, fog: false });
+const MAT_DATACENTRE = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, roughness: 0.6, metalness: 0.2, fog: false });
+const MAT_SOLAR = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.3, metalness: 0.4, fog: false });
+const MAT_WIND_POLE = new THREE.MeshStandardMaterial({ color: 0xd0d0d0, roughness: 0.5, metalness: 0.3, fog: false });
+const MAT_WIND_BLADE = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.4, metalness: 0.2, fog: false });
+const MAT_GAS = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.8, metalness: 0.1, fog: false });
+const MAT_COAL = new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.9, metalness: 0.05, fog: false });
+const MAT_NUCLEAR = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.7, metalness: 0.15, fog: false });
+const MAT_CHIMNEY = new THREE.MeshStandardMaterial({ color: 0x686868, roughness: 0.85, metalness: 0.1, fog: false });
+const MAT_OFFICE = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.6, metalness: 0.15, fog: false });
+const MAT_COMMERCIAL = new THREE.MeshStandardMaterial({ color: 0xb8a898, roughness: 0.75, metalness: 0.05, fog: false });
+const MAT_SCHOOL = new THREE.MeshStandardMaterial({ color: 0xd0c8b8, roughness: 0.8, metalness: 0.0, fog: false });
+const MAT_LEISURE = new THREE.MeshStandardMaterial({ color: 0x9898b0, roughness: 0.7, metalness: 0.1, fog: false });
+const MAT_PARK_GROUND = new THREE.MeshStandardMaterial({ color: 0x6a7a5a, roughness: 1.0, metalness: 0.0, fog: false });
+const MAT_PARK_TREE = new THREE.MeshStandardMaterial({ color: 0x5a6a4a, roughness: 0.9, metalness: 0.0, fog: false });
+const MAT_PARK_TRUNK = new THREE.MeshStandardMaterial({ color: 0x8a7060, roughness: 0.95, metalness: 0.0, fog: false });
 
 // Emissive window / LED materials – shared so a single update lights every building
 export const MAT_HOUSING_WINDOW = new THREE.MeshStandardMaterial({
-	color: 0x332211,
+	color: 0x222222,
 	roughness: 1.0,
 	metalness: 0.0,
-	emissive: 0xffaa44,
+	emissive: 0xcccccc,
 	emissiveIntensity: 0,
+	fog: false,
 });
 const MAT_DC_WINDOW = new THREE.MeshStandardMaterial({
-	color: 0x112233,
+	color: 0x181818,
 	roughness: 1.0,
 	metalness: 0.0,
-	emissive: 0x66ccff,
+	emissive: 0x88aacc,
 	emissiveIntensity: 0,
+	fog: false,
 });
+
+/** Procedural meshes were authored at 1 unit ≈ 20 m; scale to 1 unit = 1 m. */
+const BUILDING_SCALE = 20;
 
 function enableShadows(obj: THREE.Object3D): void {
 	obj.traverse(child => {
@@ -69,6 +78,7 @@ function createHousingMesh(): THREE.Group {
 	win3.rotation.y = Math.PI / 2;
 
 	group.add(body, roof, win1, win2, win3);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -98,6 +108,7 @@ function createDataCentreMesh(): THREE.Group {
 	led2.position.set(0.25, 0.55, 0.076);
 
 	group.add(body, vent, vent2, strip1, strip2, led1, led2);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -112,6 +123,7 @@ function createSolarMesh(): THREE.Group {
 	const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.35, 6), MAT_WIND_POLE);
 	pole.position.y = 0.175;
 	group.add(panel, pole);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -135,6 +147,7 @@ function createWindMesh(): THREE.Group {
 		group.add(blade);
 	}
 	group.add(tower, nacelle);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -146,6 +159,7 @@ function createGasMesh(): THREE.Group {
 	const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.4, 8), MAT_CHIMNEY);
 	chimney.position.set(0.25, 0.7, 0);
 	group.add(body, chimney);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -159,6 +173,7 @@ function createCoalMesh(): THREE.Group {
 	const chimney2 = chimney1.clone();
 	chimney2.position.set(-0.15, 0.75, -0.1);
 	group.add(body, chimney1, chimney2);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -173,6 +188,7 @@ function createNuclearMesh(): THREE.Group {
 	const dome = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), MAT_NUCLEAR);
 	dome.position.set(-0.25, 0.6, 0);
 	group.add(body, cooling, dome);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -282,6 +298,148 @@ export function createBuildingMesh(type: BuildingType): THREE.Group {
 	return MESH_CREATORS[type]();
 }
 
+/* ── Cell-filling geometry (nuclear / gas / dataCentre) ─────────── */
+
+function createCellExtrudedGeometry(cell: VoronoiCell, height: number): THREE.BufferGeometry {
+	const cx = cell.center.x;
+	const cz = cell.center.y;
+	const verts = cell.vertices;
+	const n = verts.length;
+
+	const positions: number[] = [];
+	const normals: number[] = [];
+
+	// Top face (fan from center)
+	for (let i = 0; i < n; i++) {
+		const a = verts[i];
+		const b = verts[(i + 1) % n];
+		positions.push(0, height, 0);
+		positions.push(a.x - cx, height, a.y - cz);
+		positions.push(b.x - cx, height, b.y - cz);
+		normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+	}
+
+	// Bottom face (reversed winding)
+	for (let i = 0; i < n; i++) {
+		const a = verts[i];
+		const b = verts[(i + 1) % n];
+		positions.push(0, 0, 0);
+		positions.push(b.x - cx, 0, b.y - cz);
+		positions.push(a.x - cx, 0, a.y - cz);
+		normals.push(0, -1, 0, 0, -1, 0, 0, -1, 0);
+	}
+
+	// Side walls
+	for (let i = 0; i < n; i++) {
+		const a = verts[i];
+		const b = verts[(i + 1) % n];
+		const ax = a.x - cx, az = a.y - cz;
+		const bx = b.x - cx, bz = b.y - cz;
+
+		const edgeX = bx - ax, edgeZ = bz - az;
+		const len = Math.hypot(edgeX, edgeZ) || 1;
+		const nx = edgeZ / len, nz = -edgeX / len;
+
+		positions.push(ax, 0, az, bx, 0, bz, ax, height, az);
+		normals.push(nx, 0, nz, nx, 0, nz, nx, 0, nz);
+		positions.push(bx, 0, bz, bx, height, bz, ax, height, az);
+		normals.push(nx, 0, nz, nx, 0, nz, nx, 0, nz);
+	}
+
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+	geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+	return geometry;
+}
+
+function createNuclearCellMesh(cell: VoronoiCell): THREE.Group {
+	const height = 5;
+	const group = new THREE.Group();
+
+	const base = new THREE.Mesh(createCellExtrudedGeometry(cell, height), MAT_NUCLEAR);
+	base.castShadow = true;
+	base.receiveShadow = true;
+	group.add(base);
+
+	// Cooling tower (truncated cone)
+	const cooling = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.9, 1.4, 4, 12),
+		MAT_WIND_POLE,
+	);
+	cooling.position.set(1.2, height + 2, 0);
+	cooling.castShadow = true;
+	group.add(cooling);
+
+	// Containment dome
+	const dome = new THREE.Mesh(
+		new THREE.SphereGeometry(1.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+		MAT_NUCLEAR,
+	);
+	dome.position.set(-1.0, height, 0);
+	dome.castShadow = true;
+	group.add(dome);
+
+	return group;
+}
+
+function createGasCellMesh(cell: VoronoiCell): THREE.Group {
+	const height = 3.5;
+	const group = new THREE.Group();
+
+	const base = new THREE.Mesh(createCellExtrudedGeometry(cell, height), MAT_GAS);
+	base.castShadow = true;
+	base.receiveShadow = true;
+	group.add(base);
+
+	// Chimney
+	const chimney = new THREE.Mesh(
+		new THREE.CylinderGeometry(0.35, 0.45, 3, 8),
+		MAT_CHIMNEY,
+	);
+	chimney.position.set(1.0, height + 1.5, 0);
+	chimney.castShadow = true;
+	group.add(chimney);
+
+	return group;
+}
+
+function createDataCentreCellMesh(cell: VoronoiCell): THREE.Group {
+	const height = 2.5;
+	const group = new THREE.Group();
+
+	const base = new THREE.Mesh(createCellExtrudedGeometry(cell, height), MAT_DATACENTRE);
+	base.castShadow = true;
+	base.receiveShadow = true;
+	group.add(base);
+
+	// Vent boxes on roof
+	const ventGeo = new THREE.BoxGeometry(0.6, 0.4, 0.6);
+	const vent1 = new THREE.Mesh(ventGeo, MAT_CHIMNEY);
+	vent1.position.set(-0.8, height + 0.2, 0.5);
+	vent1.castShadow = true;
+	const vent2 = new THREE.Mesh(ventGeo, MAT_CHIMNEY);
+	vent2.position.set(0.8, height + 0.2, -0.5);
+	vent2.castShadow = true;
+	group.add(vent1, vent2);
+
+	// LED indicators on vents
+	const ledGeo = new THREE.PlaneGeometry(0.2, 0.2);
+	const led1 = new THREE.Mesh(ledGeo, MAT_DC_WINDOW);
+	led1.position.set(-0.8, height + 0.2, 0.81);
+	const led2 = new THREE.Mesh(ledGeo, MAT_DC_WINDOW);
+	led2.position.set(0.8, height + 0.2, -0.19);
+	led2.rotation.y = Math.PI;
+	group.add(led1, led2);
+
+	return group;
+}
+
+const CELL_MESH_CREATORS: Partial<Record<BuildingType, (cell: VoronoiCell) => THREE.Group>> = {
+	nuclear: createNuclearCellMesh,
+	gas: createGasCellMesh,
+	dataCentre: createDataCentreCellMesh,
+};
+
 /** Map of BuildingType → AssetCatalog id for GLB-based models. */
 const GLB_MODEL_IDS: Partial<Record<BuildingType, string>> = {
 	wind: 'wind-turbine',
@@ -289,12 +447,20 @@ const GLB_MODEL_IDS: Partial<Record<BuildingType, string>> = {
 
 /**
  * Create a building mesh, preferring a loaded GLB model when available.
- * Returns an AnimatedModel with a mixer if the model has animations.
+ * For nuclear, gas, and dataCentre types, generates cell-filling geometry
+ * when a VoronoiCell is provided.
  */
 export function createBuildingModel(
 	type: BuildingType,
 	modelFactory?: ModelFactory,
+	cell?: VoronoiCell,
 ): AnimatedModel {
+	// Cell-filling buildings (nuclear, gas, dataCentre)
+	const cellCreator = CELL_MESH_CREATORS[type];
+	if (cell && cellCreator) {
+		return { root: cellCreator(cell), mixer: null };
+	}
+
 	const catalogId = GLB_MODEL_IDS[type];
 	if (catalogId && modelFactory) {
 		try {

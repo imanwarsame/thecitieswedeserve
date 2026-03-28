@@ -1,0 +1,13 @@
+{
+  "name": "thecitieswedeserve",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd src/TCWD.Client && npm install && cd ../../server && npm install",
+    "build:client": "cd src/TCWD.Client && npm run build",
+    "build:server": "cd server && npm run build",
+    "build": "npm run build:client && mkdir -p server/dist/client && cp -r src/TCWD.Client/dist/* server/dist/client/ && npm run build:server",
+    "start": "cd server && npm start",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd src/TCWD.Client && npm run dev"
+  }
+}

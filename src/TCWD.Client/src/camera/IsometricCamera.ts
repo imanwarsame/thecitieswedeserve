@@ -3,8 +3,8 @@ import { EngineConfig } from '../app/config';
 
 const ISO_ANGLE_Y = Math.PI / 4;           // 45 degrees
 const ISO_ANGLE_X = Math.atan(1 / Math.sqrt(2)); // ~35.264 degrees (true isometric)
-const FRUSTUM_BASE = 10;
-const ISO_DISTANCE = 100;
+const FRUSTUM_BASE = 500;
+const ISO_DISTANCE = 5000;
 
 export class IsometricCamera {
 	private camera: THREE.OrthographicCamera;
@@ -20,7 +20,7 @@ export class IsometricCamera {
 			FRUSTUM_BASE,
 			-FRUSTUM_BASE,
 			0.1,
-			1000
+			100000
 		);
 
 		this.applyIsometricOrientation();

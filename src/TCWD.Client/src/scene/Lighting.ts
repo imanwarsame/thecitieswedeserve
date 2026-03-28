@@ -13,18 +13,24 @@ const LIGHTING_KEYS: {
 	groundColor: number;
 	hemiIntensity: number;
 }[] = [
-	{ hour: 0,  sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
-	{ hour: 5,  sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
-	{ hour: 6,  sun: 0xc0c0c0, sunIntensity: 0.5,  skyColor: 0xa0a0a0, groundColor: 0x606060, hemiIntensity: 0.25 },
-	{ hour: 7,  sun: 0xe0e0e0, sunIntensity: 0.9,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
-	{ hour: 10, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
-	{ hour: 14, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
-	{ hour: 17, sun: 0xe0e0e0, sunIntensity: 1.0,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
-	{ hour: 18, sun: 0xb0b0b0, sunIntensity: 0.5,  skyColor: 0x909090, groundColor: 0x505050, hemiIntensity: 0.25 },
-	{ hour: 19, sun: 0x909098, sunIntensity: 0.3,   skyColor: 0x808898, groundColor: 0x485060, hemiIntensity: 0.18 },
-	{ hour: 21, sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
-	{ hour: 24, sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
+	//                                                    sky (hemisphere top)    ground (hemisphere bottom)
+	{ hour: 0,  sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
+	{ hour: 5,  sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
+	{ hour: 6,  sun: 0xd0d0d0, sunIntensity: 0.6,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.35 },  // dawn
+	{ hour: 7,  sun: 0xe8e8e8, sunIntensity: 1.0,  skyColor: 0xe0e0e0, groundColor: 0xa0a0a0, hemiIntensity: 0.45 },  // morning
+	{ hour: 10, sun: Palette.sun, sunIntensity: 1.3, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.65 },
+	{ hour: 14, sun: Palette.sun, sunIntensity: 1.3, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.65 },
+	{ hour: 17, sun: 0xe8e8e8, sunIntensity: 1.1,  skyColor: 0xe0e0e0, groundColor: 0xa0a0a0, hemiIntensity: 0.50 },  // afternoon
+	{ hour: 18, sun: 0xc8c8c8, sunIntensity: 0.7,  skyColor: 0xb0b0b0, groundColor: 0x787878, hemiIntensity: 0.35 },  // evening
+	{ hour: 19, sun: 0xa0a0b0, sunIntensity: 0.4,  skyColor: 0x909098, groundColor: 0x484850, hemiIntensity: 0.25 },  // dusk
+	{ hour: 21, sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
+	{ hour: 24, sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
 ];
+
+const SUN_ORBIT_RADIUS = 2000;
+const SUN_HEIGHT = 1500;
+const MOON_ORBIT_RADIUS = 1800;
+const MOON_HEIGHT = 1200;
 
 const _colorA = new THREE.Color();
 const _colorB = new THREE.Color();
@@ -36,37 +42,34 @@ export class Lighting {
 	private hemisphere!: THREE.HemisphereLight;
 	private envMap: THREE.Texture | null = null;
 	private worldClock: WorldClock | null = null;
-	private celestialBodies: CelestialBodies | null = null;
-	/** World-space centre the shadow frustum is anchored to (tracks camera lookAt). */
+	private _celestialBodies: CelestialBodies | null = null;
 	private readonly shadowCenter = new THREE.Vector3();
+	private lastHour = -1;
 
 	init(graph: SceneGraph): void {
 		// Main directional (sun)
 		this.directional = new THREE.DirectionalLight(Palette.sun, 1.2);
-		this.directional.position.set(10, 15, 10);
+		this.directional.position.set(15, 25, 15);
 		this.directional.castShadow = true;
 
 		const shadow = this.directional.shadow;
-		shadow.mapSize.width = 4096;
-		shadow.mapSize.height = 4096;
+		shadow.mapSize.width = 2048;
+		shadow.mapSize.height = 2048;
 		shadow.camera.near = 0.5;
-		shadow.camera.far = 60;
-		shadow.camera.left = -20;
-		shadow.camera.right = 20;
-		shadow.camera.top = 20;
-		shadow.camera.bottom = -20;
-		shadow.bias = -0.0005;
-		shadow.normalBias = 0.02;
+		shadow.camera.far = 100;
+		shadow.camera.left = -30;
+		shadow.camera.right = 30;
+		shadow.camera.top = 30;
+		shadow.camera.bottom = -30;
+		shadow.bias = -0.003;
+		shadow.normalBias = 0.5;
 		shadow.radius = 3;
 
 		graph.addToGroup('environment', this.directional);
-		// The target must live in the scene graph so THREE.js updates its matrixWorld
-		// each frame; without it the shadow camera's lookAt goes stale.
-		graph.addToGroup('environment', this.directional.target);
 
 		// Fill light — opposite side, no shadows
 		this.fill = new THREE.DirectionalLight(Palette.ambient, 0.2);
-		this.fill.position.set(-8, 10, -8);
+		this.fill.position.set(-10, 15, -10);
 		this.fill.castShadow = false;
 		graph.addToGroup('environment', this.fill);
 
@@ -82,7 +85,7 @@ export class Lighting {
 		const pmrem = new THREE.PMREMGenerator(renderer);
 
 		const envScene = new THREE.Scene();
-		envScene.add(new THREE.HemisphereLight(0xf0f0f0, 0x808080, 1.0));
+		envScene.add(new THREE.HemisphereLight(0xf8f8f7, 0xbebcba, 1.0));
 
 		this.envMap = pmrem.fromScene(envScene, 0, 0.1, 100).texture;
 		scene.environment = this.envMap;
@@ -124,13 +127,9 @@ export class Lighting {
 	}
 
 	setCelestialBodies(cb: CelestialBodies): void {
-		this.celestialBodies = cb;
+		this._celestialBodies = cb;
 	}
 
-	/**
-	 * Keep the shadow frustum centred on the camera's look-at point so shadows
-	 * remain correct when the player pans away from world origin.
-	 */
 	setShadowCenter(pos: THREE.Vector3): void {
 		this.shadowCenter.copy(pos);
 	}
@@ -143,6 +142,9 @@ export class Lighting {
 		if (!this.worldClock) return;
 
 		const hour = this.worldClock.getHour();
+		// Skip if hour hasn't changed meaningfully (< 0.01 ≈ 36 seconds game-time)
+		if (Math.abs(hour - this.lastHour) < 0.01) return;
+		this.lastHour = hour;
 
 		this.updateSunPosition(hour);
 		this.updateColors(hour);
@@ -155,27 +157,33 @@ export class Lighting {
 		}
 	}
 
-	private updateSunPosition(_hour: number): void {
-		if (!this.celestialBodies) return;
+	private updateSunPosition(hour: number): void {
+		const isDay = hour >= 5.5 && hour <= 18.5;
 
-		const sunPos = this.celestialBodies.getSunPosition();
-		const moonPos = this.celestialBodies.getMoonPosition();
-
-		// Use whichever body is above the horizon; sun takes priority.
-		const useSource = sunPos.y > 0 ? sunPos : moonPos;
-
-		const len = useSource.length();
-		if (len > 0.001) {
-			// Place the light at shadowCenter + sun-direction * 25 so the shadow
-			// frustum (±20 units) is always centred on the visible scene area.
-			// The target stays AT shadowCenter so the light direction is preserved.
-			this.directional.position
-				.copy(useSource)
-				.multiplyScalar(25 / len)
-				.add(this.shadowCenter);
-			this.directional.target.position.copy(this.shadowCenter);
+		if (isDay) {
+			// Sun arc: rises at 6, sets at 18
+			const sunProgress = THREE.MathUtils.clamp((hour - 6) / 12, 0, 1);
+			const angle = sunProgress * Math.PI;
+			const x = Math.cos(angle) * SUN_ORBIT_RADIUS;
+			const y = Math.sin(angle) * SUN_HEIGHT;
+			const z = SUN_ORBIT_RADIUS * 0.3;
+			this.directional.position.set(x, Math.max(y, 1), z);
+			this.directional.castShadow = true;
+		} else {
+			// Moon arc: rises at 19, peaks at midnight, sets at 5
+			// Map night hours (19→5) to 0→1, wrapping across midnight
+			const nightStart = 19;
+			const nightDuration = 10; // 19 → 5 = 10 hours
+			const nightHour = hour >= nightStart ? hour - nightStart : hour + (24 - nightStart);
+			const moonProgress = THREE.MathUtils.clamp(nightHour / nightDuration, 0, 1);
+			const angle = moonProgress * Math.PI;
+			// Moon orbits from the opposite side (negative x)
+			const x = -Math.cos(angle) * MOON_ORBIT_RADIUS;
+			const y = Math.sin(angle) * MOON_HEIGHT;
+			const z = -MOON_ORBIT_RADIUS * 0.3;
+			this.directional.position.set(x, Math.max(y, 1), z);
+			this.directional.castShadow = true;
 		}
-		this.directional.castShadow = useSource.y > 0;
 	}
 
 	private updateColors(hour: number): void {

@@ -13,6 +13,7 @@ export function buildFloor(
 	registry: MaterialRegistry,
 	materialKey = 'detail',
 	faceUp = true,
+	sharedMaterial?: THREE.MeshStandardMaterial,
 ): THREE.Mesh {
 	const verts = cell.vertices;
 	const cx = cell.center.x;
@@ -46,9 +47,14 @@ export function buildFloor(
 	geometry.setIndex(indices);
 	geometry.computeVertexNormals();
 
-	const mat = registry.get(materialKey).clone();
-	mat.side = THREE.DoubleSide;
-	patchMaterialUniforms(mat);
+	let mat: THREE.MeshStandardMaterial;
+	if (sharedMaterial) {
+		mat = sharedMaterial;
+	} else {
+		mat = registry.get(materialKey).clone();
+		mat.side = THREE.DoubleSide;
+		patchMaterialUniforms(mat);
+	}
 
 	const mesh = new THREE.Mesh(geometry, mat);
 	mesh.receiveShadow = true;

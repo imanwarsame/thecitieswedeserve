@@ -56,9 +56,9 @@ const ROLE_DEFAULTS: Record<MaterialRole, { color: number; roughness: number; me
 	detail:    { color: Palette.detail,    roughness: 0.85, metalness: 0.0 },
 	accent:    { color: Palette.accent,    roughness: 0.8, metalness: 0.0 },
 	ground:    { color: Palette.ground,    roughness: 1.0, metalness: 0.0 },
-	glass:     { color: 0xd0d0d0,          roughness: 0.1, metalness: 0.0 },
-	metal:     { color: 0xa0a0a0,          roughness: 0.4, metalness: 0.6 },
-	foliage:   { color: 0xb8b8b8,          roughness: 0.95, metalness: 0.0 },
+	glass:     { color: 0xe8e8e8,          roughness: 0.1, metalness: 0.0 },   // clean glass
+	metal:     { color: 0xd0d0d0,          roughness: 0.4, metalness: 0.5 },   // neutral metal
+	foliage:   { color: 0xd0d0d0,          roughness: 0.95, metalness: 0.0 },  // neutral gray
 	custom:    { color: Palette.structure,  roughness: 0.9, metalness: 0.0 },
 };
 

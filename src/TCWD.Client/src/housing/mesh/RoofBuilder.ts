@@ -10,40 +10,96 @@ export function buildFlatRoof(
 	cell: VoronoiCell,
 	layer: number,
 	registry: MaterialRegistry,
+	sharedDetailMat?: THREE.MeshStandardMaterial,
+	sharedAccentMat?: THREE.MeshStandardMaterial,
 ): THREE.Group {
 	const group = new THREE.Group();
 	const topY = (layer + 1) * HousingConfig.layerHeight;
 
-	// Roof cap
-	const cap = buildFloor(cell, topY, registry, 'detail', true);
+	const cap = buildFloor(cell, topY, registry, 'detail', true, sharedDetailMat);
 	cap.name = 'roof_cap';
 	group.add(cap);
 
-	// Low parapet walls along edges
-	const parapetHeight = 0.06;
-	const parapetThickness = 0.03;
+	// Parapet: proportional to layer height
+	const parapetH = 0.08;
+	const parapetThick = 0.04;
 	const verts = cell.vertices;
+
+	const positions: number[] = [];
+	const indices: number[] = [];
+	let vertOffset = 0;
 
 	for (let i = 0; i < verts.length; i++) {
 		const v0 = verts[i];
 		const v1 = verts[(i + 1) % verts.length];
 		const dx = v1.x - v0.x;
 		const dz = v1.y - v0.y;
-		const edgeLen = Math.sqrt(dx * dx + dz * dz);
+		const len = Math.hypot(dx, dz);
+		if (len < 0.001) continue;
 
-		const geo = new THREE.BoxGeometry(edgeLen, parapetHeight, parapetThickness);
-		const mat = registry.get('accent').clone();
-		patchMaterialUniforms(mat);
+		// Direction along the edge
+		const dirX = dx / len;
+		const dirZ = dz / len;
+		// Perpendicular (thickness direction)
+		const perpX = -dirZ * (parapetThick / 2);
+		const perpZ = dirX * (parapetThick / 2);
+
+		const mx = (v0.x + v1.x) / 2;
+		const mz = (v0.y + v1.y) / 2;
+		const halfLen = len / 2;
+
+		// 8 vertices for a box
+		const by = topY;
+		const ty = topY + parapetH;
+		const corners = [
+			// bottom face
+			mx - dirX * halfLen - perpX, by, mz - dirZ * halfLen - perpZ,
+			mx + dirX * halfLen - perpX, by, mz + dirZ * halfLen - perpZ,
+			mx + dirX * halfLen + perpX, by, mz + dirZ * halfLen + perpZ,
+			mx - dirX * halfLen + perpX, by, mz - dirZ * halfLen + perpZ,
+			// top face
+			mx - dirX * halfLen - perpX, ty, mz - dirZ * halfLen - perpZ,
+			mx + dirX * halfLen - perpX, ty, mz + dirZ * halfLen - perpZ,
+			mx + dirX * halfLen + perpX, ty, mz + dirZ * halfLen + perpZ,
+			mx - dirX * halfLen + perpX, ty, mz - dirZ * halfLen + perpZ,
+		];
+		positions.push(...corners);
+
+		// 6 faces × 2 triangles = 12 triangles
+		const o = vertOffset;
+		indices.push(
+			// bottom
+			o, o+2, o+1, o, o+3, o+2,
+			// top
+			o+4, o+5, o+6, o+4, o+6, o+7,
+			// front
+			o, o+1, o+5, o, o+5, o+4,
+			// back
+			o+2, o+3, o+7, o+2, o+7, o+6,
+			// left
+			o, o+4, o+7, o, o+7, o+3,
+			// right
+			o+1, o+2, o+6, o+1, o+6, o+5,
+		);
+		vertOffset += 8;
+	}
+
+	if (positions.length > 0) {
+		const geo = new THREE.BufferGeometry();
+		geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+		geo.setIndex(indices);
+		geo.computeVertexNormals();
+
+		let mat: THREE.MeshStandardMaterial;
+		if (sharedAccentMat) {
+			mat = sharedAccentMat;
+		} else {
+			mat = registry.get('accent').clone();
+			patchMaterialUniforms(mat);
+		}
 
 		const parapet = new THREE.Mesh(geo, mat);
-		parapet.position.set(
-			(v0.x + v1.x) / 2,
-			topY + parapetHeight / 2,
-			(v0.y + v1.y) / 2,
-		);
-		parapet.rotation.y = -Math.atan2(dz, dx);
 		parapet.castShadow = true;
-		parapet.name = `parapet_${i}`;
 		group.add(parapet);
 	}
 
@@ -51,35 +107,66 @@ export function buildFlatRoof(
 	return group;
 }
 
-/** Peaked roof: raised centroid forming a pyramidal shape. */
+/**
+ * Modern shed roof (mono-pitch).
+ * Simple clean slope: one side at topY, opposite side raised by slopeHeight.
+ * Uses ear-clipping on perimeter vertices only — no center vertex, no fan artifacts.
+ */
 export function buildPeakedRoof(
 	cell: VoronoiCell,
 	layer: number,
 	registry: MaterialRegistry,
+	sharedDetailMat?: THREE.MeshStandardMaterial,
+	sharedAccentMat?: THREE.MeshStandardMaterial,
 ): THREE.Group {
 	const group = new THREE.Group();
 	const topY = (layer + 1) * HousingConfig.layerHeight;
-	const peakHeight = HousingConfig.layerHeight * 0.5;
+	const slopeHeight = HousingConfig.layerHeight * 0.18;
+	const verts = cell.vertices;
 	const cx = cell.center.x;
 	const cz = cell.center.y;
-	const verts = cell.vertices;
 
-	// Triangular faces from each edge to the peak
-	const positions: number[] = [];
-	const indices: number[] = [];
-
-	// Peak vertex at index 0
-	positions.push(cx, topY + peakHeight, cz);
-
-	// Perimeter vertices
-	for (const v of verts) {
-		positions.push(v.x, topY, v.y);
+	// Slope direction: from cell center toward the longest edge's midpoint
+	let longestLen = 0;
+	let slopeDirX = 0;
+	let slopeDirZ = 0;
+	for (let i = 0; i < verts.length; i++) {
+		const v0 = verts[i];
+		const v1 = verts[(i + 1) % verts.length];
+		const len = Math.hypot(v1.x - v0.x, v1.y - v0.y);
+		if (len > longestLen) {
+			longestLen = len;
+			const mx = (v0.x + v1.x) / 2 - cx;
+			const mz = (v0.y + v1.y) / 2 - cz;
+			const d = Math.hypot(mx, mz) || 1;
+			slopeDirX = mx / d;
+			slopeDirZ = mz / d;
+		}
 	}
 
-	// Triangles: peak -> edge pairs
+	// Project each vertex onto slope direction to get height
+	const projections: number[] = [];
+	let minProj = Infinity;
+	let maxProj = -Infinity;
+	for (const v of verts) {
+		const p = (v.x - cx) * slopeDirX + (v.y - cz) * slopeDirZ;
+		projections.push(p);
+		if (p < minProj) minProj = p;
+		if (p > maxProj) maxProj = p;
+	}
+	const range = maxProj - minProj || 1;
+
+	// Build sloped roof as a simple polygon with per-vertex Y
+	const positions: number[] = [];
 	for (let i = 0; i < verts.length; i++) {
-		const next = (i + 1) % verts.length;
-		indices.push(0, i + 1, next + 1);
+		const t = (projections[i] - minProj) / range; // 0=low, 1=high
+		positions.push(verts[i].x, topY + t * slopeHeight, verts[i].y);
+	}
+
+	// Ear-clip triangulate the polygon (convex Voronoi cells → simple fan from vertex 0)
+	const indices: number[] = [];
+	for (let i = 1; i < verts.length - 1; i++) {
+		indices.push(0, i, i + 1);
 	}
 
 	const geometry = new THREE.BufferGeometry();
@@ -87,21 +174,26 @@ export function buildPeakedRoof(
 	geometry.setIndex(indices);
 	geometry.computeVertexNormals();
 
-	const mat = registry.get('detail').clone();
-	mat.side = THREE.DoubleSide;
-	patchMaterialUniforms(mat);
+	let mat: THREE.MeshStandardMaterial;
+	if (sharedDetailMat) {
+		mat = sharedDetailMat;
+	} else {
+		mat = registry.get('detail').clone();
+		mat.side = THREE.DoubleSide;
+		patchMaterialUniforms(mat);
+	}
 
 	const mesh = new THREE.Mesh(geometry, mat);
 	mesh.castShadow = true;
 	mesh.receiveShadow = true;
-	mesh.name = 'roof_peak';
+	mesh.name = 'roof_slope';
 	group.add(mesh);
 
-	// Ceiling cap (bottom of roof)
-	const ceiling = buildFloor(cell, topY, registry, 'accent', false);
+	// Flat ceiling underneath
+	const ceiling = buildFloor(cell, topY, registry, 'accent', false, sharedAccentMat);
 	ceiling.name = 'ceiling';
 	group.add(ceiling);
 
-	group.name = `roof_peaked_${cell.index}_${layer}`;
+	group.name = `roof_modern_${cell.index}_${layer}`;
 	return group;
 }

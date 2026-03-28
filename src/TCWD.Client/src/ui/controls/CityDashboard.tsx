@@ -31,40 +31,42 @@ export function CityDashboard() {
 		<div className={styles.dashboard}>
 			<span className={styles.separator} />
 
-			<div className={styles.metric}>
-				<span className={styles.label}>GDP</span>
-				<span className={styles.value}>${fmt(city.gdp)}/h</span>
-			</div>
+			<div className={styles.grid}>
+				<div className={styles.metric}>
+					<span className={styles.label}>GDP</span>
+					<span className={styles.value}>${fmt(city.gdp)}/h</span>
+				</div>
 
-			<div className={styles.metric}>
-				<span className={styles.label}>Land</span>
-				<span className={styles.value}>${fmt(city.landValue)}</span>
-			</div>
+				<div className={styles.metric}>
+					<span className={styles.label}>Land</span>
+					<span className={styles.value}>${fmt(city.landValue)}</span>
+				</div>
 
-			<div className={styles.metric}>
-				<span className={styles.label}>Tax</span>
-				<span className={styles.value}>${fmt(city.taxRevenue)}/h</span>
-			</div>
+				<div className={styles.metric}>
+					<span className={styles.label}>Tax</span>
+					<span className={styles.value}>${fmt(city.taxRevenue)}/h</span>
+				</div>
 
-			<div className={styles.metric}>
-				<span className={styles.label}>Health</span>
-				<span className={`${styles.value} ${healthClass}`}>
-					{pct(city.healthIndex)}
-				</span>
-			</div>
+				<div className={styles.metric}>
+					<span className={styles.label}>Health</span>
+					<span className={`${styles.value} ${healthClass}`}>
+						{pct(city.healthIndex)}
+					</span>
+				</div>
 
-			<div className={styles.metric}>
-				<span className={styles.label}>Crime</span>
-				<span className={`${styles.value} ${crimeClass}`}>
-					{pct(city.crimeIndex)}
-				</span>
-			</div>
+				<div className={styles.metric}>
+					<span className={styles.label}>Crime</span>
+					<span className={`${styles.value} ${crimeClass}`}>
+						{pct(city.crimeIndex)}
+					</span>
+				</div>
 
-			<div className={styles.metric}>
-				<span className={styles.label}>Tourism</span>
-				<span className={`${styles.value} ${tourismClass}`}>
-					{pct(city.tourismIndex)}
-				</span>
+				<div className={styles.metric}>
+					<span className={styles.label}>Tour</span>
+					<span className={`${styles.value} ${tourismClass}`}>
+						{pct(city.tourismIndex)}
+					</span>
+				</div>
 			</div>
 		</div>
 	);

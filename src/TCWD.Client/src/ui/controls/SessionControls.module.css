@@ -1,0 +1,185 @@
+.wrapper {
+  position: relative;
+}
+
+.shareBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 60, 0.7);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+
+.shareBtn:hover {
+  background: rgba(180, 180, 180, 0.25);
+}
+
+.shareBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.active {
+  background: rgba(90, 160, 120, 0.15);
+  color: rgba(50, 120, 80, 0.85);
+}
+
+.active:hover {
+  background: rgba(90, 160, 120, 0.25);
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #f0f0f0;
+  border: 1px solid rgba(180, 180, 180, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 20;
+  min-width: 200px;
+}
+
+.urlRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.url {
+  flex: 1;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  color: rgba(60, 60, 60, 0.8);
+  background: rgba(200, 200, 200, 0.25);
+  padding: 4px 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: rgba(60, 60, 60, 0.6);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.12s ease;
+}
+
+.copyBtn:hover {
+  background: rgba(180, 180, 180, 0.25);
+}
+
+.userDots {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.userList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.userName {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  color: rgba(60, 60, 60, 0.8);
+}
+
+.editBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: rgba(80, 80, 80, 0.5);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+  margin-left: auto;
+  transition: background 0.12s ease;
+}
+
+.editBtn:hover {
+  background: rgba(180, 180, 180, 0.25);
+  color: rgba(60, 60, 60, 0.8);
+}
+
+.nameForm {
+  margin-left: auto;
+}
+
+.nameInput {
+  width: 90px;
+  padding: 2px 4px;
+  border: 1px solid rgba(160, 160, 160, 0.4);
+  border-radius: 3px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  color: rgba(40, 40, 40, 0.9);
+  background: rgba(255, 255, 255, 0.8);
+  outline: none;
+}
+
+.nameInput:focus {
+  border-color: rgba(90, 160, 120, 0.6);
+}
+
+.stopBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: rgba(200, 80, 80, 0.12);
+  color: rgba(180, 60, 60, 0.85);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 4px;
+  transition: background 0.12s ease;
+}
+
+.stopBtn:hover {
+  background: rgba(200, 80, 80, 0.22);
+}

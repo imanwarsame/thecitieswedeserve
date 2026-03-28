@@ -1,46 +1,103 @@
+/* shadcn-style chart tokens — compact HUD strip */
 .dashboard {
+	--chart-1: 220 70% 50%;
+	--chart-2: 160 60% 42%;
+	--chart-3: 30 85% 55%;
+	--chart-4: 25 95% 48%;
+	--chart-5: 280 55% 58%;
+	--chart-muted: 220 14% 90%;
+
 	display: flex;
 	align-items: center;
-	gap: 16px;
-	padding: 0 16px;
-	font-size: 11px;
+	gap: 5px;
+	padding: 2px 6px 2px 4px;
+	min-height: 36px;
+	flex-shrink: 0;
+	font-size: 10px;
 	font-family: ui-monospace, Consolas, monospace;
-	color: rgba(80, 80, 80, 0.7);
+	color: rgba(80, 80, 80, 0.72);
+}
+
+.block {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 1px;
+}
+
+.blockLabel {
+	font-size: 7px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: rgba(80, 80, 80, 0.4);
+	line-height: 1;
+}
+
+.chartBox {
+	margin-left: -2px;
+	line-height: 0;
+}
+
+.sparkCol {
+	position: relative;
+	width: 44px;
+	height: 22px;
+	padding-bottom: 11px;
+	box-sizing: content-box;
+	line-height: 0;
+}
+
+.sparkCol :global(.recharts-wrapper) {
+	line-height: 0;
+}
+
+.stabilityPct {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	font-size: 8px;
+	font-variant-numeric: tabular-nums;
+	color: rgba(40, 40, 40, 0.78);
+	pointer-events: none;
+	white-space: nowrap;
 }
 
 .metric {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 1px;
+	gap: 0;
 }
 
 .label {
-	font-size: 9px;
+	font-size: 7px;
 	text-transform: uppercase;
-	letter-spacing: 0.06em;
+	letter-spacing: 0.05em;
 	color: rgba(80, 80, 80, 0.45);
+	line-height: 1.1;
 }
 
 .value {
-	font-size: 11px;
-	color: rgba(40, 40, 40, 0.8);
-	min-width: 48px;
-	text-align: right;
+	font-size: 10px;
+	color: rgba(40, 40, 40, 0.82);
+	min-width: 0;
+	text-align: center;
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
+	line-height: 1.15;
 }
 
 .warn {
-	color: rgba(160, 60, 60, 0.8);
+	color: rgba(160, 60, 60, 0.88);
 }
 
 .ok {
-	color: rgba(60, 120, 60, 0.8);
+	color: rgba(60, 120, 60, 0.85);
 }
 
 .separator {
 	width: 1px;
-	height: 14px;
-	background: rgba(160, 160, 160, 0.3);
+	height: 26px;
+	background: rgba(160, 160, 160, 0.28);
+	flex-shrink: 0;
 }

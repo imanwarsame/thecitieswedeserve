@@ -44,11 +44,11 @@ const presets: Record<string, MoodPreset> = {
 	},
 	dawn: {
 		name: 'dawn',
-		background: 0xd8d0c8,
-		fogColor: 0xccc4bc,
+		background: 0xd0d0d0,
+		fogColor: 0xc8c8c8,
 		fogInnerRadius: 20,
 		fogOuterRadius: 90,
-		sunColor: 0xe0d8d0,
+		sunColor: 0xd8d8d8,
 		sunIntensity: 0.8,
 		sunPosition: [18, 5, 8],
 		ambientIntensity: 0.25,
@@ -118,9 +118,9 @@ export const MOOD_MATERIAL_OVERRIDES: Record<string, MoodMaterialOverrides> = {
 		grayscaleIntensity: 1.0,
 	},
 	dawn: {
-		colorTint: 0xf0e8e0,
+		colorTint: 0xe8e8e8,
 		roughnessOffset: -0.05,
-		grayscaleIntensity: 0.85,
+		grayscaleIntensity: 1.0,
 	},
 	midnight: {
 		colorTint: 0xc0c0d0,

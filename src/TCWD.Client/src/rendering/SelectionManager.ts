@@ -51,6 +51,23 @@ export class SelectionManager {
 		}
 	}
 
+	/** Run hover raycast only — does NOT consume clicks. */
+	updateHoverOnly(): void {
+		this.frameCounter++;
+		if (this.frameCounter % RAYCAST_THROTTLE !== 0) return;
+
+		this.raycaster.setFromCamera(this.input.mouse, this.camera);
+		const intersects = this.raycaster.intersectObjects(this.entityGroup.children, true);
+		const hit = intersects.length > 0 ? this.resolveTopLevelObject(intersects[0].object) : null;
+
+		if (hit !== this.hoveredObject) {
+			const previous = this.hoveredObject;
+			this.hoveredObject = hit;
+			events.emit('selection:hover', { object: hit, previous });
+			this.updateHoverOutline();
+		}
+	}
+
 	getHovered(): THREE.Object3D | null {
 		return this.hoveredObject;
 	}

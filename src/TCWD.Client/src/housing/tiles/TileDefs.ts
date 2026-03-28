@@ -1,8 +1,52 @@
-import type { TileDef } from './TileRegistry';
+import type { TileDef, EnergyProperties } from './TileRegistry';
+
+// ── Energy property presets ──
+
+const CONCRETE_WALL: EnergyProperties = {
+	uValue: 0.28,           // well-insulated concrete wall W/(m²·K)
+	embodiedCarbon: 180,    // kgCO₂e/m²
+	thermalMass: 250,       // kJ/(m²·K)
+	materialClass: 'opaque',
+};
+
+const GLAZED_WALL: EnergyProperties = {
+	uValue: 1.1,            // double-glazed curtain wall
+	shgc: 0.35,
+	embodiedCarbon: 120,
+	thermalMass: 10,
+	materialClass: 'glazed',
+};
+
+const INSULATED_ROOF: EnergyProperties = {
+	uValue: 0.15,           // well-insulated flat roof
+	embodiedCarbon: 90,
+	thermalMass: 150,
+	materialClass: 'opaque',
+};
+
+const GROUND_SLAB: EnergyProperties = {
+	uValue: 0.22,           // insulated ground floor slab
+	embodiedCarbon: 200,
+	thermalMass: 400,
+	materialClass: 'opaque',
+};
+
+const OPEN_AIR: EnergyProperties = {
+	uValue: 0,
+	materialClass: 'open',
+};
+
+const MIXED_WALL: EnergyProperties = {
+	uValue: 0.6,            // partial wall / partial opening
+	shgc: 0.15,
+	embodiedCarbon: 140,
+	thermalMass: 120,
+	materialClass: 'mixed',
+};
 
 /**
- * Housing tile definitions.
- * Abstract building shapes — Sprint 04 maps each tile id to geometry.
+ * Housing tile definitions with energy metadata.
+ * U-values follow EU nZEB (nearly Zero Energy Building) targets.
  */
 export const HOUSING_TILES: TileDef[] = [
 	// ── Solid blocks ──
@@ -15,6 +59,7 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'solid',
 		weight: 3,
 		requiresSupport: false,
+		energy: CONCRETE_WALL,
 	},
 	{
 		id: 'solid-ground',
@@ -25,9 +70,10 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'solid',
 		weight: 5,
 		requiresSupport: false,
+		energy: GROUND_SLAB,
 	},
 
-	// ── Roofs (solid below, empty above) ──
+	// ── Roofs ──
 	{
 		id: 'roof-flat',
 		label: 'Flat Roof',
@@ -37,6 +83,7 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'solid',
 		weight: 3,
 		requiresSupport: true,
+		energy: INSULATED_ROOF,
 	},
 	{
 		id: 'roof-peaked',
@@ -47,9 +94,10 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'solid',
 		weight: 2,
 		requiresSupport: true,
+		energy: INSULATED_ROOF,
 	},
 
-	// ── Walls (partial side solidity) ──
+	// ── Walls ──
 	{
 		id: 'wall-full',
 		label: 'Full Wall',
@@ -59,6 +107,7 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'solid',
 		weight: 4,
 		requiresSupport: false,
+		energy: CONCRETE_WALL,
 	},
 	{
 		id: 'wall-windowed',
@@ -69,9 +118,10 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'window',
 		weight: 2,
 		requiresSupport: true,
+		energy: GLAZED_WALL,
 	},
 
-	// ── Arches (bottom partially open) ──
+	// ── Arches ──
 	{
 		id: 'arch',
 		label: 'Archway',
@@ -81,6 +131,7 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'arch-t',
 		weight: 1,
 		requiresSupport: true,
+		energy: MIXED_WALL,
 	},
 
 	// ── Open / Air ──
@@ -93,6 +144,7 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'open',
 		weight: 1,
 		requiresSupport: false,
+		energy: OPEN_AIR,
 	},
 
 	// ── Transitional ──
@@ -105,6 +157,7 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'solid',
 		weight: 1,
 		requiresSupport: true,
+		energy: CONCRETE_WALL,
 	},
 	{
 		id: 'balcony',
@@ -115,5 +168,6 @@ export const HOUSING_TILES: TileDef[] = [
 		sideSocket: 'open',
 		weight: 1,
 		requiresSupport: true,
+		energy: MIXED_WALL,
 	},
 ];

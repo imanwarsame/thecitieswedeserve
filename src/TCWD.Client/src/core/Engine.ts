@@ -15,6 +15,7 @@ import { MaterialRegistry } from '../rendering/MaterialRegistry';
 import { RenderPipeline } from '../rendering/RenderPipeline';
 import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
+import { HOUSING_COLORS } from '../rendering/Palette';
 import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
 import { ModelFactory } from '../assets/ModelFactory';
 import { AssetCatalog, DefaultMaterialPresets } from '../assets/AssetCatalog';
@@ -25,6 +26,7 @@ import { SimulationBridge } from '../simulation/bridge/SimulationBridge';
 import { updateBuildingLights, type BuildingType } from '../simulation/bridge/BuildingFactory';
 import { HousingSystem } from '../housing/HousingSystem';
 import { HousingController } from '../housing/HousingController';
+import { HousingConfig } from '../housing/HousingConfig';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -54,6 +56,8 @@ export class Engine {
 	private hoveredCellIndex = -1;
 	private selectedCellIndex = -1;
 	private _placementMode: BuildingType | null = null;
+	/** Tint applied to the next housing placement at the clicked cell. */
+	private _housingColor = HOUSING_COLORS[0].hex;
 
 	constructor() {
 		this.renderer = new Renderer();
@@ -156,6 +160,7 @@ export class Engine {
 		// Infrastructure power-line visualisation
 		this.infrastructureRenderer = new InfrastructureRenderer(
 			gameScene.getGroup('effects'),
+			gameScene.root,
 			this.simulationBridge,
 			gameScene.getEntityManager(),
 		);
@@ -169,10 +174,9 @@ export class Engine {
 			// Sync building window / LED emissive glow to current hour
 			updateBuildingLights(this.worldClock.getHour());
 
-			// Only let SelectionManager consume clicks when NOT in placement mode
-			if (!this._placementMode) {
-				this.selectionManager.update();
-			}
+			// SelectionManager should NOT consume clicks — updateCellHover handles all click logic
+			// Only run selection hover (no click consumption)
+			this.selectionManager.updateHoverOnly();
 			this.sceneManager.update(delta);
 			this.cameraController.update(unscaledDelta);
 			this.infrastructureRenderer.update(delta);
@@ -184,6 +188,11 @@ export class Engine {
 			const cameraTarget = this.cameraController.getTargetPosition();
 			env.setFogCenter(cameraTarget);
 			gameScene.getLighting().setShadowCenter(cameraTarget);
+
+			// Adaptive grid: fade lines based on zoom level
+			const zoom = this.isoCamera.getZoom();
+			const gridOpacity = THREE.MathUtils.smoothstep(zoom, 0.2, 1.0) * 0.5;
+			gameScene.getGridRenderer().setOpacity(gridOpacity);
 
 			// Cell hover highlight
 			this.updateCellHover(gameScene, camera);
@@ -204,6 +213,8 @@ export class Engine {
 
 	start(): void {
 		this.loop.start();
+		// Start with zoom extents so the full scene is visible on page load
+		this.cameraController.zoomExtents(this.sceneManager.getActiveScene().root);
 		console.log('[Engine] Started.');
 	}
 
@@ -337,6 +348,10 @@ export class Engine {
 		events.emit('placement:modeChanged', type);
 	}
 
+	setHousingColor(color: number): void {
+		this._housingColor = color;
+	}
+
 	getSelectedCellIndex(): number {
 		return this.selectedCellIndex;
 	}
@@ -403,17 +418,27 @@ export class Engine {
 
 		if (hit) {
 			const cell = this.grid.query.getCellAt(intersection.x, intersection.z);
-			highlighter.setCell(cell);
-
 			const cellIndex = cell ? cell.index : -1;
 
-			// Set highlight mode based on context
-			if (cell && this._placementMode === 'housing') {
-				highlighter.setMode(
-					this.housingSystem.hasHousing(cellIndex) ? 'occupied' : 'build'
-				);
-			} else if (cell && this._placementMode) {
-				highlighter.setMode('build');
+			// Highlight at building top if housing exists, otherwise ground
+			let highlightY = 0;
+			if (cell) {
+				const h = this.housingSystem.getHeight(cellIndex);
+				if (h > 0) highlightY = h * HousingConfig.layerHeight;
+			}
+			highlighter.setCell(cell, highlightY);
+
+			// Highlight color based on mode
+			if (cell && this._placementMode) {
+				const hasHousing = this.housingSystem.hasHousing(cellIndex);
+				const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
+				if (!isFree && !hasHousing) {
+					highlighter.setMode('default');
+				} else if (hasHousing) {
+					highlighter.setMode('occupied');
+				} else {
+					highlighter.setMode('build');
+				}
 			} else {
 				highlighter.setMode('default');
 			}
@@ -427,29 +452,47 @@ export class Engine {
 				}
 			}
 
+			// Double-click outside any cell → zoom extents
+			if (this.input.consumeDoubleClick()) {
+				if (!cell) {
+					this.cameraController.zoomExtents(this.sceneManager.getActiveScene().root);
+					this.deselectCell();
+					return;
+				}
+			}
+
+			// Shift+Click: remove a Forma model mesh under cursor
+			if (this.input.shiftDown && this.input.consumeClick()) {
+				this.raycaster.setFromCamera(this.input.mouse, camera);
+				gameScene.removeFormaMeshAt(this.raycaster);
+				return;
+			}
+
 			// Click
 			if (this.input.consumeClick() && cell) {
 				if (this._placementMode) {
 					if (this._placementMode === 'housing') {
-						// Housing: delegate to HousingController (supports stacking)
-						this.housingController.setAction('build');
-						events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
-						// Select the cell after housing placement to show tooltip
-						this.forceSelectCell(cellIndex);
-					} else {
-						// Non-housing: one-shot placement via SimulationBridge
-						const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
-						if (placed) {
+						// Housing placement mode — place or stack
+						const hasHousing = this.housingSystem.hasHousing(cellIndex);
+						const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
+						if (isFree || hasHousing) {
+							this.housingSystem.setHousingColor(cellIndex, this._housingColor);
+							this.housingController.setAction('build');
+							events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
 							this.forceSelectCell(cellIndex);
+							return;
 						}
+					} else {
+						// Non-housing placement (solar, wind, etc.)
+						const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+						if (placed) this.forceSelectCell(cellIndex);
+						return;
 					}
-					return;
 				}
 
+				// No placement mode — select/deselect
 				const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
 				events.emit('grid:cellClicked', { cellIndex, cell, entity });
-
-				// Toggle selection
 				if (this.selectedCellIndex === cellIndex) {
 					this.deselectCell();
 				} else {
@@ -461,6 +504,13 @@ export class Engine {
 
 			if (this.hoveredCellIndex !== -1) {
 				this.hoveredCellIndex = -1;
+			}
+
+			// Double-click on empty space → zoom extents
+			if (this.input.consumeDoubleClick()) {
+				this.cameraController.zoomExtents(this.sceneManager.getActiveScene().root);
+				this.deselectCell();
+				return;
 			}
 
 			// Click on empty space deselects

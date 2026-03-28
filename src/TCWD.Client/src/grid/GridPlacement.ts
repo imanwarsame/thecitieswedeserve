@@ -22,6 +22,10 @@ export class GridPlacement {
 		this.occupied.delete(cellIndex);
 	}
 
+	getCell(cellIndex: number): VoronoiCell | null {
+		return this.grid.cells[cellIndex] ?? null;
+	}
+
 	getCellWorldPosition(cellIndex: number, height = 0): THREE.Vector3 | null {
 		const cell = this.grid.cells[cellIndex];
 		if (!cell) return null;
