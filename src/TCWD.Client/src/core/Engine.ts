@@ -11,6 +11,9 @@ import { CameraController } from '../camera/CameraController';
 import { WorldClock } from '../gameplay/WorldClock';
 import { TimeController } from '../gameplay/TimeController';
 import { AssetManager } from '../assets/AssetManager';
+import { ModelFactory } from '../assets/ModelFactory';
+import { AssetCatalog } from '../assets/AssetCatalog';
+import { MaterialRegistry } from '../rendering/MaterialRegistry';
 import { RenderPipeline } from '../rendering/RenderPipeline';
 import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
@@ -18,7 +21,7 @@ import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
 import { EngineConfig } from '../app/config';
 import { buildGrid, type BuiltGrid } from '../grid/GridBuilder';
 import { SimulationBridge } from '../simulation/bridge/SimulationBridge';
-import type { BuildingType } from '../simulation/bridge/BuildingFactory';
+import { updateBuildingLights, type BuildingType } from '../simulation/bridge/BuildingFactory';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -35,6 +38,8 @@ export class Engine {
 	private resizeObserver!: ResizeObserver;
 	private sceneManager: SceneManager;
 	private assetManager: AssetManager;
+	private modelFactory!: ModelFactory;
+	private materialRegistry!: MaterialRegistry;
 	private grid!: BuiltGrid;
 	private simulationBridge!: SimulationBridge;
 	private infrastructureRenderer!: InfrastructureRenderer;
@@ -60,6 +65,11 @@ export class Engine {
 		await this.renderer.init(canvas);
 
 		this.timeController = new TimeController(this.time, this.worldClock);
+
+		// Set up ModelFactory and register catalog entries before preloading
+		this.materialRegistry = new MaterialRegistry();
+		this.modelFactory = new ModelFactory(this.assetManager, this.materialRegistry);
+		this.modelFactory.registerCatalog(AssetCatalog);
 
 		await this.assetManager.preload();
 
@@ -106,6 +116,8 @@ export class Engine {
 		this.simulationBridge = new SimulationBridge(
 			gameScene.getEntityManager(),
 			gameScene.getGridPlacement(),
+			this.worldClock,
+			this.modelFactory,
 		);
 
 		// Infrastructure power-line visualisation
@@ -121,6 +133,9 @@ export class Engine {
 			// Advance world clock each frame so time-of-day and simulation ticks progress
 			this.worldClock.update(delta);
 
+			// Sync building window / LED emissive glow to current hour
+			updateBuildingLights(this.worldClock.getHour());
+
 			// Only let SelectionManager consume clicks when NOT in placement mode
 			if (!this._placementMode) {
 				this.selectionManager.update();
@@ -128,6 +143,8 @@ export class Engine {
 			this.sceneManager.update(delta);
 			this.cameraController.update(unscaledDelta);
 			this.infrastructureRenderer.update(delta);
+			// Use unscaledDelta so animations play regardless of game time speed
+			this.simulationBridge.updateAnimations(unscaledDelta);
 
 			// Track fog center to camera's ground-plane target
 			const env = gameScene.getEnvironment();

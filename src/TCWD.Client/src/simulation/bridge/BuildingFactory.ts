@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { EntityType, FuelType } from '../types';
 import type { Entity as SimEntity } from '../entities/types';
+import type { ModelFactory, AnimatedModel } from '../../assets/ModelFactory';
 
 /**
  * Creates procedural 3D meshes for simulation entity types.
@@ -16,6 +17,22 @@ const MAT_GAS = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.8
 const MAT_COAL = new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.9, metalness: 0.05 });
 const MAT_NUCLEAR = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.7, metalness: 0.15 });
 const MAT_CHIMNEY = new THREE.MeshStandardMaterial({ color: 0x686868, roughness: 0.85, metalness: 0.1 });
+
+// Emissive window / LED materials – shared so a single update lights every building
+const MAT_HOUSING_WINDOW = new THREE.MeshStandardMaterial({
+	color: 0x332211,
+	roughness: 1.0,
+	metalness: 0.0,
+	emissive: 0xffaa44,
+	emissiveIntensity: 0,
+});
+const MAT_DC_WINDOW = new THREE.MeshStandardMaterial({
+	color: 0x112233,
+	roughness: 1.0,
+	metalness: 0.0,
+	emissive: 0x66ccff,
+	emissiveIntensity: 0,
+});
 
 function enableShadows(obj: THREE.Object3D): void {
 	obj.traverse(child => {
@@ -33,7 +50,18 @@ function createHousingMesh(): THREE.Group {
 	const roof = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.3, 4), MAT_HOUSING);
 	roof.position.y = 0.75;
 	roof.rotation.y = Math.PI / 4;
-	group.add(body, roof);
+
+	// Emissive windows (glow at night)
+	const winGeo = new THREE.PlaneGeometry(0.12, 0.14);
+	const win1 = new THREE.Mesh(winGeo, MAT_HOUSING_WINDOW);
+	win1.position.set(-0.14, 0.34, 0.351);
+	const win2 = new THREE.Mesh(winGeo, MAT_HOUSING_WINDOW);
+	win2.position.set(0.14, 0.34, 0.351);
+	const win3 = new THREE.Mesh(winGeo, MAT_HOUSING_WINDOW);
+	win3.position.set(0.351, 0.34, -0.05);
+	win3.rotation.y = Math.PI / 2;
+
+	group.add(body, roof, win1, win2, win3);
 	enableShadows(group);
 	return group;
 }
@@ -47,7 +75,22 @@ function createDataCentreMesh(): THREE.Group {
 	vent.position.set(-0.25, 0.55, 0);
 	const vent2 = vent.clone();
 	vent2.position.set(0.25, 0.55, 0);
-	group.add(body, vent, vent2);
+
+	// LED strip on front face
+	const strip1 = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.05), MAT_DC_WINDOW);
+	strip1.position.set(0, 0.18, 0.401);
+	// LED strip on right side
+	const strip2 = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), MAT_DC_WINDOW);
+	strip2.position.set(0.501, 0.18, 0);
+	strip2.rotation.y = Math.PI / 2;
+	// LED indicators on vents
+	const ledGeo = new THREE.PlaneGeometry(0.04, 0.04);
+	const led1 = new THREE.Mesh(ledGeo, MAT_DC_WINDOW);
+	led1.position.set(-0.25, 0.55, 0.076);
+	const led2 = new THREE.Mesh(ledGeo, MAT_DC_WINDOW);
+	led2.position.set(0.25, 0.55, 0.076);
+
+	group.add(body, vent, vent2, strip1, strip2, led1, led2);
 	enableShadows(group);
 	return group;
 }
@@ -150,6 +193,30 @@ export function createBuildingMesh(type: BuildingType): THREE.Group {
 	return MESH_CREATORS[type]();
 }
 
+/** Map of BuildingType → AssetCatalog id for GLB-based models. */
+const GLB_MODEL_IDS: Partial<Record<BuildingType, string>> = {
+	wind: 'wind-turbine',
+};
+
+/**
+ * Create a building mesh, preferring a loaded GLB model when available.
+ * Returns an AnimatedModel with a mixer if the model has animations.
+ */
+export function createBuildingModel(
+	type: BuildingType,
+	modelFactory?: ModelFactory,
+): AnimatedModel {
+	const catalogId = GLB_MODEL_IDS[type];
+	if (catalogId && modelFactory) {
+		try {
+			return modelFactory.createAnimated(catalogId);
+		} catch {
+			// Fall back to procedural mesh if asset not loaded
+		}
+	}
+	return { root: MESH_CREATORS[type](), mixer: null };
+}
+
 /** Derive the BuildingType from a simulation entity. */
 export function buildingTypeFromSimEntity(entity: SimEntity): BuildingType {
 	switch (entity.type) {
@@ -193,3 +260,33 @@ export const BUILDING_LABELS: Record<BuildingType, string> = {
 	coal: 'Coal Plant',
 	nuclear: 'Nuclear Plant',
 };
+
+// ── Night-time building lights ───────────────────────────────
+
+function housingGlow(hour: number): number {
+	if (hour < 5) return 1.0;
+	if (hour < 7) return 1.0 - (hour - 5) / 2;
+	if (hour < 17) return 0.0;
+	if (hour < 19) return (hour - 17) / 2;
+	return 1.0;
+}
+
+function dataCentreGlow(hour: number): number {
+	// Data centres run 24/7 — keep a faint LED glow even during daylight
+	const base = 0.15;
+	const nightBoost = 0.85;
+	if (hour < 5) return base + nightBoost;
+	if (hour < 7) return base + nightBoost * (1.0 - (hour - 5) / 2);
+	if (hour < 17) return base;
+	if (hour < 19) return base + nightBoost * ((hour - 17) / 2);
+	return base + nightBoost;
+}
+
+/**
+ * Update the shared emissive window / LED materials so buildings glow at
+ * dusk, night and dawn.  Call once per frame with the current world hour.
+ */
+export function updateBuildingLights(hour: number): void {
+	MAT_HOUSING_WINDOW.emissiveIntensity = housingGlow(hour);
+	MAT_DC_WINDOW.emissiveIntensity = dataCentreGlow(hour);
+}

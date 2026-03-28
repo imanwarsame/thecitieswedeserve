@@ -10,8 +10,11 @@ import { events } from '../../core/Events';
 import { Entity } from '../../entities/Entity';
 import { EntityManager } from '../../entities/EntityManager';
 import { GridPlacement } from '../../grid/GridPlacement';
+import type { WorldClock } from '../../gameplay/WorldClock';
+import type { ModelFactory } from '../../assets/ModelFactory';
+import * as THREE from 'three';
 import {
-	createBuildingMesh,
+	createBuildingModel,
 	simEntityTypeFromBuildingType,
 	type BuildingType,
 } from './BuildingFactory';
@@ -28,6 +31,7 @@ export class SimulationBridge {
 	private engine: SimulationEngine;
 	private entityManager: EntityManager;
 	private gridPlacement: GridPlacement;
+	private modelFactory?: ModelFactory;
 
 	/** 3D entity id → simulation entity id */
 	private renderToSim = new Map<string, string>();
@@ -35,13 +39,25 @@ export class SimulationBridge {
 	private simToRender = new Map<string, string>();
 	/** 3D entity id → BuildingType */
 	private entityBuildingTypes = new Map<string, BuildingType>();
+	/** 3D entity id → AnimationMixer (for animated GLB models) */
+	private mixers = new Map<string, THREE.AnimationMixer>();
 
 	private lastState: SimulationState;
 
-	constructor(entityManager: EntityManager, gridPlacement: GridPlacement) {
+	constructor(entityManager: EntityManager, gridPlacement: GridPlacement, worldClock: WorldClock, modelFactory?: ModelFactory) {
 		this.engine = new SimulationEngine();
 		this.entityManager = entityManager;
 		this.gridPlacement = gridPlacement;
+		this.modelFactory = modelFactory;
+
+		// Sync the simulation clock to the WorldClock's starting hour.
+		// The sim clock starts at tick 0 (= hour 0 midnight) but the world
+		// may start at e.g. hour 8.  Pre-advance so hours match.
+		const startHour = Math.floor(worldClock.getHour());
+		for (let i = 0; i < startHour; i++) {
+			this.engine.step();
+		}
+
 		this.lastState = this.engine.getState();
 
 		events.on('world:hourChanged', this.onHourChanged);
@@ -74,8 +90,8 @@ export class SimulationBridge {
 
 		this.engine.addEntity(simEntity);
 
-		// Create 3D entity
-		const mesh = createBuildingMesh(type);
+		// Create 3D entity (prefer GLB model if available)
+		const { root: mesh, mixer } = createBuildingModel(type, this.modelFactory);
 		const entity = new Entity({
 			name: simEntity.name,
 			mesh,
@@ -92,7 +108,16 @@ export class SimulationBridge {
 		this.simToRender.set(simEntity.id, entity.id);
 		this.entityBuildingTypes.set(entity.id, type);
 
+		if (mixer) {
+			this.mixers.set(entity.id, mixer);
+		}
+
 		events.emit('building:placed', { entityId: entity.id, simId: simEntity.id, type, cellIndex });
+
+		// Recompute metrics immediately so the dashboard reflects the new building
+		this.lastState = this.engine.recompute();
+		events.emit('simulation:tick', this.lastState);
+
 		return entity;
 	}
 
@@ -112,7 +137,18 @@ export class SimulationBridge {
 		this.simToRender.delete(simId);
 		this.entityBuildingTypes.delete(entityId);
 
+		const mixer = this.mixers.get(entityId);
+		if (mixer) {
+			mixer.stopAllAction();
+			this.mixers.delete(entityId);
+		}
+
 		events.emit('building:removed', { entityId, simId });
+
+		// Recompute metrics immediately so the dashboard reflects the removal
+		this.lastState = this.engine.recompute();
+		events.emit('simulation:tick', this.lastState);
+
 		return true;
 	}
 
@@ -149,10 +185,21 @@ export class SimulationBridge {
 		return this.lastState;
 	}
 
+	/** Advance all active animation mixers. Call once per frame. */
+	updateAnimations(delta: number): void {
+		for (const mixer of this.mixers.values()) {
+			mixer.update(delta);
+		}
+	}
+
 	// ── Lifecycle ────────────────────────────────────────────
 
 	dispose(): void {
 		events.off('world:hourChanged', this.onHourChanged);
+		for (const mixer of this.mixers.values()) {
+			mixer.stopAllAction();
+		}
+		this.mixers.clear();
 	}
 
 	// ── Private ──────────────────────────────────────────────
