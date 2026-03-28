@@ -4,6 +4,7 @@ import { EngineConfig } from '../app/config';
 const ISO_ANGLE_Y = Math.PI / 4;           // 45 degrees
 const ISO_ANGLE_X = Math.atan(1 / Math.sqrt(2)); // ~35.264 degrees (true isometric)
 const FRUSTUM_BASE = 10;
+const ISO_DISTANCE = 100;
 
 export class IsometricCamera {
 	private camera: THREE.OrthographicCamera;
@@ -52,16 +53,33 @@ export class IsometricCamera {
 		this.applyZoom();
 	}
 
+	/** Position + orient the camera to look at `target` with optional yaw/pitch rotation offsets. */
+	applyLookAt(target: THREE.Vector3, yawOffset = 0, pitchOffset = 0): void {
+		const yaw = ISO_ANGLE_Y + yawOffset;
+		const pitch = THREE.MathUtils.clamp(
+			ISO_ANGLE_X + pitchOffset,
+			0.15,
+			Math.PI / 2 - 0.05
+		);
+
+		const dir = new THREE.Vector3(
+			Math.sin(yaw) * Math.cos(pitch),
+			Math.sin(pitch),
+			Math.cos(yaw) * Math.cos(pitch)
+		).normalize();
+
+		this.camera.position.copy(target).addScaledVector(dir, ISO_DISTANCE);
+		this.camera.lookAt(target);
+	}
+
 	private applyIsometricOrientation(): void {
-		// Position the camera far from origin along the isometric direction
-		const distance = 100;
 		const dir = new THREE.Vector3(
 			Math.sin(ISO_ANGLE_Y) * Math.cos(ISO_ANGLE_X),
 			Math.sin(ISO_ANGLE_X),
 			Math.cos(ISO_ANGLE_Y) * Math.cos(ISO_ANGLE_X)
 		).normalize();
 
-		this.camera.position.copy(dir.multiplyScalar(distance));
+		this.camera.position.copy(dir.multiplyScalar(ISO_DISTANCE));
 		this.camera.lookAt(0, 0, 0);
 	}
 

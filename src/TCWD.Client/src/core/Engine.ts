@@ -1,6 +1,7 @@
 import { Renderer } from './Renderer';
 import { Loop } from './Loop';
 import { Time } from './Time';
+import { Input } from './Input';
 import { Events, events } from './Events';
 import { SceneManager } from './SceneManager';
 import { GameScene } from '../scene/GameScene';
@@ -10,6 +11,7 @@ import { WorldClock } from '../gameplay/WorldClock';
 import { TimeController } from '../gameplay/TimeController';
 import { AssetManager } from '../assets/AssetManager';
 import { RenderPipeline } from '../rendering/RenderPipeline';
+import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
 import type { UpdateCallback } from './Loop';
 
@@ -18,10 +20,12 @@ export class Engine {
 	private renderPipeline!: RenderPipeline;
 	private loop!: Loop;
 	private time: Time;
+	private input: Input;
 	private worldClock: WorldClock;
 	private timeController!: TimeController;
 	private isoCamera!: IsometricCamera;
 	private cameraController!: CameraController;
+	private selectionManager!: SelectionManager;
 	private resizeObserver!: ResizeObserver;
 	private sceneManager: SceneManager;
 	private assetManager: AssetManager;
@@ -30,6 +34,7 @@ export class Engine {
 		this.renderer = new Renderer();
 		this.sceneManager = new SceneManager();
 		this.time = new Time();
+		this.input = new Input();
 		this.worldClock = new WorldClock();
 		this.assetManager = new AssetManager();
 	}
@@ -47,6 +52,7 @@ export class Engine {
 		const gameScene = new GameScene(this.assetManager);
 		this.sceneManager.loadScene(gameScene);
 		gameScene.setWorldClock(this.worldClock);
+		gameScene.initEnvironmentMap(this.renderer.getWebGLRenderer());
 
 		this.isoCamera = new IsometricCamera(canvas.clientWidth, canvas.clientHeight);
 		const camera = this.isoCamera.getCamera();
@@ -54,14 +60,28 @@ export class Engine {
 		this.cameraController = new CameraController();
 		this.cameraController.init(this.isoCamera, canvas);
 
+		this.input.init(canvas);
+
 		this.renderPipeline = new RenderPipeline(this.renderer);
 		this.renderPipeline.init(this.renderer.getWebGLRenderer(), gameScene.root, camera);
+
+		// Set up selection manager with outline passes
+		this.selectionManager = new SelectionManager();
+		const pp = this.renderPipeline.getPostProcessing();
+		this.selectionManager.init(
+			this.input,
+			camera,
+			gameScene.getGroup('entity'),
+			pp.getHoverOutlinePass(),
+			pp.getSelectOutlinePass(),
+		);
 
 		this.loop = new Loop(this.renderPipeline, gameScene.root, camera, this.time);
 
 		// WorldClock is NOT auto-advanced here — shadows stay fixed at startHour.
 		// Call worldClock.setHour() manually to change time of day.
 		this.loop.register((delta, unscaledDelta) => {
+			this.selectionManager.update();
 			this.sceneManager.update(delta);
 			this.cameraController.update(unscaledDelta);
 
@@ -90,6 +110,8 @@ export class Engine {
 
 	stop(): void {
 		this.loop?.stop();
+		this.selectionManager?.dispose();
+		this.input?.dispose();
 		this.cameraController?.dispose();
 		this.resizeObserver?.disconnect();
 		this.sceneManager.dispose();
@@ -124,6 +146,10 @@ export class Engine {
 		return this.time;
 	}
 
+	getInput(): Input {
+		return this.input;
+	}
+
 	getEvents(): Events {
 		return events;
 	}
@@ -142,6 +168,10 @@ export class Engine {
 
 	getScene(): GameScene {
 		return this.sceneManager.getActiveScene();
+	}
+
+	getSelectionManager(): SelectionManager {
+		return this.selectionManager;
 	}
 
 	getIsometricCamera(): IsometricCamera {

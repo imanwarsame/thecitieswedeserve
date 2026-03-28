@@ -1,0 +1,30 @@
+.button {
+	pointer-events: auto;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: none;
+	background: transparent;
+	color: rgba(80, 80, 80, 0.8);
+	cursor: pointer;
+	border-radius: 4px;
+	font-size: 14px;
+	transition: background 0.15s ease;
+	padding: 0;
+}
+
+.button:hover {
+	background: rgba(180, 180, 180, 0.3);
+}
+
+.button:focus-visible {
+	outline: 1px solid rgba(120, 120, 120, 0.5);
+	outline-offset: 1px;
+}
+
+.active {
+	background: rgba(160, 160, 160, 0.4);
+	color: rgba(40, 40, 40, 0.9);
+}

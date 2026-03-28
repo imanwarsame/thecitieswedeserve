@@ -3,25 +3,25 @@ import { SceneGraph } from './SceneGraph';
 import { Palette } from '../rendering/Palette';
 import { WorldClock } from '../gameplay/WorldClock';
 
-// Monochrome lighting keyframes — grays only, intensity drives the day/night feel
 const LIGHTING_KEYS: {
 	hour: number;
 	sun: number;
 	sunIntensity: number;
-	ambient: number;
-	ambientIntensity: number;
+	skyColor: number;
+	groundColor: number;
+	hemiIntensity: number;
 }[] = [
-	{ hour: 0, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
-	{ hour: 5, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
-	{ hour: 6, sun: 0xc0c0c0, sunIntensity: 0.5, ambient: 0xa0a0a0, ambientIntensity: 0.2 },
-	{ hour: 7, sun: 0xe0e0e0, sunIntensity: 0.9, ambient: 0xc8c8c8, ambientIntensity: 0.3 },
-	{ hour: 10, sun: Palette.sun, sunIntensity: 1.2, ambient: Palette.ambient, ambientIntensity: 0.35 },
-	{ hour: 14, sun: Palette.sun, sunIntensity: 1.2, ambient: Palette.ambient, ambientIntensity: 0.35 },
-	{ hour: 17, sun: 0xe0e0e0, sunIntensity: 1.0, ambient: 0xc8c8c8, ambientIntensity: 0.3 },
-	{ hour: 18, sun: 0xb0b0b0, sunIntensity: 0.5, ambient: 0x909090, ambientIntensity: 0.2 },
-	{ hour: 19, sun: 0x909098, sunIntensity: 0.15, ambient: 0x707078, ambientIntensity: 0.12 },
-	{ hour: 21, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
-	{ hour: 24, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
+	{ hour: 0,  sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
+	{ hour: 5,  sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
+	{ hour: 6,  sun: 0xc0c0c0, sunIntensity: 0.5,  skyColor: 0xa0a0a0, groundColor: 0x606060, hemiIntensity: 0.25 },
+	{ hour: 7,  sun: 0xe0e0e0, sunIntensity: 0.9,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
+	{ hour: 10, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
+	{ hour: 14, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
+	{ hour: 17, sun: 0xe0e0e0, sunIntensity: 1.0,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
+	{ hour: 18, sun: 0xb0b0b0, sunIntensity: 0.5,  skyColor: 0x909090, groundColor: 0x505050, hemiIntensity: 0.25 },
+	{ hour: 19, sun: 0x909098, sunIntensity: 0.15,  skyColor: 0x707078, groundColor: 0x383840, hemiIntensity: 0.12 },
+	{ hour: 21, sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
+	{ hour: 24, sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
 ];
 
 const SUN_ORBIT_RADIUS = 20;
@@ -34,7 +34,8 @@ const _colorResult = new THREE.Color();
 export class Lighting {
 	private directional!: THREE.DirectionalLight;
 	private fill!: THREE.DirectionalLight;
-	private ambient!: THREE.AmbientLight;
+	private hemisphere!: THREE.HemisphereLight;
+	private envMap: THREE.Texture | null = null;
 	private worldClock: WorldClock | null = null;
 
 	init(graph: SceneGraph): void {
@@ -61,11 +62,26 @@ export class Lighting {
 		this.fill.castShadow = false;
 		graph.addToGroup('environment', this.fill);
 
-		// Ambient
-		this.ambient = new THREE.AmbientLight(Palette.ambient, 0.35);
-		graph.addToGroup('environment', this.ambient);
+		// Hemisphere light — sky/ground gradient replaces flat ambient
+		this.hemisphere = new THREE.HemisphereLight(Palette.sun, Palette.shadow, 0.6);
+		graph.addToGroup('environment', this.hemisphere);
 
 		console.log('[Lighting] Initialized.');
+	}
+
+	/** Generate an IBL environment map for MeshStandardMaterial. */
+	initEnvironmentMap(renderer: THREE.WebGLRenderer, scene: THREE.Scene): void {
+		const pmrem = new THREE.PMREMGenerator(renderer);
+
+		// Simple sky-ground gradient scene for soft IBL
+		const envScene = new THREE.Scene();
+		envScene.add(new THREE.HemisphereLight(0xf0f0f0, 0x808080, 1.0));
+
+		this.envMap = pmrem.fromScene(envScene, 0, 0.1, 100).texture;
+		scene.environment = this.envMap;
+
+		pmrem.dispose();
+		console.log('[Lighting] Environment map generated.');
 	}
 
 	setWorldClock(clock: WorldClock): void {
@@ -76,10 +92,6 @@ export class Lighting {
 		this.directional.position.set(x, y, z);
 	}
 
-	setAmbientIntensity(value: number): void {
-		this.ambient.intensity = value;
-	}
-
 	update(_delta: number): void {
 		if (!this.worldClock) return;
 
@@ -87,6 +99,13 @@ export class Lighting {
 
 		this.updateSunPosition(hour);
 		this.updateColors(hour);
+	}
+
+	dispose(): void {
+		if (this.envMap) {
+			this.envMap.dispose();
+			this.envMap = null;
+		}
 	}
 
 	private updateSunPosition(hour: number): void {
@@ -121,20 +140,29 @@ export class Lighting {
 
 		const t = (hour - lower.hour) / (upper.hour - lower.hour || 1);
 
+		// Sun color + intensity
 		_colorA.set(lower.sun);
 		_colorB.set(upper.sun);
 		_colorResult.copy(_colorA).lerp(_colorB, t);
 		this.directional.color.copy(_colorResult);
 		this.directional.intensity = THREE.MathUtils.lerp(lower.sunIntensity, upper.sunIntensity, t);
 
-		_colorA.set(lower.ambient);
-		_colorB.set(upper.ambient);
+		// Hemisphere sky color
+		_colorA.set(lower.skyColor);
+		_colorB.set(upper.skyColor);
 		_colorResult.copy(_colorA).lerp(_colorB, t);
-		this.ambient.color.copy(_colorResult);
-		this.ambient.intensity = THREE.MathUtils.lerp(lower.ambientIntensity, upper.ambientIntensity, t);
+		this.hemisphere.color.copy(_colorResult);
 
-		// Fill light tracks ambient at lower intensity
-		this.fill.color.copy(this.ambient.color);
-		this.fill.intensity = this.ambient.intensity * 0.5;
+		// Hemisphere ground color
+		_colorA.set(lower.groundColor);
+		_colorB.set(upper.groundColor);
+		_colorResult.copy(_colorA).lerp(_colorB, t);
+		this.hemisphere.groundColor.copy(_colorResult);
+
+		this.hemisphere.intensity = THREE.MathUtils.lerp(lower.hemiIntensity, upper.hemiIntensity, t);
+
+		// Fill light tracks hemisphere sky at lower intensity
+		this.fill.color.copy(this.hemisphere.color);
+		this.fill.intensity = this.hemisphere.intensity * 0.3;
 	}
 }
