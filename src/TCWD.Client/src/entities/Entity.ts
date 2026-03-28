@@ -15,6 +15,8 @@ export class Entity {
 	private components = new Map<string, Component>();
 
 	cellIndex: number;
+	/** Links to the headless simulation entity id (set by SimulationBridge). */
+	simulationId: string;
 
 	constructor(options: {
 		id?: string;
@@ -22,6 +24,7 @@ export class Entity {
 		mesh?: THREE.Object3D;
 		position?: THREE.Vector3;
 		cellIndex?: number;
+		simulationId?: string;
 	} = {}) {
 		this.id = options.id ?? `entity_${nextId++}`;
 		this.name = options.name ?? this.id;
@@ -31,6 +34,7 @@ export class Entity {
 		this.scale = new THREE.Vector3(1, 1, 1);
 		this.active = true;
 		this.cellIndex = options.cellIndex ?? -1;
+		this.simulationId = options.simulationId ?? '';
 	}
 
 	init(): void {

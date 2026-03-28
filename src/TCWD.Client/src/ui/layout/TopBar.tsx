@@ -1,4 +1,5 @@
 import { useWorldClock } from '../hooks/useWorldClock';
+import { EnergyDashboard } from '../controls/EnergyDashboard';
 import styles from './TopBar.module.css';
 
 function formatHour(hour: number): string {
@@ -17,6 +18,7 @@ export function TopBar() {
 			<span>{phase}</span>
 			<span className={styles.separator} />
 			<span>Day {dayCount + 1}</span>
+			<EnergyDashboard />
 		</div>
 	);
 }
