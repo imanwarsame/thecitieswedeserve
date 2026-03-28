@@ -21,7 +21,7 @@ import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
 import { EngineConfig } from '../app/config';
 import { buildGrid, type BuiltGrid } from '../grid/GridBuilder';
 import { SimulationBridge } from '../simulation/bridge/SimulationBridge';
-import type { BuildingType } from '../simulation/bridge/BuildingFactory';
+import { updateBuildingLights, type BuildingType } from '../simulation/bridge/BuildingFactory';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -132,6 +132,9 @@ export class Engine {
 		this.loop.register((delta, unscaledDelta) => {
 			// Advance world clock each frame so time-of-day and simulation ticks progress
 			this.worldClock.update(delta);
+
+			// Sync building window / LED emissive glow to current hour
+			updateBuildingLights(this.worldClock.getHour());
 
 			// Only let SelectionManager consume clicks when NOT in placement mode
 			if (!this._placementMode) {

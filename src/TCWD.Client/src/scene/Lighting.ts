@@ -120,12 +120,12 @@ export class Lighting {
 		this.directional.position.set(x, y, z);
 	}
 
-	update(_delta: number): void {
+	update(_delta: number, sunWorldPos?: THREE.Vector3): void {
 		if (!this.worldClock) return;
 
 		const hour = this.worldClock.getHour();
 
-		this.updateSunPosition(hour);
+		this.updateSunPosition(hour, sunWorldPos);
 		this.updateColors(hour);
 	}
 
@@ -136,7 +136,24 @@ export class Lighting {
 		}
 	}
 
-	private updateSunPosition(hour: number): void {
+	private updateSunPosition(hour: number, sunWorldPos?: THREE.Vector3): void {
+		if (sunWorldPos) {
+			// Use astronomical sun position from CelestialBodies
+			const isAboveHorizon = sunWorldPos.y > 0;
+			if (isAboveHorizon) {
+				// Normalise to a closer distance for the directional light
+				const dir = sunWorldPos.clone().normalize();
+				this.directional.position.copy(dir.multiplyScalar(SUN_ORBIT_RADIUS));
+				this.directional.castShadow = true;
+			} else {
+				// Sun below horizon — dim moonlight direction
+				this.directional.position.set(-5, 10, -5);
+				this.directional.castShadow = false;
+			}
+			return;
+		}
+
+		// Fallback: simple arc (no CelestialBodies available)
 		const sunProgress = THREE.MathUtils.clamp((hour - 6) / 12, 0, 1);
 		const angle = sunProgress * Math.PI;
 
