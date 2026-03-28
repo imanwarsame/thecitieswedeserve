@@ -25,6 +25,7 @@ export class WorldClock {
 	private currentHour: number;
 	private dayLengthInSeconds: number;
 	private dayCount = 0;
+	private dayOfYear = 79; // default: ~March 20 (spring equinox)
 	private lastPhase: TimePhase;
 	private lastWholeHour: number;
 
@@ -42,6 +43,7 @@ export class WorldClock {
 		if (this.currentHour >= 24) {
 			this.currentHour -= 24;
 			this.dayCount++;
+			this.dayOfYear = (this.dayOfYear + 1) % 365;
 			this.lastWholeHour = -1; // force hourChanged on wrap
 			events.emit('world:newDay', this.dayCount);
 		}
@@ -83,5 +85,14 @@ export class WorldClock {
 
 	getNormalizedTime(): number {
 		return this.currentHour / 24;
+	}
+
+	getDayOfYear(): number {
+		return this.dayOfYear;
+	}
+
+	setDayOfYear(day: number): void {
+		this.dayOfYear = ((day % 365) + 365) % 365;
+		events.emit('world:dateChanged', this.dayOfYear);
 	}
 }

@@ -3,6 +3,7 @@ import { SceneGraph } from './SceneGraph';
 import { Terrain } from './Terrain';
 import { Lighting } from './Lighting';
 import { Environment } from './Environment';
+import { CelestialBodies } from './CelestialBodies';
 import { Palette } from '../rendering/Palette';
 import { WorldClock } from '../gameplay/WorldClock';
 import { AssetManager } from '../assets/AssetManager';
@@ -19,6 +20,7 @@ export class GameScene {
 	private terrain: Terrain;
 	private lighting: Lighting;
 	private environment: Environment;
+	private celestialBodies: CelestialBodies;
 	private assetManager: AssetManager;
 	private entityManager!: EntityManager;
 	private grid: BuiltGrid;
@@ -33,6 +35,7 @@ export class GameScene {
 		this.terrain = new Terrain();
 		this.lighting = new Lighting();
 		this.environment = new Environment();
+		this.celestialBodies = new CelestialBodies();
 		this.assetManager = assetManager;
 		this.grid = grid;
 		this.gridHighlighter = new GridHighlighter();
@@ -49,6 +52,7 @@ export class GameScene {
 		this.terrain.init(this.graph, this.grid);
 		this.lighting.init(this.graph);
 		this.environment.init(this.root);
+		this.celestialBodies.init(this.graph);
 
 		// Add cell highlighter objects to the effects group
 		for (const obj of this.gridHighlighter.getObjects()) {
@@ -61,11 +65,13 @@ export class GameScene {
 	setWorldClock(clock: WorldClock): void {
 		this.lighting.setWorldClock(clock);
 		this.environment.setWorldClock(clock);
+		this.celestialBodies.setWorldClock(clock);
 	}
 
 	update(delta: number): void {
 		this.entityManager.update(delta);
-		this.lighting.update(delta);
+		this.celestialBodies.update();
+		this.lighting.update(delta, this.celestialBodies.getSunPosition());
 		this.environment.update(delta);
 	}
 
@@ -111,6 +117,7 @@ export class GameScene {
 
 	dispose(): void {
 		this.lighting.dispose();
+		this.celestialBodies.dispose();
 		this.terrain.dispose();
 		this.gridHighlighter.dispose();
 		this.entityManager.clear();

@@ -38,4 +38,12 @@ export class TimeController {
 	setWorldHour(hour: number): void {
 		this.worldClock.setHour(hour);
 	}
+
+	setDayOfYear(day: number): void {
+		this.worldClock.setDayOfYear(day);
+	}
+
+	getDayOfYear(): number {
+		return this.worldClock.getDayOfYear();
+	}
 }
