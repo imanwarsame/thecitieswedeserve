@@ -104,6 +104,22 @@ export class SimulationEngine {
 		return [...this.entities];
 	}
 
+	/**
+	 * Recompute metrics for the current clock state WITHOUT advancing.
+	 * Use after adding / removing entities to get an immediate snapshot.
+	 */
+	recompute(): SimulationState {
+		const clockState = this.clock.toState();
+		const { energy, economics } = this.energyLayer.compute(
+			this.entities,
+			clockState,
+			this.config
+		);
+		this.currentEnergy = energy;
+		this.currentEconomics = economics;
+		return this.buildState(clockState);
+	}
+
 	// ── Reset ───────────────────────────────────────────────
 
 	/** Reset the simulation to its initial state. */

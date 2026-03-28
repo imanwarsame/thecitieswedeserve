@@ -1,0 +1,39 @@
+.controls {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: 16px;
+}
+
+.label {
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 10px;
+	color: rgba(80, 80, 80, 0.5);
+	white-space: nowrap;
+	margin-right: 6px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.seasonBtn {
+	pointer-events: auto;
+	border: none;
+	background: transparent;
+	color: rgba(80, 80, 80, 0.6);
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 10px;
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 3px;
+	transition: background 0.15s ease;
+	white-space: nowrap;
+}
+
+.seasonBtn:hover {
+	background: rgba(180, 180, 180, 0.3);
+}
+
+.seasonActive {
+	background: rgba(160, 160, 160, 0.4);
+	color: rgba(40, 40, 40, 0.9);
+}
