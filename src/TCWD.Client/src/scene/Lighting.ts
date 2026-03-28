@@ -12,17 +12,19 @@ const LIGHTING_KEYS: {
 	groundColor: number;
 	hemiIntensity: number;
 }[] = [
-	{ hour: 0,  sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
-	{ hour: 5,  sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
-	{ hour: 6,  sun: 0xc0c0c0, sunIntensity: 0.5,  skyColor: 0xa0a0a0, groundColor: 0x606060, hemiIntensity: 0.25 },
+	{ hour: 0,  sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
+	{ hour: 4,  sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
+	{ hour: 5,  sun: 0x6070a0, sunIntensity: 0.2,  skyColor: 0x2a3050, groundColor: 0x181828, hemiIntensity: 0.18 },
+	{ hour: 6,  sun: 0xc0b8a8, sunIntensity: 0.5,  skyColor: 0x8890a0, groundColor: 0x505060, hemiIntensity: 0.28 },
 	{ hour: 7,  sun: 0xe0e0e0, sunIntensity: 0.9,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
 	{ hour: 10, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
 	{ hour: 14, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
 	{ hour: 17, sun: 0xe0e0e0, sunIntensity: 1.0,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
-	{ hour: 18, sun: 0xb0b0b0, sunIntensity: 0.5,  skyColor: 0x909090, groundColor: 0x505050, hemiIntensity: 0.25 },
-	{ hour: 19, sun: 0x909098, sunIntensity: 0.15,  skyColor: 0x707078, groundColor: 0x383840, hemiIntensity: 0.12 },
-	{ hour: 21, sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
-	{ hour: 24, sun: 0x808090, sunIntensity: 0.05, skyColor: 0x606068, groundColor: 0x303038, hemiIntensity: 0.08 },
+	{ hour: 18, sun: 0xc8a888, sunIntensity: 0.6,  skyColor: 0xa08868, groundColor: 0x504038, hemiIntensity: 0.28 },
+	{ hour: 19, sun: 0x8070a0, sunIntensity: 0.25, skyColor: 0x504870, groundColor: 0x282838, hemiIntensity: 0.18 },
+	{ hour: 20, sun: 0x5868a0, sunIntensity: 0.15, skyColor: 0x303858, groundColor: 0x181828, hemiIntensity: 0.16 },
+	{ hour: 21, sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
+	{ hour: 24, sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
 ];
 
 const SUN_ORBIT_RADIUS = 20;
