@@ -26,4 +26,5 @@ export const EngineConfig = {
 			radius: 0.4,
 		},
 	},
+	debug: import.meta.env.DEV,
 };

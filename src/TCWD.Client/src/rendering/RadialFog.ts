@@ -13,27 +13,27 @@ export const radialFogUniforms = {
  * Patch Three.js shader chunks to replace camera-distance fog
  * with world-space radial fog measured from a center point on the ground plane.
  *
+ * Uses `vFogWorldPos` (not `vWorldPosition`) to avoid redefinition conflicts
+ * with Three.js built-in varyings.
+ *
  * MUST be called before any materials are created.
  */
 export function installRadialFog(): void {
-	// Declare radial fog uniforms and vWorldPosition varying
 	THREE.ShaderChunk.fog_pars_vertex = /* glsl */ `
 		#ifdef USE_FOG
-			varying vec3 vWorldPosition;
+			varying vec3 vFogWorldPos;
 		#endif
 	`;
 
-	// Pass world position from vertex shader
 	THREE.ShaderChunk.fog_vertex = /* glsl */ `
 		#ifdef USE_FOG
-			vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+			vFogWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
 		#endif
 	`;
 
-	// Declare uniforms in fragment shader
 	THREE.ShaderChunk.fog_pars_fragment = /* glsl */ `
 		#ifdef USE_FOG
-			varying vec3 vWorldPosition;
+			varying vec3 vFogWorldPos;
 			uniform vec3 fogCenter;
 			uniform float fogInnerRadius;
 			uniform float fogOuterRadius;
@@ -41,12 +41,15 @@ export function installRadialFog(): void {
 		#endif
 	`;
 
-	// Apply radial fog in fragment shader
+	// Guard: if fogOuterRadius <= fogInnerRadius (e.g. uniforms not injected, both 0),
+	// skip fog entirely to avoid smoothstep(0,0,x) = 1.0 blanking out the material.
 	THREE.ShaderChunk.fog_fragment = /* glsl */ `
 		#ifdef USE_FOG
-			float fogDist = distance(vWorldPosition.xz, fogCenter.xz);
-			float fogFactor = smoothstep(fogInnerRadius, fogOuterRadius, fogDist);
-			gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
+			if (fogOuterRadius > fogInnerRadius) {
+				float fogDist = distance(vFogWorldPos.xz, fogCenter.xz);
+				float fogFactor = smoothstep(fogInnerRadius, fogOuterRadius, fogDist);
+				gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
+			}
 		#endif
 	`;
 
@@ -55,8 +58,6 @@ export function installRadialFog(): void {
 
 /**
  * Inject radial fog uniforms into a material via onBeforeCompile.
- * This is called automatically for standard materials when fog is enabled on the scene,
- * but we need to ensure our custom uniforms are available.
  */
 export function patchMaterialUniforms(material: THREE.Material): void {
 	const originalCompile = material.onBeforeCompile;

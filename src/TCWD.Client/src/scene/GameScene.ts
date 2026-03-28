@@ -75,7 +75,12 @@ export class GameScene {
 		return this.entityManager;
 	}
 
+	initEnvironmentMap(renderer: THREE.WebGLRenderer): void {
+		this.lighting.initEnvironmentMap(renderer, this.root);
+	}
+
 	dispose(): void {
+		this.lighting.dispose();
 		this.entityManager.clear();
 		this.graph.dispose();
 		console.log('[GameScene] Disposed.');

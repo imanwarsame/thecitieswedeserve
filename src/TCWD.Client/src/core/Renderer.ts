@@ -27,8 +27,9 @@ export class Renderer {
 		this.renderer.shadowMap.enabled = EngineConfig.renderer.shadows;
 		this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 		this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-		this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-		this.renderer.toneMappingExposure = 1.0;
+		// Tone mapping is handled by the post-processing OutputPass.
+		// Setting it here would cause double tone mapping.
+		this.renderer.toneMapping = THREE.NoToneMapping;
 		this.renderer.setPixelRatio(window.devicePixelRatio);
 		this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 

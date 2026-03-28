@@ -7,18 +7,32 @@ const ZOOM_SPEED = 0.1;
 const SMOOTHING = 0.08;
 const ARROW_PAN_SPEED = 15;
 
+const ROTATE_SPEED = 0.004;
+const ROTATION_SPRING = 0.08;
+const MAX_YAW_OFFSET = Math.PI / 4;   // ±45°
+const MAX_PITCH_OFFSET = Math.PI / 8; // ±22.5°
+
 export class CameraController {
 	private isoCamera!: IsometricCamera;
 	private domElement!: HTMLElement;
 
-	private targetPosition = new THREE.Vector3();
-	private currentPosition = new THREE.Vector3();
+	// Pan (look-at target on ground plane)
+	private targetLookAt = new THREE.Vector3();
+	private currentLookAt = new THREE.Vector3();
 	private targetZoom = 1;
+
+	// Elastic rotation
+	private rotationYaw = 0;
+	private rotationPitch = 0;
+	private targetRotationYaw = 0;
+	private targetRotationPitch = 0;
+	private isRotating = false;
 
 	private panEnabled = true;
 	private zoomEnabled = true;
 
 	private isDragging = false;
+	private dragButton = -1;
 	private lastPointer = new THREE.Vector2();
 	private keysDown = new Set<string>();
 
@@ -36,10 +50,6 @@ export class CameraController {
 	init(isoCamera: IsometricCamera, domElement: HTMLElement): void {
 		this.isoCamera = isoCamera;
 		this.domElement = domElement;
-
-		const camera = isoCamera.getCamera();
-		this.targetPosition.copy(camera.position);
-		this.currentPosition.copy(camera.position);
 		this.targetZoom = isoCamera.getZoom();
 
 		this.bindEvents();
@@ -49,10 +59,21 @@ export class CameraController {
 		this.handleArrowKeys(delta);
 		this.handleFollowTarget();
 
-		// Smooth position
-		this.currentPosition.lerp(this.targetPosition, SMOOTHING);
-		const camera = this.isoCamera.getCamera();
-		camera.position.copy(this.currentPosition);
+		// Smooth look-at
+		this.currentLookAt.lerp(this.targetLookAt, SMOOTHING);
+
+		// Elastic rotation — springs back to 0 when released
+		if (!this.isRotating) {
+			this.targetRotationYaw = 0;
+			this.targetRotationPitch = 0;
+		}
+		this.rotationYaw = THREE.MathUtils.lerp(this.rotationYaw, this.targetRotationYaw, ROTATION_SPRING);
+		this.rotationPitch = THREE.MathUtils.lerp(this.rotationPitch, this.targetRotationPitch, ROTATION_SPRING);
+		if (Math.abs(this.rotationYaw) < 0.0005) this.rotationYaw = 0;
+		if (Math.abs(this.rotationPitch) < 0.0005) this.rotationPitch = 0;
+
+		// Apply camera position + orientation
+		this.isoCamera.applyLookAt(this.currentLookAt, this.rotationYaw, this.rotationPitch);
 
 		// Smooth zoom
 		const currentZoom = this.isoCamera.getZoom();
@@ -76,25 +97,9 @@ export class CameraController {
 		this.zoomEnabled = enabled;
 	}
 
-	/** Returns the ground-plane point the camera is looking at (fog center) */
+	/** Returns the ground-plane point the camera is centred on (used for fog). */
 	getTargetPosition(): THREE.Vector3 {
-		// The camera target in world space: project from camera position
-		// along the isometric direction to the ground plane (y=0)
-		const camera = this.isoCamera.getCamera();
-		const dir = new THREE.Vector3();
-		camera.getWorldDirection(dir);
-
-		if (Math.abs(dir.y) > 0.001) {
-			const t = -camera.position.y / dir.y;
-			return new THREE.Vector3(
-				camera.position.x + dir.x * t,
-				0,
-				camera.position.z + dir.z * t,
-			);
-		}
-
-		// Fallback: just project xz from camera position
-		return new THREE.Vector3(camera.position.x, 0, camera.position.z);
+		return this.currentLookAt.clone();
 	}
 
 	dispose(): void {
@@ -107,12 +112,31 @@ export class CameraController {
 		window.removeEventListener('keyup', this.onKeyUp);
 	}
 
+	private getGroundPlaneAxes(): { right: THREE.Vector3; forward: THREE.Vector3 } {
+		const camera = this.isoCamera.getCamera();
+		const lookDir = new THREE.Vector3();
+		camera.getWorldDirection(lookDir);
+
+		const worldUp = new THREE.Vector3(0, 1, 0);
+		const right = new THREE.Vector3().crossVectors(lookDir, worldUp).normalize();
+		const forward = new THREE.Vector3().crossVectors(worldUp, right).normalize();
+
+		return { right, forward };
+	}
+
 	private bindEvents(): void {
 		this.onPointerDown = (e: PointerEvent) => {
-			// Middle mouse (1) or right mouse (2)
-			if (!this.panEnabled) return;
-			if (e.button === 1 || e.button === 2) {
+			if (e.button === 1 && this.panEnabled) {
+				// Middle mouse = pan
 				this.isDragging = true;
+				this.dragButton = 1;
+				this.lastPointer.set(e.clientX, e.clientY);
+				this.domElement.setPointerCapture(e.pointerId);
+			} else if (e.button === 2) {
+				// Right mouse = elastic rotate
+				this.isDragging = true;
+				this.dragButton = 2;
+				this.isRotating = true;
 				this.lastPointer.set(e.clientX, e.clientY);
 				this.domElement.setPointerCapture(e.pointerId);
 			}
@@ -125,23 +149,34 @@ export class CameraController {
 			const dy = e.clientY - this.lastPointer.y;
 			this.lastPointer.set(e.clientX, e.clientY);
 
-			const panScale = PAN_SPEED / (this.targetZoom * this.domElement.clientHeight);
+			if (this.dragButton === 1) {
+				// Pan
+				const panScale = PAN_SPEED / (this.targetZoom * this.domElement.clientHeight);
+				const { right, forward } = this.getGroundPlaneAxes();
 
-			// Pan in the camera's local XZ plane (isometric-aware)
-			const camera = this.isoCamera.getCamera();
-			const right = new THREE.Vector3();
-			const up = new THREE.Vector3(0, 1, 0);
-			camera.getWorldDirection(new THREE.Vector3());
-			right.crossVectors(camera.up, new THREE.Vector3().subVectors(new THREE.Vector3(), camera.getWorldDirection(new THREE.Vector3()))).normalize();
-			const forward = new THREE.Vector3();
-			forward.crossVectors(right, up).normalize();
-
-			this.targetPosition.add(right.multiplyScalar(-dx * panScale));
-			this.targetPosition.add(forward.multiplyScalar(dy * panScale));
+				this.targetLookAt.addScaledVector(right, -dx * panScale);
+				this.targetLookAt.addScaledVector(forward, dy * panScale);
+			} else if (this.dragButton === 2) {
+				// Rotate (elastic)
+				this.targetRotationYaw = THREE.MathUtils.clamp(
+					this.targetRotationYaw - dx * ROTATE_SPEED,
+					-MAX_YAW_OFFSET,
+					MAX_YAW_OFFSET
+				);
+				this.targetRotationPitch = THREE.MathUtils.clamp(
+					this.targetRotationPitch + dy * ROTATE_SPEED,
+					-MAX_PITCH_OFFSET,
+					MAX_PITCH_OFFSET
+				);
+			}
 		};
 
 		this.onPointerUp = () => {
+			if (this.dragButton === 2) {
+				this.isRotating = false;
+			}
 			this.isDragging = false;
+			this.dragButton = -1;
 		};
 
 		this.onWheel = (e: WheelEvent) => {
@@ -181,25 +216,19 @@ export class CameraController {
 		if (!this.panEnabled) return;
 
 		const speed = (ARROW_PAN_SPEED * delta) / this.targetZoom;
-		const camera = this.isoCamera.getCamera();
-
-		const right = new THREE.Vector3();
-		const up = new THREE.Vector3(0, 1, 0);
-		right.crossVectors(camera.up, new THREE.Vector3().subVectors(new THREE.Vector3(), camera.getWorldDirection(new THREE.Vector3()))).normalize();
-		const forward = new THREE.Vector3();
-		forward.crossVectors(right, up).normalize();
+		const { right, forward } = this.getGroundPlaneAxes();
 
 		if (this.keysDown.has('ArrowLeft') || this.keysDown.has('a')) {
-			this.targetPosition.add(right.clone().multiplyScalar(-speed));
+			this.targetLookAt.addScaledVector(right, -speed);
 		}
 		if (this.keysDown.has('ArrowRight') || this.keysDown.has('d')) {
-			this.targetPosition.add(right.clone().multiplyScalar(speed));
+			this.targetLookAt.addScaledVector(right, speed);
 		}
 		if (this.keysDown.has('ArrowUp') || this.keysDown.has('w')) {
-			this.targetPosition.add(forward.clone().multiplyScalar(-speed));
+			this.targetLookAt.addScaledVector(forward, -speed);
 		}
 		if (this.keysDown.has('ArrowDown') || this.keysDown.has('s')) {
-			this.targetPosition.add(forward.clone().multiplyScalar(speed));
+			this.targetLookAt.addScaledVector(forward, speed);
 		}
 	}
 
@@ -208,10 +237,6 @@ export class CameraController {
 
 		const targetWorldPos = new THREE.Vector3();
 		this.followTarget.getWorldPosition(targetWorldPos);
-
-		// Offset by the isometric camera direction to center on target
-		const camera = this.isoCamera.getCamera();
-		const dir = camera.position.clone().normalize();
-		this.targetPosition.copy(targetWorldPos.add(dir.multiplyScalar(100)));
+		this.targetLookAt.set(targetWorldPos.x, 0, targetWorldPos.z);
 	}
 }
