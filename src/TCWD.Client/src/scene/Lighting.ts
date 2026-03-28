@@ -12,23 +12,23 @@ const LIGHTING_KEYS: {
 	groundColor: number;
 	hemiIntensity: number;
 }[] = [
-	{ hour: 0,  sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
-	{ hour: 4,  sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
-	{ hour: 5,  sun: 0x6070a0, sunIntensity: 0.2,  skyColor: 0x2a3050, groundColor: 0x181828, hemiIntensity: 0.18 },
-	{ hour: 6,  sun: 0xc0b8a8, sunIntensity: 0.5,  skyColor: 0x8890a0, groundColor: 0x505060, hemiIntensity: 0.28 },
+	{ hour: 0,  sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
+	{ hour: 5,  sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
+	{ hour: 6,  sun: 0xc0c0c0, sunIntensity: 0.5,  skyColor: 0xa0a0a0, groundColor: 0x606060, hemiIntensity: 0.25 },
 	{ hour: 7,  sun: 0xe0e0e0, sunIntensity: 0.9,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
 	{ hour: 10, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
 	{ hour: 14, sun: Palette.sun, sunIntensity: 1.2, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.6 },
 	{ hour: 17, sun: 0xe0e0e0, sunIntensity: 1.0,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.4 },
-	{ hour: 18, sun: 0xc8a888, sunIntensity: 0.6,  skyColor: 0xa08868, groundColor: 0x504038, hemiIntensity: 0.28 },
-	{ hour: 19, sun: 0x8070a0, sunIntensity: 0.25, skyColor: 0x504870, groundColor: 0x282838, hemiIntensity: 0.18 },
-	{ hour: 20, sun: 0x5868a0, sunIntensity: 0.15, skyColor: 0x303858, groundColor: 0x181828, hemiIntensity: 0.16 },
-	{ hour: 21, sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
-	{ hour: 24, sun: 0x4060a0, sunIntensity: 0.12, skyColor: 0x1a2040, groundColor: 0x0c1020, hemiIntensity: 0.15 },
+	{ hour: 18, sun: 0xb0b0b0, sunIntensity: 0.5,  skyColor: 0x909090, groundColor: 0x505050, hemiIntensity: 0.25 },
+	{ hour: 19, sun: 0x909098, sunIntensity: 0.3,   skyColor: 0x808898, groundColor: 0x485060, hemiIntensity: 0.18 },
+	{ hour: 21, sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
+	{ hour: 24, sun: 0x9098b0, sunIntensity: 0.2,  skyColor: 0x788098, groundColor: 0x484e5a, hemiIntensity: 0.18 },
 ];
 
 const SUN_ORBIT_RADIUS = 20;
 const SUN_HEIGHT = 15;
+const MOON_ORBIT_RADIUS = 18;
+const MOON_HEIGHT = 12;
 
 const _colorA = new THREE.Color();
 const _colorB = new THREE.Color();
@@ -48,14 +48,17 @@ export class Lighting {
 		this.directional.castShadow = true;
 
 		const shadow = this.directional.shadow;
-		shadow.mapSize.width = 2048;
-		shadow.mapSize.height = 2048;
+		shadow.mapSize.width = 4096;
+		shadow.mapSize.height = 4096;
 		shadow.camera.near = 0.5;
 		shadow.camera.far = 60;
 		shadow.camera.left = -20;
 		shadow.camera.right = 20;
 		shadow.camera.top = 20;
 		shadow.camera.bottom = -20;
+		shadow.bias = -0.0005;
+		shadow.normalBias = 0.02;
+		shadow.radius = 3;
 
 		graph.addToGroup('environment', this.directional);
 
@@ -122,12 +125,12 @@ export class Lighting {
 		this.directional.position.set(x, y, z);
 	}
 
-	update(_delta: number, sunWorldPos?: THREE.Vector3): void {
+	update(_delta: number): void {
 		if (!this.worldClock) return;
 
 		const hour = this.worldClock.getHour();
 
-		this.updateSunPosition(hour, sunWorldPos);
+		this.updateSunPosition(hour);
 		this.updateColors(hour);
 	}
 
@@ -138,38 +141,32 @@ export class Lighting {
 		}
 	}
 
-	private updateSunPosition(hour: number, sunWorldPos?: THREE.Vector3): void {
-		if (sunWorldPos) {
-			// Use astronomical sun position from CelestialBodies
-			const isAboveHorizon = sunWorldPos.y > 0;
-			if (isAboveHorizon) {
-				// Normalise to a closer distance for the directional light
-				const dir = sunWorldPos.clone().normalize();
-				this.directional.position.copy(dir.multiplyScalar(SUN_ORBIT_RADIUS));
-				this.directional.castShadow = true;
-			} else {
-				// Sun below horizon — dim moonlight direction
-				this.directional.position.set(-5, 10, -5);
-				this.directional.castShadow = false;
-			}
-			return;
-		}
-
-		// Fallback: simple arc (no CelestialBodies available)
-		const sunProgress = THREE.MathUtils.clamp((hour - 6) / 12, 0, 1);
-		const angle = sunProgress * Math.PI;
-
+	private updateSunPosition(hour: number): void {
 		const isDay = hour >= 5.5 && hour <= 18.5;
 
 		if (isDay) {
+			// Sun arc: rises at 6, sets at 18
+			const sunProgress = THREE.MathUtils.clamp((hour - 6) / 12, 0, 1);
+			const angle = sunProgress * Math.PI;
 			const x = Math.cos(angle) * SUN_ORBIT_RADIUS;
 			const y = Math.sin(angle) * SUN_HEIGHT;
 			const z = SUN_ORBIT_RADIUS * 0.3;
 			this.directional.position.set(x, Math.max(y, 1), z);
 			this.directional.castShadow = true;
 		} else {
-			this.directional.position.set(-5, 10, -5);
-			this.directional.castShadow = false;
+			// Moon arc: rises at 19, peaks at midnight, sets at 5
+			// Map night hours (19→5) to 0→1, wrapping across midnight
+			const nightStart = 19;
+			const nightDuration = 10; // 19 → 5 = 10 hours
+			const nightHour = hour >= nightStart ? hour - nightStart : hour + (24 - nightStart);
+			const moonProgress = THREE.MathUtils.clamp(nightHour / nightDuration, 0, 1);
+			const angle = moonProgress * Math.PI;
+			// Moon orbits from the opposite side (negative x)
+			const x = -Math.cos(angle) * MOON_ORBIT_RADIUS;
+			const y = Math.sin(angle) * MOON_HEIGHT;
+			const z = -MOON_ORBIT_RADIUS * 0.3;
+			this.directional.position.set(x, Math.max(y, 1), z);
+			this.directional.castShadow = true;
 		}
 	}
 

@@ -1,37 +1,87 @@
+.wrapper {
+	position: fixed;
+	bottom: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 20;
+	pointer-events: auto;
+}
+
 .toolbar {
 	display: flex;
 	align-items: center;
-	gap: 3px;
-	padding: 0 8px;
+	gap: 2px;
+	padding: 4px 6px;
+	background: #f0f0f0;
+	border: 1px solid rgba(180, 180, 180, 0.4);
+	border-radius: 10px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
-.btn {
-	pointer-events: auto;
+.toolBtn {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 28px;
 	border: none;
 	background: transparent;
-	color: rgba(80, 80, 80, 0.6);
-	font-family: 'Inter', system-ui, sans-serif;
-	font-size: 10px;
+	color: rgba(70, 70, 70, 0.6);
 	cursor: pointer;
-	padding: 5px 8px;
-	border-radius: 3px;
-	white-space: nowrap;
-	transition: background 0.15s ease, color 0.15s ease;
-	letter-spacing: 0.03em;
+	border-radius: 6px;
+	transition: background 0.12s ease, color 0.12s ease;
+	padding: 0;
 }
 
-.btn:hover {
-	background: rgba(180, 180, 180, 0.3);
+.toolBtn:hover {
+	background: rgba(180, 180, 180, 0.25);
+	color: rgba(40, 40, 40, 0.85);
+}
+
+.toolBtn:focus-visible {
+	outline: 1px solid rgba(120, 120, 120, 0.5);
+	outline-offset: 1px;
 }
 
 .active {
-	background: rgba(160, 160, 160, 0.45);
-	color: rgba(40, 40, 40, 0.9);
+	background: rgba(50, 120, 220, 0.12);
+	color: rgba(30, 90, 200, 0.85);
 }
 
-.separator {
-	width: 1px;
-	height: 14px;
-	background: rgba(160, 160, 160, 0.3);
-	margin: 0 4px;
+.active:hover {
+	background: rgba(50, 120, 220, 0.18);
+}
+
+.tooltip {
+	position: absolute;
+	bottom: calc(100% + 10px);
+	left: 50%;
+	transform: translateX(-50%);
+	background: #333;
+	color: #eee;
+	font-family: 'Inter', system-ui, sans-serif;
+	font-size: 11px;
+	font-weight: 400;
+	padding: 4px 8px;
+	border-radius: 4px;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.toolBtn:hover .tooltip {
+	opacity: 1;
+}
+
+.active .tooltip {
+	display: none;
+}
+
+.shortcut {
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 10px;
+	opacity: 0.5;
+	margin-left: 6px;
 }

@@ -12,7 +12,13 @@
       "Bash(git fetch:*)",
       "Bash(git rebase:*)",
       "Bash(git stash:*)",
-      "Bash(git add:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:boristhebrave.com)",
+      "Bash(git add:*)",
+      "Bash(node -e \":*)",
+      "Bash(npx tsx -e \":*)",
+      "Bash(npx tsx --eval \":*)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

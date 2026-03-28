@@ -27,7 +27,7 @@ export class HousingSystem {
 
 		const analyzer = new NeighborAnalyzer(grid, this.voxelGrid);
 		const solver = new WFCSolver(tileRegistry, this.voxelGrid);
-		this.morphEvaluator = new MorphEvaluator(this.voxelGrid, analyzer, solver);
+		this.morphEvaluator = new MorphEvaluator(this.voxelGrid, analyzer, solver, grid);
 		this.meshGenerator = new HousingMeshGenerator(registry, grid, parentGroup);
 	}
 

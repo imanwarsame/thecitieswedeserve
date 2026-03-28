@@ -88,6 +88,7 @@ export function buildPeakedRoof(
 	geometry.computeVertexNormals();
 
 	const mat = registry.get('detail').clone();
+	mat.side = THREE.DoubleSide;
 	patchMaterialUniforms(mat);
 
 	const mesh = new THREE.Mesh(geometry, mat);

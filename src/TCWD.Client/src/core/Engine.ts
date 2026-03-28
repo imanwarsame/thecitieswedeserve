@@ -334,6 +334,20 @@ export class Engine {
 		return this.hoveredCellIndex;
 	}
 
+	/** Select a cell, always emitting the event (even if already selected — used after placement). */
+	forceSelectCell(cellIndex: number): void {
+		const prev = this.selectedCellIndex;
+		this.selectedCellIndex = cellIndex;
+		if (prev !== -1 && prev !== cellIndex) {
+			events.emit('grid:cellDeselected', { cellIndex: prev });
+		}
+		if (cellIndex !== -1) {
+			const cell = this.grid.query.getCell(cellIndex);
+			const entity = this.sceneManager.getActiveScene().getEntityManager().getEntityAtCell(cellIndex);
+			events.emit('grid:cellSelected', { cellIndex, cell, entity });
+		}
+	}
+
 	selectCell(cellIndex: number): void {
 		if (this.selectedCellIndex === cellIndex) return;
 		const prev = this.selectedCellIndex;
@@ -369,6 +383,17 @@ export class Engine {
 
 			const cellIndex = cell ? cell.index : -1;
 
+			// Set highlight mode based on context
+			if (cell && this._placementMode === 'housing') {
+				highlighter.setMode(
+					this.housingSystem.hasHousing(cellIndex) ? 'occupied' : 'build'
+				);
+			} else if (cell && this._placementMode) {
+				highlighter.setMode('build');
+			} else {
+				highlighter.setMode('default');
+			}
+
 			// Hover changed
 			if (cellIndex !== this.hoveredCellIndex) {
 				this.hoveredCellIndex = cellIndex;
@@ -380,11 +405,19 @@ export class Engine {
 
 			// Click
 			if (this.input.consumeClick() && cell) {
-				// Placement mode: place a building on the clicked cell
 				if (this._placementMode) {
-					const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
-					if (placed) {
-						this.selectCell(cellIndex);
+					if (this._placementMode === 'housing') {
+						// Housing: delegate to HousingController (supports stacking)
+						this.housingController.setAction('build');
+						events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
+						// Select the cell after housing placement to show tooltip
+						this.forceSelectCell(cellIndex);
+					} else {
+						// Non-housing: one-shot placement via SimulationBridge
+						const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+						if (placed) {
+							this.forceSelectCell(cellIndex);
+						}
 					}
 					return;
 				}
