@@ -2,6 +2,9 @@ import { useRef, useEffect, useState } from 'react';
 import { bootstrap, shutdown } from './app/bootstrap';
 import { EngineContext } from './ui/EngineContext';
 import { HudShell } from './ui/layout/HudShell';
+import { BuildToolbar } from './ui/controls/BuildToolbar';
+import { CommandBorder } from './ui/components/CommandBorder';
+import { EntityTooltip } from './ui/controls/EntityTooltip';
 import { DebugPanel } from './ui/controls/DebugPanel';
 import { EngineConfig } from './app/config';
 import type { Engine } from './core/Engine';
@@ -33,6 +36,9 @@ function App() {
 			<div id="engine-root">
 				<canvas ref={canvasRef} id="engine-canvas" />
 				{engine && <HudShell />}
+				{engine && <BuildToolbar />}
+				{engine && <EntityTooltip />}
+				{engine && <CommandBorder />}
 				{engine && EngineConfig.debug && <DebugPanel />}
 			</div>
 		</EngineContext.Provider>

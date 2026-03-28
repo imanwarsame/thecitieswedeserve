@@ -1,6 +1,8 @@
 import { useTimeController } from '../hooks/useTimeController';
+import { useWorldClock } from '../hooks/useWorldClock';
 import { useSimulation } from '../hooks/useSimulation';
 import { IconButton } from '../components/IconButton';
+import { Slider02 } from '../components/Slider02';
 import styles from './TimeControls.module.css';
 
 const SPEED_PRESETS = [
@@ -11,6 +13,7 @@ const SPEED_PRESETS = [
 
 export function TimeControls() {
 	const { paused, speed, tc } = useTimeController();
+	const { hour } = useWorldClock();
 	const { state } = useSimulation();
 	const { clock } = state;
 
@@ -35,9 +38,19 @@ export function TimeControls() {
 				))}
 			</div>
 
-			<span className={styles.simInfo}>
-				Y{clock.year} D{clock.day + 1} T{clock.tick}
-			</span>
+			<div className={styles.worldTimeSlider}>
+				<Slider02
+					label="Time"
+					value={hour}
+					min={0}
+					max={24}
+					step={0.25}
+					barSize={0.42}
+					textSize={0.72}
+					onChange={v => tc.setWorldHour(v)}
+					detail={`Y${clock.year} D${clock.day + 1} T${clock.tick}`}
+				/>
+			</div>
 		</div>
 	);
 }

@@ -2,9 +2,6 @@
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	display: grid;
-	grid-template-rows: auto 1fr auto;
-	grid-template-columns: 1fr auto;
 	z-index: 10;
 	font-family: 'Inter', system-ui, sans-serif;
 }
