@@ -26,6 +26,7 @@ export class Renderer {
 
 		this.renderer.shadowMap.enabled = EngineConfig.renderer.shadows;
 		this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+		this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 		this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
 		this.renderer.toneMappingExposure = 1.0;
 		this.renderer.setPixelRatio(window.devicePixelRatio);

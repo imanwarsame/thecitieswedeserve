@@ -1,26 +1,27 @@
 import * as THREE from 'three';
 import { SceneGraph } from './SceneGraph';
+import { Palette } from '../rendering/Palette';
 import { WorldClock } from '../gameplay/WorldClock';
 
-// Color keyframes: [hour, sunColor, sunIntensity, ambientColor, ambientIntensity]
+// Monochrome lighting keyframes — grays only, intensity drives the day/night feel
 const LIGHTING_KEYS: {
 	hour: number;
-	sun: THREE.ColorRepresentation;
+	sun: number;
 	sunIntensity: number;
-	ambient: THREE.ColorRepresentation;
+	ambient: number;
 	ambientIntensity: number;
 }[] = [
-	{ hour: 0, sun: 0x1a1a4e, sunIntensity: 0.05, ambient: 0x0a0a2e, ambientIntensity: 0.1 },
-	{ hour: 5, sun: 0x1a1a4e, sunIntensity: 0.05, ambient: 0x0a0a2e, ambientIntensity: 0.1 },
-	{ hour: 6, sun: 0xff8844, sunIntensity: 0.6, ambient: 0xffaa77, ambientIntensity: 0.25 },
-	{ hour: 7, sun: 0xffcc88, sunIntensity: 1.0, ambient: 0xffeedd, ambientIntensity: 0.35 },
-	{ hour: 10, sun: 0xffffff, sunIntensity: 1.5, ambient: 0xfff8f0, ambientIntensity: 0.4 },
-	{ hour: 14, sun: 0xffffff, sunIntensity: 1.5, ambient: 0xfff8f0, ambientIntensity: 0.4 },
-	{ hour: 17, sun: 0xffcc88, sunIntensity: 1.2, ambient: 0xffeedd, ambientIntensity: 0.35 },
-	{ hour: 18, sun: 0xff6633, sunIntensity: 0.7, ambient: 0xff8855, ambientIntensity: 0.25 },
-	{ hour: 19, sun: 0xcc3322, sunIntensity: 0.3, ambient: 0x553344, ambientIntensity: 0.15 },
-	{ hour: 21, sun: 0x1a1a4e, sunIntensity: 0.05, ambient: 0x0a0a2e, ambientIntensity: 0.1 },
-	{ hour: 24, sun: 0x1a1a4e, sunIntensity: 0.05, ambient: 0x0a0a2e, ambientIntensity: 0.1 },
+	{ hour: 0, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
+	{ hour: 5, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
+	{ hour: 6, sun: 0xc0c0c0, sunIntensity: 0.5, ambient: 0xa0a0a0, ambientIntensity: 0.2 },
+	{ hour: 7, sun: 0xe0e0e0, sunIntensity: 0.9, ambient: 0xc8c8c8, ambientIntensity: 0.3 },
+	{ hour: 10, sun: Palette.sun, sunIntensity: 1.2, ambient: Palette.ambient, ambientIntensity: 0.35 },
+	{ hour: 14, sun: Palette.sun, sunIntensity: 1.2, ambient: Palette.ambient, ambientIntensity: 0.35 },
+	{ hour: 17, sun: 0xe0e0e0, sunIntensity: 1.0, ambient: 0xc8c8c8, ambientIntensity: 0.3 },
+	{ hour: 18, sun: 0xb0b0b0, sunIntensity: 0.5, ambient: 0x909090, ambientIntensity: 0.2 },
+	{ hour: 19, sun: 0x909098, sunIntensity: 0.15, ambient: 0x707078, ambientIntensity: 0.12 },
+	{ hour: 21, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
+	{ hour: 24, sun: 0x808090, sunIntensity: 0.05, ambient: 0x606068, ambientIntensity: 0.08 },
 ];
 
 const SUN_ORBIT_RADIUS = 20;
@@ -32,11 +33,13 @@ const _colorResult = new THREE.Color();
 
 export class Lighting {
 	private directional!: THREE.DirectionalLight;
+	private fill!: THREE.DirectionalLight;
 	private ambient!: THREE.AmbientLight;
 	private worldClock: WorldClock | null = null;
 
 	init(graph: SceneGraph): void {
-		this.directional = new THREE.DirectionalLight(0xffffff, 1.5);
+		// Main directional (sun)
+		this.directional = new THREE.DirectionalLight(Palette.sun, 1.2);
 		this.directional.position.set(10, 15, 10);
 		this.directional.castShadow = true;
 
@@ -52,7 +55,14 @@ export class Lighting {
 
 		graph.addToGroup('environment', this.directional);
 
-		this.ambient = new THREE.AmbientLight(0xffeedd, 0.4);
+		// Fill light — opposite side, no shadows
+		this.fill = new THREE.DirectionalLight(Palette.ambient, 0.2);
+		this.fill.position.set(-8, 10, -8);
+		this.fill.castShadow = false;
+		graph.addToGroup('environment', this.fill);
+
+		// Ambient
+		this.ambient = new THREE.AmbientLight(Palette.ambient, 0.35);
 		graph.addToGroup('environment', this.ambient);
 
 		console.log('[Lighting] Initialized.');
@@ -80,8 +90,6 @@ export class Lighting {
 	}
 
 	private updateSunPosition(hour: number): void {
-		// Sun arc: rises at 6 (east), peaks at 12 (overhead), sets at 18 (west)
-		// Map hour 6-18 to angle 0 to PI
 		const sunProgress = THREE.MathUtils.clamp((hour - 6) / 12, 0, 1);
 		const angle = sunProgress * Math.PI;
 
@@ -94,14 +102,12 @@ export class Lighting {
 			this.directional.position.set(x, Math.max(y, 1), z);
 			this.directional.castShadow = true;
 		} else {
-			// Moon position (opposite side, dimmer)
 			this.directional.position.set(-5, 10, -5);
 			this.directional.castShadow = false;
 		}
 	}
 
 	private updateColors(hour: number): void {
-		// Find surrounding keyframes
 		let lower = LIGHTING_KEYS[0];
 		let upper = LIGHTING_KEYS[1];
 
@@ -115,18 +121,20 @@ export class Lighting {
 
 		const t = (hour - lower.hour) / (upper.hour - lower.hour || 1);
 
-		// Interpolate sun color and intensity
 		_colorA.set(lower.sun);
 		_colorB.set(upper.sun);
 		_colorResult.copy(_colorA).lerp(_colorB, t);
 		this.directional.color.copy(_colorResult);
 		this.directional.intensity = THREE.MathUtils.lerp(lower.sunIntensity, upper.sunIntensity, t);
 
-		// Interpolate ambient color and intensity
 		_colorA.set(lower.ambient);
 		_colorB.set(upper.ambient);
 		_colorResult.copy(_colorA).lerp(_colorB, t);
 		this.ambient.color.copy(_colorResult);
 		this.ambient.intensity = THREE.MathUtils.lerp(lower.ambientIntensity, upper.ambientIntensity, t);
+
+		// Fill light tracks ambient at lower intensity
+		this.fill.color.copy(this.ambient.color);
+		this.fill.intensity = this.ambient.intensity * 0.5;
 	}
 }

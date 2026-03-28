@@ -3,6 +3,8 @@ import { SceneGraph } from './SceneGraph';
 import { Terrain } from './Terrain';
 import { Lighting } from './Lighting';
 import { Environment } from './Environment';
+import { Palette } from '../rendering/Palette';
+import { createStructureMaterial, createDetailMaterial, createAccentMaterial } from '../rendering/Materials';
 import { WorldClock } from '../gameplay/WorldClock';
 import { AssetManager } from '../assets/AssetManager';
 import { EntityManager } from '../entities/EntityManager';
@@ -21,7 +23,7 @@ export class GameScene {
 
 	constructor(assetManager: AssetManager) {
 		this.root = new THREE.Scene();
-		this.root.background = new THREE.Color(0x1a1a2e);
+		this.root.background = new THREE.Color(Palette.background);
 
 		this.graph = new SceneGraph(this.root);
 		this.terrain = new Terrain();
@@ -80,7 +82,11 @@ export class GameScene {
 	}
 
 	private spawnTestEntities(): void {
-		const colors = [0x6a5acd, 0xcd5a5a, 0x5acd6a];
+		const materials = [
+			createStructureMaterial(),
+			createDetailMaterial(),
+			createAccentMaterial(),
+		];
 		const positions: [number, number, number][] = [
 			[0, 0.5, 0],
 			[3, 0.5, -2],
@@ -89,8 +95,7 @@ export class GameScene {
 
 		for (let i = 0; i < 3; i++) {
 			const geometry = new THREE.BoxGeometry(1, 1, 1);
-			const material = new THREE.MeshStandardMaterial({ color: colors[i] });
-			const mesh = new THREE.Mesh(geometry, material);
+			const mesh = new THREE.Mesh(geometry, materials[i]);
 			mesh.castShadow = true;
 			mesh.receiveShadow = true;
 

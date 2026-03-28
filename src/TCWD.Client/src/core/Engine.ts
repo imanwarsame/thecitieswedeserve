@@ -10,6 +10,7 @@ import { WorldClock } from '../gameplay/WorldClock';
 import { TimeController } from '../gameplay/TimeController';
 import { AssetManager } from '../assets/AssetManager';
 import { RenderPipeline } from '../rendering/RenderPipeline';
+import { installRadialFog } from '../rendering/RadialFog';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -34,6 +35,9 @@ export class Engine {
 	}
 
 	async init(canvas: HTMLCanvasElement): Promise<void> {
+		// Install radial fog shader patches BEFORE any materials are created
+		installRadialFog();
+
 		await this.renderer.init(canvas);
 
 		this.timeController = new TimeController(this.time, this.worldClock);
@@ -55,16 +59,15 @@ export class Engine {
 
 		this.loop = new Loop(this.renderPipeline, gameScene.root, camera, this.time);
 
-		// Update loop order per Phase 10 spec:
-		// 1. time.update()        — handled by Loop internally
-		// 2. worldClock.update    — advance in-game time
-		// 3. sceneManager.update  — entities, lighting, environment
-		// 4. cameraController     — uses unscaledDelta for smooth movement during pause
-		// 5. render               — handled by Loop internally
+		// WorldClock is NOT auto-advanced here — shadows stay fixed at startHour.
+		// Call worldClock.setHour() manually to change time of day.
 		this.loop.register((delta, unscaledDelta) => {
-			this.worldClock.update(delta);
 			this.sceneManager.update(delta);
 			this.cameraController.update(unscaledDelta);
+
+			// Track fog center to camera's ground-plane target
+			const env = gameScene.getEnvironment();
+			env.setFogCenter(this.cameraController.getTargetPosition());
 		});
 
 		this.resizeObserver = new ResizeObserver(entries => {
