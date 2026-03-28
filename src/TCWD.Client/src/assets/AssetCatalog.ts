@@ -23,6 +23,8 @@ export interface ModelEntry {
 	footprint?: number;
 	/** If true, this model is preloaded at startup. Default false. */
 	preload?: boolean;
+	/** If true, the GLB contains animations that should be played. Default false. */
+	animated?: boolean;
 }
 
 export type ModelCategory =
@@ -60,16 +62,16 @@ export type ModelCategory =
  * ```
  */
 export const AssetCatalog: ModelEntry[] = [
-	// ---- Debug / placeholder ----
-	// These entries serve as examples — replace with real models
-	// {
-	// 	id: 'cube-test',
-	// 	path: '/models/debug/cube.glb',
-	// 	label: 'Test Cube',
-	// 	category: 'debug',
-	// 	scale: 1,
-	// 	preload: true,
-	// },
+	// ---- Infrastructure ----
+	{
+		id: 'wind-turbine',
+		path: '/models/infrastructure/wind-turbine.glb',
+		label: 'Wind Turbine',
+		category: 'infrastructure',
+		scale: 1,
+		preload: true,
+		animated: true,
+	},
 ];
 
 // ---------------------------------------------------------------------------

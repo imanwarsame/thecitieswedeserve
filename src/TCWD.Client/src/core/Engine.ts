@@ -11,6 +11,9 @@ import { CameraController } from '../camera/CameraController';
 import { WorldClock } from '../gameplay/WorldClock';
 import { TimeController } from '../gameplay/TimeController';
 import { AssetManager } from '../assets/AssetManager';
+import { ModelFactory } from '../assets/ModelFactory';
+import { AssetCatalog } from '../assets/AssetCatalog';
+import { MaterialRegistry } from '../rendering/MaterialRegistry';
 import { RenderPipeline } from '../rendering/RenderPipeline';
 import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
@@ -35,6 +38,8 @@ export class Engine {
 	private resizeObserver!: ResizeObserver;
 	private sceneManager: SceneManager;
 	private assetManager: AssetManager;
+	private modelFactory!: ModelFactory;
+	private materialRegistry!: MaterialRegistry;
 	private grid!: BuiltGrid;
 	private simulationBridge!: SimulationBridge;
 	private infrastructureRenderer!: InfrastructureRenderer;
@@ -60,6 +65,11 @@ export class Engine {
 		await this.renderer.init(canvas);
 
 		this.timeController = new TimeController(this.time, this.worldClock);
+
+		// Set up ModelFactory and register catalog entries before preloading
+		this.materialRegistry = new MaterialRegistry();
+		this.modelFactory = new ModelFactory(this.assetManager, this.materialRegistry);
+		this.modelFactory.registerCatalog(AssetCatalog);
 
 		await this.assetManager.preload();
 
@@ -107,6 +117,7 @@ export class Engine {
 			gameScene.getEntityManager(),
 			gameScene.getGridPlacement(),
 			this.worldClock,
+			this.modelFactory,
 		);
 
 		// Infrastructure power-line visualisation
@@ -129,6 +140,8 @@ export class Engine {
 			this.sceneManager.update(delta);
 			this.cameraController.update(unscaledDelta);
 			this.infrastructureRenderer.update(delta);
+			// Use unscaledDelta so animations play regardless of game time speed
+			this.simulationBridge.updateAnimations(unscaledDelta);
 
 			// Track fog center to camera's ground-plane target
 			const env = gameScene.getEnvironment();
