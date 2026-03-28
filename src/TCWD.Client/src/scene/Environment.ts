@@ -19,16 +19,22 @@ const presets: Record<string, EnvironmentPreset> = {
 		fogOuterRadius: 120,
 	},
 	sunset: {
-		backgroundColor: 0xc8c8c8,
-		fogColor: 0xbababa,
-		fogInnerRadius: 25,
-		fogOuterRadius: 100,
+		backgroundColor: 0xc0a888,
+		fogColor: 0xc0a888,
+		fogInnerRadius: 30,
+		fogOuterRadius: 120,
+	},
+	dusk: {
+		backgroundColor: 0x384058,
+		fogColor: 0x384058,
+		fogInnerRadius: 30,
+		fogOuterRadius: 120,
 	},
 	night: {
-		backgroundColor: 0x404048,
-		fogColor: 0x484850,
-		fogInnerRadius: 15,
-		fogOuterRadius: 60,
+		backgroundColor: 0x101828,
+		fogColor: 0x101828,
+		fogInnerRadius: 30,
+		fogOuterRadius: 120,
 	},
 	foggy: {
 		backgroundColor: 0xb0b0b0,
@@ -40,14 +46,15 @@ const presets: Record<string, EnvironmentPreset> = {
 
 const TIME_PRESETS: { hour: number; preset: string }[] = [
 	{ hour: 0, preset: 'night' },
-	{ hour: 5, preset: 'night' },
+	{ hour: 4, preset: 'night' },
+	{ hour: 5.5, preset: 'dusk' },   // pre-dawn twilight (reuse dusk colors)
 	{ hour: 7, preset: 'day' },
 	{ hour: 10, preset: 'day' },
 	{ hour: 14, preset: 'day' },
 	{ hour: 17, preset: 'day' },
 	{ hour: 18, preset: 'sunset' },
-	{ hour: 19.5, preset: 'night' },
-	{ hour: 21, preset: 'night' },
+	{ hour: 19.5, preset: 'dusk' },
+	{ hour: 20.5, preset: 'night' },
 	{ hour: 24, preset: 'night' },
 ];
 

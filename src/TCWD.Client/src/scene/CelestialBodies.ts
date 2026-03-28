@@ -99,17 +99,17 @@ function createMoonMesh(): THREE.Group {
 	group.name = 'celestial-moon';
 
 	const core = new THREE.Mesh(
-		new THREE.SphereGeometry(0.8, 20, 20),
-		new THREE.MeshBasicMaterial({ color: 0xc8d0e8 }),
+		new THREE.SphereGeometry(1.0, 20, 20),
+		new THREE.MeshBasicMaterial({ color: 0x9aa4bf }),
 	);
 	group.add(core);
 
 	const glow = new THREE.Mesh(
-		new THREE.SphereGeometry(1.6, 20, 20),
+		new THREE.SphereGeometry(1.8, 20, 20),
 		new THREE.MeshBasicMaterial({
-			color: 0xb8c0d8,
+			color: 0x7080a0,
 			transparent: true,
-			opacity: 0.1,
+			opacity: 0.08,
 			depthWrite: false,
 		}),
 	);
