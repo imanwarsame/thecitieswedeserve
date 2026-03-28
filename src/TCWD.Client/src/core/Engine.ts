@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { Renderer } from './Renderer';
 import { Loop } from './Loop';
 import { Time } from './Time';
@@ -13,6 +14,8 @@ import { AssetManager } from '../assets/AssetManager';
 import { RenderPipeline } from '../rendering/RenderPipeline';
 import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
+import { EngineConfig } from '../app/config';
+import { buildGrid, type BuiltGrid } from '../grid/GridBuilder';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -29,6 +32,9 @@ export class Engine {
 	private resizeObserver!: ResizeObserver;
 	private sceneManager: SceneManager;
 	private assetManager: AssetManager;
+	private grid!: BuiltGrid;
+	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+	private raycaster = new THREE.Raycaster();
 
 	constructor() {
 		this.renderer = new Renderer();
@@ -49,10 +55,22 @@ export class Engine {
 
 		await this.assetManager.preload();
 
-		const gameScene = new GameScene(this.assetManager);
+		// Build the organic grid
+		this.grid = buildGrid();
+
+		const gameScene = new GameScene(this.assetManager, this.grid);
 		this.sceneManager.loadScene(gameScene);
 		gameScene.setWorldClock(this.worldClock);
-		gameScene.initEnvironmentMap(this.renderer.getWebGLRenderer());
+
+		// Load HDR environment if configured, otherwise use fallback
+		if (EngineConfig.environment.hdrPath) {
+			await gameScene.loadEnvironmentHdr(
+				this.renderer.getWebGLRenderer(),
+				EngineConfig.environment.hdrPath,
+			);
+		} else {
+			gameScene.initEnvironmentMap(this.renderer.getWebGLRenderer());
+		}
 
 		this.isoCamera = new IsometricCamera(canvas.clientWidth, canvas.clientHeight);
 		const camera = this.isoCamera.getCamera();
@@ -88,6 +106,9 @@ export class Engine {
 			// Track fog center to camera's ground-plane target
 			const env = gameScene.getEnvironment();
 			env.setFogCenter(this.cameraController.getTargetPosition());
+
+			// Cell hover highlight
+			this.updateCellHover(gameScene, camera);
 		});
 
 		this.resizeObserver = new ResizeObserver(entries => {
@@ -186,7 +207,26 @@ export class Engine {
 		return this.loop;
 	}
 
+	getGrid(): BuiltGrid {
+		return this.grid;
+	}
+
 	getSceneManager(): SceneManager {
 		return this.sceneManager;
+	}
+
+	private updateCellHover(gameScene: GameScene, camera: THREE.Camera): void {
+		this.raycaster.setFromCamera(this.input.mouse, camera);
+
+		const intersection = new THREE.Vector3();
+		const hit = this.raycaster.ray.intersectPlane(this.groundPlane, intersection);
+
+		const highlighter = gameScene.getGridHighlighter();
+		if (hit) {
+			const cell = this.grid.query.getCellAt(intersection.x, intersection.z);
+			highlighter.setCell(cell);
+		} else {
+			highlighter.setCell(null);
+		}
 	}
 }

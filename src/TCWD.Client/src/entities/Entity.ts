@@ -14,11 +14,14 @@ export class Entity {
 
 	private components = new Map<string, Component>();
 
+	cellIndex: number;
+
 	constructor(options: {
 		id?: string;
 		name?: string;
 		mesh?: THREE.Object3D;
 		position?: THREE.Vector3;
+		cellIndex?: number;
 	} = {}) {
 		this.id = options.id ?? `entity_${nextId++}`;
 		this.name = options.name ?? this.id;
@@ -27,6 +30,7 @@ export class Entity {
 		this.rotation = new THREE.Euler();
 		this.scale = new THREE.Vector3(1, 1, 1);
 		this.active = true;
+		this.cellIndex = options.cellIndex ?? -1;
 	}
 
 	init(): void {

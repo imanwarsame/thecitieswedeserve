@@ -65,4 +65,11 @@ export class EntityManager {
 	count(): number {
 		return this.entities.size;
 	}
+
+	getEntityAtCell(cellIndex: number): Entity | null {
+		for (const entity of this.entities.values()) {
+			if (entity.cellIndex === cellIndex) return entity;
+		}
+		return null;
+	}
 }
