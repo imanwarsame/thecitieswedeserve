@@ -2,9 +2,20 @@ import type { SimulationConfig } from '../config/types.ts';
 import { DEFAULT_CONFIG } from '../config/defaults.ts';
 import { Clock } from './Clock.ts';
 import type { ClockState } from './Clock.ts';
+import { LayerRegistry } from '../layers/Layer.ts';
 import { EnergyLayer } from '../layers/EnergyLayer.ts';
+import { CityLayer } from '../layers/CityLayer.ts';
+import { TransportLayer } from '../layers/TransportLayer.ts';
+import { WaterLayer } from '../layers/WaterLayer.ts';
 import type { Entity } from '../entities/types.ts';
-import type { EnergyMetrics, EconomicMetrics } from '../metrics/types.ts';
+import type {
+	EnergyMetrics,
+	EconomicMetrics,
+	CityMetrics,
+	EnergyLayerOutput,
+	TransportMetrics,
+	WaterMetrics,
+} from '../metrics/types.ts';
 import type { SimulationState, StepRecord } from '../state/types.ts';
 import { trimHistory } from '../state/snapshot.ts';
 
@@ -30,16 +41,42 @@ const NULL_ECONOMICS: EconomicMetrics = {
 	energyCostBurden: 0
 };
 
+const NULL_CITY: CityMetrics = {
+	gdp: 0,
+	landValue: 0,
+	taxRevenue: 0,
+	healthIndex: 0.7,
+	crimeIndex: 0.3,
+	tourismIndex: 0.4,
+};
+
+const NULL_TRANSPORT: TransportMetrics = {
+	totalPassengersPerHour: 0,
+	averageCommuteMins: 0,
+	congestionIndex: 0,
+	evAdoptionRate: 0,
+};
+
+const NULL_WATER: WaterMetrics = {
+	totalDemandLitres: 0,
+	totalSupplyLitres: 0,
+	waterQualityIndex: 0,
+	wastewaterTreatedPct: 0,
+};
+
 // ── Simulation Engine ───────────────────────────────────────
 
 export class SimulationEngine {
 	private readonly config: SimulationConfig;
 	private readonly clock: Clock;
-	private readonly energyLayer: EnergyLayer;
+	private readonly registry: LayerRegistry;
 
 	private entities: Entity[];
 	private currentEnergy: EnergyMetrics;
 	private currentEconomics: EconomicMetrics;
+	private currentCity: CityMetrics;
+	private currentTransport: TransportMetrics;
+	private currentWater: WaterMetrics;
 	private history: StepRecord[];
 
 	constructor(
@@ -48,11 +85,21 @@ export class SimulationEngine {
 	) {
 		this.config = { ...DEFAULT_CONFIG, ...config };
 		this.clock = new Clock(this.config);
-		this.energyLayer = new EnergyLayer();
+
+		// Register layers in execution order — downstream layers
+		// can read upstream outputs via the LayerOutputMap.
+		this.registry = new LayerRegistry();
+		this.registry.register('energy', new EnergyLayer());
+		this.registry.register('city', new CityLayer());
+		this.registry.register('transport', new TransportLayer());
+		this.registry.register('water', new WaterLayer());
 
 		this.entities = [...entities];
 		this.currentEnergy = NULL_ENERGY;
 		this.currentEconomics = NULL_ECONOMICS;
+		this.currentCity = NULL_CITY;
+		this.currentTransport = NULL_TRANSPORT;
+		this.currentWater = NULL_WATER;
 		this.history = [];
 	}
 
@@ -110,13 +157,7 @@ export class SimulationEngine {
 	 */
 	recompute(): SimulationState {
 		const clockState = this.clock.toState();
-		const { energy, economics } = this.energyLayer.compute(
-			this.entities,
-			clockState,
-			this.config
-		);
-		this.currentEnergy = energy;
-		this.currentEconomics = economics;
+		this.runLayers(clockState);
 		return this.buildState(clockState);
 	}
 
@@ -136,6 +177,9 @@ export class SimulationEngine {
 		this.clock.reset();
 		this.currentEnergy = NULL_ENERGY;
 		this.currentEconomics = NULL_ECONOMICS;
+		this.currentCity = NULL_CITY;
+		this.currentTransport = NULL_TRANSPORT;
+		this.currentWater = NULL_WATER;
 		this.history = [];
 	}
 
@@ -145,26 +189,34 @@ export class SimulationEngine {
 		this.clock.advance();
 
 		const clockState = this.clock.toState();
-		const { energy, economics } = this.energyLayer.compute(
-			this.entities,
-			clockState,
-			this.config
-		);
-
-		this.currentEnergy = energy;
-		this.currentEconomics = economics;
+		this.runLayers(clockState);
 
 		const record: StepRecord = {
 			tick: clockState.tick,
 			hour: clockState.hour,
 			day: clockState.day,
 			year: clockState.year,
-			energy,
-			economics
+			energy: this.currentEnergy,
+			economics: this.currentEconomics,
+			city: this.currentCity,
+			transport: this.currentTransport,
+			water: this.currentWater,
 		};
 
 		this.history.push(record);
 		this.history = trimHistory(this.history, this.config.maxHistoryLength);
+	}
+
+	/** Run all registered layers and update current metric state. */
+	private runLayers(clockState: ClockState): void {
+		const outputs = this.registry.computeAll(this.entities, clockState, this.config);
+
+		const energyOutput = outputs['energy'] as EnergyLayerOutput;
+		this.currentEnergy = energyOutput.energy;
+		this.currentEconomics = energyOutput.economics;
+		this.currentCity = outputs['city'] as CityMetrics;
+		this.currentTransport = outputs['transport'] as TransportMetrics;
+		this.currentWater = outputs['water'] as WaterMetrics;
 	}
 
 	private buildState(clockState: ClockState): SimulationState {
@@ -172,6 +224,9 @@ export class SimulationEngine {
 			clock: { ...clockState },
 			energy: { ...this.currentEnergy },
 			economics: { ...this.currentEconomics },
+			city: { ...this.currentCity },
+			transport: { ...this.currentTransport },
+			water: { ...this.currentWater },
 			entities: [...this.entities],
 			history: [...this.history]
 		};
