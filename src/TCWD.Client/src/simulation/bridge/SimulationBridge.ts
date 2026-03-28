@@ -188,6 +188,16 @@ export class SimulationBridge {
 		return this.engine.getEntities().find(e => e.id === simId);
 	}
 
+	/** Return world positions for all WFC-placed housing cells (for infrastructure lines). */
+	getHousingPositions(): THREE.Vector3[] {
+		const positions: THREE.Vector3[] = [];
+		for (const cellIndex of this.housingSimIds.keys()) {
+			const pos = this.gridPlacement.getCellWorldPosition(cellIndex, 0);
+			if (pos) positions.push(pos);
+		}
+		return positions;
+	}
+
 	// ── Tick ─────────────────────────────────────────────────
 
 	/** Manually advance the simulation by one tick. */
