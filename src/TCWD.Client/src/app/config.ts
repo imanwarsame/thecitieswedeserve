@@ -20,6 +20,11 @@ export const EngineConfig = {
 	},
 	postProcessing: {
 		enabled: true,
+		ao: {
+			enabled: true,
+			radius: 0.5,
+			intensity: 1.0,
+		},
 		bloom: {
 			enabled: false,
 			threshold: 0.8,

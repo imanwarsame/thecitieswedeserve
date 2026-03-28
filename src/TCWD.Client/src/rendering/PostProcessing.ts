@@ -5,12 +5,14 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { GrayscaleShader } from './shaders/GrayscaleShader';
 import { EngineConfig } from '../app/config';
 
 export class PostProcessing {
 	private composer!: EffectComposer;
 	private renderPass!: RenderPass;
+	private gtaoPass!: GTAOPass;
 	private grayscalePass!: ShaderPass;
 	private hoverOutlinePass!: OutlinePass;
 	private selectOutlinePass!: OutlinePass;
@@ -26,13 +28,23 @@ export class PostProcessing {
 		this.renderPass = new RenderPass(scene, camera);
 		this.composer.addPass(this.renderPass);
 
-		// 2. Grayscale pass — desaturate any remaining color
+		// 2. GTAO pass — screen-space ambient occlusion for smoother shadows
+		const aoConfig = EngineConfig.postProcessing.ao;
+		this.gtaoPass = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
+		this.gtaoPass.output = GTAOPass.OUTPUT.Default;
+		this.gtaoPass.enabled = aoConfig.enabled;
+		this.gtaoPass.blendIntensity = aoConfig.intensity;
+		this.gtaoPass.updateGtaoMaterial({ radius: aoConfig.radius });
+		this.composer.addPass(this.gtaoPass);
+		this.effects.set('ao', { pass: this.gtaoPass });
+
+		// 3. Grayscale pass — desaturate any remaining color
 		this.grayscalePass = new ShaderPass(GrayscaleShader);
 		this.grayscalePass.uniforms.intensity.value = 1.0;
 		this.composer.addPass(this.grayscalePass);
 		this.effects.set('grayscale', { pass: this.grayscalePass });
 
-		// 3. Hover outline pass
+		// 4. Hover outline pass
 		const resolution = new THREE.Vector2(window.innerWidth, window.innerHeight);
 		this.hoverOutlinePass = new OutlinePass(resolution, scene, camera);
 		this.hoverOutlinePass.edgeStrength = 2.0;
@@ -45,7 +57,7 @@ export class PostProcessing {
 		this.composer.addPass(this.hoverOutlinePass);
 		this.effects.set('hoverOutline', { pass: this.hoverOutlinePass });
 
-		// 4. Selection outline pass
+		// 5. Selection outline pass
 		this.selectOutlinePass = new OutlinePass(resolution, scene, camera);
 		this.selectOutlinePass.edgeStrength = 3.5;
 		this.selectOutlinePass.edgeGlow = 0.8;
@@ -57,7 +69,7 @@ export class PostProcessing {
 		this.composer.addPass(this.selectOutlinePass);
 		this.effects.set('selectOutline', { pass: this.selectOutlinePass });
 
-		// 5. Bloom pass
+		// 6. Bloom pass
 		const bloomConfig = EngineConfig.postProcessing.bloom;
 		this.bloomPass = new UnrealBloomPass(
 			resolution,
@@ -69,7 +81,7 @@ export class PostProcessing {
 		this.composer.addPass(this.bloomPass);
 		this.effects.set('bloom', { pass: this.bloomPass });
 
-		// 6. Output pass — gamma correction / sRGB
+		// 7. Output pass — gamma correction / sRGB
 		this.outputPass = new OutputPass();
 		this.composer.addPass(this.outputPass);
 
@@ -82,6 +94,7 @@ export class PostProcessing {
 
 	resize(width: number, height: number): void {
 		this.composer.setSize(width, height);
+		this.gtaoPass.setSize(width, height);
 	}
 
 	setCamera(camera: THREE.Camera): void {
@@ -94,6 +107,11 @@ export class PostProcessing {
 
 	getSelectOutlinePass(): OutlinePass {
 		return this.selectOutlinePass;
+	}
+
+	setAoParams(radius: number, intensity: number): void {
+		this.gtaoPass.updateGtaoMaterial({ radius });
+		this.gtaoPass.blendIntensity = intensity;
 	}
 
 	setBloomParams(strength: number, threshold: number, radius: number): void {

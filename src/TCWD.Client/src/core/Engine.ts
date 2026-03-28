@@ -23,6 +23,8 @@ import { EngineConfig } from '../app/config';
 import { buildGrid, type BuiltGrid } from '../grid/GridBuilder';
 import { SimulationBridge } from '../simulation/bridge/SimulationBridge';
 import { updateBuildingLights, type BuildingType } from '../simulation/bridge/BuildingFactory';
+import { HousingSystem } from '../housing/HousingSystem';
+import { HousingController } from '../housing/HousingController';
 import type { UpdateCallback } from './Loop';
 
 export class Engine {
@@ -44,6 +46,8 @@ export class Engine {
 	private geometryFactory!: GeometryFactory;
 	private grid!: BuiltGrid;
 	private simulationBridge!: SimulationBridge;
+	private housingSystem!: HousingSystem;
+	private housingController!: HousingController;
 	private infrastructureRenderer!: InfrastructureRenderer;
 	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 	private raycaster = new THREE.Raycaster();
@@ -130,6 +134,22 @@ export class Engine {
 			this.modelFactory,
 		);
 
+		// Housing system — WFC-driven stackable housing on the Voronoi grid
+		const housingGroup = new THREE.Group();
+		housingGroup.name = 'housing';
+		gameScene.root.add(housingGroup);
+
+		this.housingSystem = new HousingSystem(
+			this.grid,
+			this.materialRegistry,
+			housingGroup,
+		);
+
+		this.housingController = new HousingController(
+			this.housingSystem,
+			gameScene.getGridPlacement(),
+		);
+
 		// Infrastructure power-line visualisation
 		this.infrastructureRenderer = new InfrastructureRenderer(
 			gameScene.getGroup('effects'),
@@ -184,6 +204,8 @@ export class Engine {
 
 	stop(): void {
 		this.loop?.stop();
+		this.housingController?.dispose();
+		this.housingSystem?.dispose();
 		this.simulationBridge?.dispose();
 		this.infrastructureRenderer?.dispose();
 		this.selectionManager?.dispose();
@@ -285,6 +307,14 @@ export class Engine {
 
 	getSimulationBridge(): SimulationBridge {
 		return this.simulationBridge;
+	}
+
+	getHousingSystem(): HousingSystem {
+		return this.housingSystem;
+	}
+
+	getHousingController(): HousingController {
+		return this.housingController;
 	}
 
 	getPlacementMode(): BuildingType | null {
