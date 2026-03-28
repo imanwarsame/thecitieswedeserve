@@ -1,0 +1,22 @@
+{
+  "overrides": [
+    {
+      "files": ["*.js", "*.jsx", "*.ts", "*.tsx", "*.css", "*.scss", "*.json","*.md","*.cjs"],
+      "options": {
+        "semi": true,
+        "singleQuote": true,
+        "jsxSingleQuote": true,
+        "tabWidth": 1,
+        "useTabs": true,
+        "endOfLine": "crlf",
+        "arrowParens": "always",
+        "trailingComma": "none",
+        "printWidth": 120
+      }
+    }
+  ],
+  "importOrder": ["^@core/(.*)$", "^@server/(.*)$", "^@ui/(.*)$", "^[./]"],
+  "importOrderSeparation": false,
+  "importOrderSortSpecifiers": false,
+  "plugins": ["@trivago/prettier-plugin-sort-imports"]
+}
