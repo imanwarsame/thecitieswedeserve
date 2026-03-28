@@ -20,8 +20,10 @@ function App() {
 
 		let cancelled = false;
 		bootstrap(canvas).then((eng) => {
-			if (cancelled) { shutdown(); return; }
+			if (cancelled) { eng.stop(); return; }
 			setEngine(eng);
+		}).catch(() => {
+			// Engine superseded during init (StrictMode remount) — safe to ignore
 		});
 
 		return () => {
