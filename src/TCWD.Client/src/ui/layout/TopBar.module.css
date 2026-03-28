@@ -1,0 +1,25 @@
+.bar {
+	pointer-events: auto;
+	grid-column: 1 / -1;
+	padding: 8px 16px;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: rgba(80, 80, 80, 0.8);
+	background: #f0f0f0;
+	border-bottom: 1px solid rgba(180, 180, 180, 0.3);
+}
+
+.time {
+	font-family: ui-monospace, Consolas, monospace;
+}
+
+.separator {
+	width: 1px;
+	height: 14px;
+	background: rgba(160, 160, 160, 0.3);
+}
