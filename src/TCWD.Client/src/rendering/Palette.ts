@@ -6,6 +6,8 @@ export const Palette = {
 	// Surfaces — clean white and grays
 	background: 0xf5f5f5,   // off-white
 	ground: 0xeeeeee,       // light gray
+	road: 0xa0a0a0,         // medium gray — visible against ground
+	water: 0xc8dce8,        // pastel blue
 	structure: 0xe0e0e0,    // mid-light gray
 	detail: 0xd5d5d5,       // medium gray
 	accent: 0xf0f0f0,       // near-white
