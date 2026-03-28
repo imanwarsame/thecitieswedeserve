@@ -11,13 +11,14 @@ import { CameraController } from '../camera/CameraController';
 import { WorldClock } from '../gameplay/WorldClock';
 import { TimeController } from '../gameplay/TimeController';
 import { AssetManager } from '../assets/AssetManager';
-import { ModelFactory } from '../assets/ModelFactory';
-import { AssetCatalog } from '../assets/AssetCatalog';
 import { MaterialRegistry } from '../rendering/MaterialRegistry';
 import { RenderPipeline } from '../rendering/RenderPipeline';
 import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
 import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
+import { ModelFactory } from '../assets/ModelFactory';
+import { AssetCatalog, DefaultMaterialPresets } from '../assets/AssetCatalog';
+import { GeometryFactory } from '../geometry/GeometryFactory';
 import { EngineConfig } from '../app/config';
 import { buildGrid, type BuiltGrid } from '../grid/GridBuilder';
 import { SimulationBridge } from '../simulation/bridge/SimulationBridge';
@@ -38,8 +39,9 @@ export class Engine {
 	private resizeObserver!: ResizeObserver;
 	private sceneManager: SceneManager;
 	private assetManager: AssetManager;
-	private modelFactory!: ModelFactory;
 	private materialRegistry!: MaterialRegistry;
+	private modelFactory!: ModelFactory;
+	private geometryFactory!: GeometryFactory;
 	private grid!: BuiltGrid;
 	private simulationBridge!: SimulationBridge;
 	private infrastructureRenderer!: InfrastructureRenderer;
@@ -66,17 +68,25 @@ export class Engine {
 
 		this.timeController = new TimeController(this.time, this.worldClock);
 
-		// Set up ModelFactory and register catalog entries before preloading
+		// Material registry & presets
 		this.materialRegistry = new MaterialRegistry();
+		for (const preset of DefaultMaterialPresets) {
+			this.materialRegistry.definePreset(preset);
+		}
+
+		// Model factory & catalog registration
 		this.modelFactory = new ModelFactory(this.assetManager, this.materialRegistry);
 		this.modelFactory.registerCatalog(AssetCatalog);
+
+		// Geometry factory
+		this.geometryFactory = new GeometryFactory(this.materialRegistry);
 
 		await this.assetManager.preload();
 
 		// Build the organic grid
 		this.grid = buildGrid();
 
-		const gameScene = new GameScene(this.assetManager, this.grid);
+		const gameScene = new GameScene(this.assetManager, this.grid, this.materialRegistry, this.modelFactory, this.geometryFactory);
 		this.sceneManager.loadScene(gameScene);
 		gameScene.setWorldClock(this.worldClock);
 
@@ -181,6 +191,7 @@ export class Engine {
 		this.cameraController?.dispose();
 		this.resizeObserver?.disconnect();
 		this.sceneManager.dispose();
+		this.materialRegistry?.dispose();
 		this.assetManager.dispose();
 		this.renderPipeline?.dispose();
 		this.renderer.dispose();
@@ -230,6 +241,18 @@ export class Engine {
 
 	getAssetManager(): AssetManager {
 		return this.assetManager;
+	}
+
+	getMaterialRegistry(): MaterialRegistry {
+		return this.materialRegistry;
+	}
+
+	getModelFactory(): ModelFactory {
+		return this.modelFactory;
+	}
+
+	getGeometryFactory(): GeometryFactory {
+		return this.geometryFactory;
 	}
 
 	getScene(): GameScene {
