@@ -58,7 +58,7 @@ const ROLE_DEFAULTS: Record<MaterialRole, { color: number; roughness: number; me
 	ground:    { color: Palette.ground,    roughness: 1.0, metalness: 0.0 },
 	glass:     { color: 0xe8e8e8,          roughness: 0.1, metalness: 0.0 },   // clean glass
 	metal:     { color: 0xd0d0d0,          roughness: 0.4, metalness: 0.5 },   // neutral metal
-	foliage:   { color: 0xd0d0d0,          roughness: 0.95, metalness: 0.0 },  // neutral gray
+	foliage:   { color: 0xb8d8b8,          roughness: 0.95, metalness: 0.0 },  // pastel green
 	custom:    { color: Palette.structure,  roughness: 0.9, metalness: 0.0 },
 };
 
@@ -75,12 +75,15 @@ export class MaterialRegistry {
 	constructor() {
 		// Register built-in materials that match the existing factory functions
 		this.define({ key: 'ground',    role: 'ground' });
+		this.define({ key: 'road',      role: 'ground', color: Palette.road });
+		this.define({ key: 'water',     role: 'glass',  color: Palette.water, opacity: 0.55, roughness: 0.15 });
 		this.define({ key: 'structure', role: 'structure' });
 		this.define({ key: 'detail',    role: 'detail' });
 		this.define({ key: 'accent',    role: 'accent' });
 		this.define({ key: 'glass',     role: 'glass', opacity: 0.4 });
 		this.define({ key: 'metal',     role: 'metal' });
 		this.define({ key: 'foliage',   role: 'foliage' });
+		this.define({ key: 'building-white', role: 'structure', color: 0xf2f2f2, roughness: 0.95, metalness: 0.0 });
 	}
 
 	// ---- Define & register ------------------------------------------------

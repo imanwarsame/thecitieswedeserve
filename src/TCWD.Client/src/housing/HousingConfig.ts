@@ -1,6 +1,6 @@
 export const HousingConfig = {
 	/** Maximum number of stacked layers. */
-	maxLayers: 20,
+	maxLayers: 30,
 
 	/** World-space height of each layer. Matched to cell scale (~2-3 unit cells). */
 	layerHeight: 1.0,

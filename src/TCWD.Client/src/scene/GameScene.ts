@@ -141,6 +141,10 @@ export class GameScene {
 		return this.lighting;
 	}
 
+	getFormaGroup(): THREE.Group | null {
+		return this.formaGroup;
+	}
+
 	initEnvironmentMap(renderer: THREE.WebGLRenderer): void {
 		this.lighting.initEnvironmentMap(renderer, this.root);
 	}

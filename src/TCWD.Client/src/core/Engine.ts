@@ -130,6 +130,10 @@ export class Engine {
 			pp.getSelectOutlinePass(),
 		);
 
+		// Enable mesh-level selection on Forma GLB models
+		const formaGroup = gameScene.getFormaGroup();
+		if (formaGroup) this.selectionManager.setFormaGroup(formaGroup);
+
 		// Simulation bridge — connects the 3D world to the headless simulation
 		this.simulationBridge = new SimulationBridge(
 			gameScene.getEntityManager(),
@@ -513,9 +517,15 @@ export class Engine {
 				return;
 			}
 
-			// Click on empty space deselects
+			// Click on empty space — select hovered forma mesh or deselect
 			if (this.input.consumeClick()) {
-				this.deselectCell();
+				const hovered = this.selectionManager.getHovered();
+				if (hovered) {
+					this.selectionManager.setSelected(hovered);
+				} else {
+					this.deselectCell();
+					this.selectionManager.clearSelection();
+				}
 			}
 		}
 	}
