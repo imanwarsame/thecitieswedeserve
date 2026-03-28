@@ -1,5 +1,6 @@
 import { useTimeController } from '../hooks/useTimeController';
 import { useWorldClock } from '../hooks/useWorldClock';
+import { useSimulation } from '../hooks/useSimulation';
 import { IconButton } from '../components/IconButton';
 import { Slider } from '../components/Slider';
 import styles from './TimeControls.module.css';
@@ -13,6 +14,8 @@ const SPEED_PRESETS = [
 export function TimeControls() {
 	const { paused, speed, tc } = useTimeController();
 	const { hour } = useWorldClock();
+	const { state } = useSimulation();
+	const { clock } = state;
 
 	return (
 		<div className={styles.controls}>
@@ -45,6 +48,10 @@ export function TimeControls() {
 					onChange={v => tc.setWorldHour(v)}
 				/>
 			</div>
+
+			<span className={styles.simInfo}>
+				Y{clock.year} D{clock.day + 1} T{clock.tick}
+			</span>
 		</div>
 	);
 }

@@ -36,3 +36,12 @@
 	margin-left: 12px;
 	width: 120px;
 }
+
+.simInfo {
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 10px;
+	color: rgba(80, 80, 80, 0.5);
+	white-space: nowrap;
+	margin-left: 12px;
+	letter-spacing: 0.04em;
+}

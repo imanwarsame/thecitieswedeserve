@@ -67,3 +67,54 @@
 .toggle:hover {
 	background: #e4e4e4;
 }
+
+.heading {
+	font-size: 13px;
+	font-weight: 600;
+	color: rgba(40, 40, 40, 0.8);
+	margin-bottom: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.stats {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 16px;
+}
+
+.stat {
+	display: flex;
+	justify-content: space-between;
+	font-size: 11px;
+}
+
+.statLabel {
+	color: rgba(80, 80, 80, 0.5);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.statValue {
+	color: rgba(40, 40, 40, 0.85);
+	font-family: ui-monospace, Consolas, monospace;
+}
+
+.removeBtn {
+	width: 100%;
+	padding: 6px 0;
+	border: 1px solid rgba(160, 80, 80, 0.3);
+	background: transparent;
+	color: rgba(160, 80, 80, 0.7);
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	cursor: pointer;
+	border-radius: 3px;
+	transition: background 0.15s ease;
+}
+
+.removeBtn:hover {
+	background: rgba(160, 80, 80, 0.08);
+}
