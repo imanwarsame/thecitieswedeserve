@@ -3,14 +3,14 @@
  * Colour comes from housing tints and time-of-day lighting, not base surfaces.
  */
 export const Palette = {
-	// Surfaces — clean white and grays
+	// Surfaces — matte white for clean lighting / shadow readability
 	background: 0xf5f5f5,   // off-white
-	ground: 0xeeeeee,       // light gray
-	road: 0xa0a0a0,         // medium gray — visible against ground
-	water: 0xc8dce8,        // pastel blue
-	structure: 0xe0e0e0,    // mid-light gray
-	detail: 0xd5d5d5,       // medium gray
-	accent: 0xf0f0f0,       // near-white
+	ground: 0xffffff,       // matte white
+	road: 0x888888,         // dark gray — visible against white ground
+	water: 0xc8dce8,        // pastel blue (unchanged)
+	structure: 0xffffff,    // matte white
+	detail: 0xffffff,       // matte white
+	accent: 0xffffff,       // matte white
 	shadow: 0xb0b0b0,       // mid gray
 
 	// Atmosphere
