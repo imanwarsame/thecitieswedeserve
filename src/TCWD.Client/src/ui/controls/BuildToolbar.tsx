@@ -4,7 +4,7 @@ import { events } from '../../core/Events';
 import type { BuildingType } from '../../simulation/bridge/BuildingFactory';
 import { BUILDING_LABELS } from '../../simulation/bridge/BuildingFactory';
 import { HOUSING_COLORS } from '../../rendering/Palette';
-import { Home, Server, Sun, Wind, Flame, Atom, Building2, Store, GraduationCap, Drama, TreePine } from 'lucide-react';
+import { Home, Server, Sun, Wind, Flame, Atom, Building2, Store, GraduationCap, Drama, TreePine, Route, TrainFront, Bike, Signpost } from 'lucide-react';
 import styles from './BuildToolbar.module.css';
 
 const TOOLS: { type: BuildingType; icon: typeof Home; shortcut: string }[] = [
@@ -19,6 +19,10 @@ const TOOLS: { type: BuildingType; icon: typeof Home; shortcut: string }[] = [
 	{ type: 'school', icon: GraduationCap, shortcut: '9' },
 	{ type: 'leisure', icon: Drama, shortcut: '0' },
 	{ type: 'park', icon: TreePine, shortcut: '-' },
+	{ type: 'road' as BuildingType, icon: Route, shortcut: 'r' },
+	{ type: 'metro', icon: Signpost, shortcut: 'm' },
+	{ type: 'train', icon: TrainFront, shortcut: 't' },
+	{ type: 'cyclePath', icon: Bike, shortcut: 'b' },
 ];
 
 export function BuildToolbar() {

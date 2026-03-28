@@ -17,6 +17,8 @@ import { SelectionManager } from '../rendering/SelectionManager';
 import { installRadialFog } from '../rendering/RadialFog';
 import { HOUSING_COLORS } from '../rendering/Palette';
 import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
+import { TransportRenderer } from '../rendering/TransportRenderer';
+import { TransportModule } from '../simulation/transport/TransportModule';
 import { ModelFactory } from '../assets/ModelFactory';
 import { AssetCatalog, DefaultMaterialPresets } from '../assets/AssetCatalog';
 import { GeometryFactory } from '../geometry/GeometryFactory';
@@ -51,11 +53,15 @@ export class Engine {
 	private housingSystem!: HousingSystem;
 	private housingController!: HousingController;
 	private infrastructureRenderer!: InfrastructureRenderer;
+	private transportModule!: TransportModule;
+	private transportRenderer!: TransportRenderer;
 	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 	private raycaster = new THREE.Raycaster();
 	private hoveredCellIndex = -1;
 	private selectedCellIndex = -1;
 	private _placementMode: BuildingType | null = null;
+	/** First cell of a road placement (cell-to-cell). -1 = not started. */
+	private _roadStartCell = -1;
 	/** Tint applied to the next housing placement at the clicked cell. */
 	private _housingColor = HOUSING_COLORS[0].hex;
 
@@ -157,12 +163,24 @@ export class Engine {
 		// Connect housing system to simulation so placed housing registers as energy demand
 		this.simulationBridge.setHousingSystem(this.housingSystem);
 
+		// Transport module — multi-modal Pop ABM
+		this.transportModule = new TransportModule();
+		this.transportModule.init(this.grid.cells);
+		this.simulationBridge.setTransportModule(this.transportModule);
+
 		// Infrastructure power-line visualisation
 		this.infrastructureRenderer = new InfrastructureRenderer(
 			gameScene.getGroup('effects'),
 			gameScene.root,
 			this.simulationBridge,
 			gameScene.getEntityManager(),
+		);
+
+		// Transport network line visualisation
+		this.transportRenderer = new TransportRenderer(
+			gameScene.getGroup('effects'),
+			this.transportModule,
+			this.grid.cells,
 		);
 
 		this.loop = new Loop(this.renderPipeline, gameScene.root, camera, this.time);
@@ -180,6 +198,7 @@ export class Engine {
 			this.sceneManager.update(delta);
 			this.cameraController.update(unscaledDelta);
 			this.infrastructureRenderer.update(delta);
+			this.transportRenderer.update();
 			// Use unscaledDelta so animations play regardless of game time speed
 			this.simulationBridge.updateAnimations(unscaledDelta);
 
@@ -223,6 +242,7 @@ export class Engine {
 		this.housingController?.dispose();
 		this.housingSystem?.dispose();
 		this.simulationBridge?.dispose();
+		this.transportRenderer?.dispose();
 		this.infrastructureRenderer?.dispose();
 		this.selectionManager?.dispose();
 		this.input?.dispose();
@@ -342,6 +362,7 @@ export class Engine {
 
 	setPlacementMode(type: BuildingType | null): void {
 		this._placementMode = type;
+		this._roadStartCell = -1;
 		if (type !== 'housing') {
 			this.housingController.setAction('none');
 		}
@@ -430,14 +451,21 @@ export class Engine {
 
 			// Highlight color based on mode
 			if (cell && this._placementMode) {
-				const hasHousing = this.housingSystem.hasHousing(cellIndex);
-				const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
-				if (!isFree && !hasHousing) {
-					highlighter.setMode('default');
-				} else if (hasHousing) {
-					highlighter.setMode('occupied');
+				if (this._placementMode === 'road' as BuildingType && this._roadStartCell !== -1) {
+					// Road drawing: show "build" highlight on the hovered cell
+					// to signal that clicking will complete the road segment
+					const isNeighbor = this.grid.query.getCell(this._roadStartCell)?.neighbors.includes(cellIndex);
+					highlighter.setMode(isNeighbor ? 'build' : 'occupied');
 				} else {
-					highlighter.setMode('build');
+					const hasHousing = this.housingSystem.hasHousing(cellIndex);
+					const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
+					if (!isFree && !hasHousing) {
+						highlighter.setMode('default');
+					} else if (hasHousing) {
+						highlighter.setMode('occupied');
+					} else {
+						highlighter.setMode('build');
+					}
 				}
 			} else {
 				highlighter.setMode('default');
@@ -471,6 +499,29 @@ export class Engine {
 			// Click
 			if (this.input.consumeClick() && cell) {
 				if (this._placementMode) {
+					// Road placement: cell-to-cell (click A then adjacent B)
+					if (this._placementMode === 'road' as BuildingType) {
+						if (this._roadStartCell === -1) {
+							// First click — mark start cell
+							this._roadStartCell = cellIndex;
+							events.emit('transport:roadStarted', { cellIndex });
+							return;
+						} else {
+							const from = this._roadStartCell;
+							// Only allow adjacent cells
+							const fromCell = this.grid.query.getCell(from);
+							if (fromCell && fromCell.neighbors.includes(cellIndex)) {
+								this.simulationBridge.addRoad(from, cellIndex);
+								// Chain mode: endpoint becomes new start for continuous drawing
+								this._roadStartCell = cellIndex;
+							} else {
+								// Non-adjacent — restart from clicked cell
+								this._roadStartCell = cellIndex;
+							}
+							return;
+						}
+					}
+
 					if (this._placementMode === 'housing') {
 						// Housing placement mode — place or stack
 						const hasHousing = this.housingSystem.hasHousing(cellIndex);
