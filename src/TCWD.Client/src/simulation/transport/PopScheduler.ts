@@ -1,5 +1,5 @@
 import { EntityType } from '../types';
-import type { Entity } from '../entities/types';
+import type { Entity, HousingEntity } from '../entities/types';
 import type { ArchetypeProfile, Trip } from './types';
 import type { RouteResolver } from './RouteResolver';
 import { chooseMode } from './ModalSplitter';
@@ -39,20 +39,22 @@ export class PopScheduler {
 	/**
 	 * Generate all trips for the given hour.
 	 * @param hour 0–23
-	 * @param entities current entity list (used to derive housing cells + attractors)
+	 * @param entities current entity list (used to derive total population from housing units)
 	 * @param cellMap maps EntityType → array of cell indices where those entities exist
-	 * @param populationPerHousing rough population per housing entity (e.g. 500)
+	 * @param personsPerUnit average number of persons per housing unit (e.g. 2.5)
 	 */
 	generateTrips(
 		hour: number,
 		entities: readonly Entity[],
 		cellMap: ReadonlyMap<string, number[]>,
-		populationPerHousing: number = 500,
+		personsPerUnit: number = 2.5,
 	): Trip[] {
 		const housingCells = cellMap.get(EntityType.Housing) ?? [];
 		if (housingCells.length === 0) return [];
 
-		const totalPop = housingCells.length * populationPerHousing;
+		const totalPop = entities
+			.filter((e): e is HousingEntity => e.type === EntityType.Housing)
+			.reduce((sum, e) => sum + e.units, 0) * personsPerUnit;
 		const trips: Trip[] = [];
 
 		for (const archetype of ARCHETYPES) {
