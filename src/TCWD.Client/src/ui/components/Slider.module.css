@@ -1,0 +1,42 @@
+.wrapper {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	pointer-events: auto;
+}
+
+.label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: rgba(80, 80, 80, 0.7);
+	min-width: 48px;
+}
+
+.input {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 2px;
+	background: rgba(160, 160, 160, 0.4);
+	border-radius: 1px;
+	outline: none;
+	flex: 1;
+	min-width: 80px;
+}
+
+.input::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 12px;
+	height: 12px;
+	background: rgba(100, 100, 100, 0.8);
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.value {
+	font-family: ui-monospace, Consolas, monospace;
+	font-size: 11px;
+	color: rgba(80, 80, 80, 0.7);
+	min-width: 36px;
+	text-align: right;
+}
