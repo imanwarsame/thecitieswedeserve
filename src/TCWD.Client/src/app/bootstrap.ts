@@ -7,11 +7,19 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<Engine> {
 		engine.stop();
 	}
 
-	engine = new Engine();
-	await engine.init(canvas);
-	engine.start();
+	const newEngine = new Engine();
+	engine = newEngine;
 
-	return engine;
+	await newEngine.init(canvas);
+
+	// If shutdown() or another bootstrap() replaced us during init, bail out
+	if (engine !== newEngine) {
+		newEngine.stop();
+		throw new Error('[Bootstrap] Engine was superseded during initialization.');
+	}
+
+	newEngine.start();
+	return newEngine;
 }
 
 export function shutdown(): void {
