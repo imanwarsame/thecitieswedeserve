@@ -57,10 +57,67 @@ export interface TransportEntity extends EntityBase {
 	readonly peakDemandMW: MW;
 }
 
+// ── Office ──────────────────────────────────────────────────
+
+export interface OfficeEntity extends EntityBase {
+	readonly type: typeof EntityType.Office;
+	/** Gross floor area in m² */
+	readonly floorArea: number;
+	/** Number of employees */
+	readonly employeeCount: number;
+	/** Average annual consumption (kWh) */
+	readonly avgConsumptionKWh: MWh;
+}
+
+// ── Commercial ──────────────────────────────────────────────
+
+export interface CommercialEntity extends EntityBase {
+	readonly type: typeof EntityType.Commercial;
+	/** Gross floor area in m² */
+	readonly floorArea: number;
+	/** Average annual consumption (kWh) */
+	readonly avgConsumptionKWh: MWh;
+}
+
+// ── School ──────────────────────────────────────────────────
+
+export interface SchoolEntity extends EntityBase {
+	readonly type: typeof EntityType.School;
+	/** Maximum student capacity */
+	readonly studentCapacity: number;
+	/** Average annual consumption (kWh) */
+	readonly avgConsumptionKWh: MWh;
+}
+
+// ── Leisure ─────────────────────────────────────────────────
+
+export interface LeisureEntity extends EntityBase {
+	readonly type: typeof EntityType.Leisure;
+	/** Maximum visitor capacity */
+	readonly visitorCapacity: number;
+	/** Average annual consumption (kWh) */
+	readonly avgConsumptionKWh: MWh;
+}
+
+// ── Park ────────────────────────────────────────────────────
+
+export interface ParkEntity extends EntityBase {
+	readonly type: typeof EntityType.Park;
+	/** Park area in m² */
+	readonly areaSqM: number;
+	/** Average annual consumption (kWh) — lighting & irrigation */
+	readonly avgConsumptionKWh: MWh;
+}
+
 // ── Discriminated union ─────────────────────────────────────
 
 export type Entity =
 	| DataCentreEntity
 	| HousingEntity
 	| EnergyPlantEntity
-	| TransportEntity;
+	| TransportEntity
+	| OfficeEntity
+	| CommercialEntity
+	| SchoolEntity
+	| LeisureEntity
+	| ParkEntity;

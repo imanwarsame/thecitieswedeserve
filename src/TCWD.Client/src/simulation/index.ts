@@ -24,14 +24,24 @@ export type {
 	DataCentreEntity,
 	HousingEntity,
 	EnergyPlantEntity,
-	TransportEntity
+	TransportEntity,
+	OfficeEntity,
+	CommercialEntity,
+	SchoolEntity,
+	LeisureEntity,
+	ParkEntity,
 } from './entities/types.ts';
 
 export {
 	createDataCentre,
 	createHousing,
 	createEnergyPlant,
-	createTransport
+	createTransport,
+	createOffice,
+	createCommercial,
+	createSchool,
+	createLeisure,
+	createPark,
 } from './entities/factories.ts';
 
 // ── Metrics ─────────────────────────────────────────────────
