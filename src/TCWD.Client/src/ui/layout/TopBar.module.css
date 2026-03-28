@@ -17,6 +17,13 @@
 	z-index: 15;
 }
 
+/* Width follows compact dashboards; avoid spanning past center on wide screens */
+.panelRight {
+	width: max-content;
+	max-width: max(280px, min(92vw, calc(100vw - 520px)));
+	flex-wrap: nowrap;
+}
+
 .panelLeft {
 	left: 12px;
 }

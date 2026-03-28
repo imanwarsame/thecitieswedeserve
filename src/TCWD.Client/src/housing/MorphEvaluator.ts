@@ -3,6 +3,7 @@ import type { VoxelGrid } from './VoxelGrid';
 import { NeighborAnalyzer, type NeighborContext } from './NeighborAnalyzer';
 import { evaluateMorphShape, type MorphResult } from './StackingRules';
 import type { WFCSolver, TileAssignment } from './wfc/WFCSolver';
+import type { MorphShape } from './StackingRules';
 import { events } from '../core/Events';
 
 export interface MorphUpdate {
@@ -112,11 +113,17 @@ export class MorphEvaluator {
 			}
 		}
 
-		// Run WFC on affected cells
+		// Build morph hints for WFC
+		const morphHints = new Map<string, MorphShape>();
+		for (const u of updates) {
+			morphHints.set(`${u.cellIndex}:${u.layer}`, u.morph.shape);
+		}
+
+		// Run WFC on affected cells with morph constraints
 		const affectedSet = new Set(cellLayers.keys());
-		const assignments = this.solver.solve(affectedSet);
+		const solveResult = this.solver.solve(affectedSet, morphHints);
 		const assignmentMap = new Map(
-			assignments.map(a => [`${a.cellIndex}:${a.layer}`, a])
+			solveResult.assignments.map(a => [`${a.cellIndex}:${a.layer}`, a])
 		);
 
 		// Merge tile assignments into morph updates

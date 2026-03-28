@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { IsometricCamera } from './IsometricCamera';
 import { EngineConfig } from '../app/config';
 
-const PAN_SPEED = 20;
+const PAN_SPEED = 2000;
 const ZOOM_SPEED = 0.1;
 const SMOOTHING = 0.08;
-const ARROW_PAN_SPEED = 15;
+const ARROW_PAN_SPEED = 1500;
 
 const ROTATE_SPEED = 0.004;
 const ROTATION_SPRING = 0.08;
@@ -37,6 +37,13 @@ export class CameraController {
 	private keysDown = new Set<string>();
 
 	private followTarget: THREE.Object3D | null = null;
+
+	// Reusable vectors to avoid per-frame allocations
+	private _lookDir = new THREE.Vector3();
+	private _right = new THREE.Vector3();
+	private _forward = new THREE.Vector3();
+	private _worldUp = new THREE.Vector3(0, 1, 0);
+	private _targetWorldPos = new THREE.Vector3();
 
 	// Handlers stored for cleanup
 	private onPointerDown: (e: PointerEvent) => void = () => {};
@@ -97,6 +104,50 @@ export class CameraController {
 		this.zoomEnabled = enabled;
 	}
 
+	/** Smoothly animate zoom to a target level. */
+	setTargetZoom(zoom: number): void {
+		this.targetZoom = THREE.MathUtils.clamp(
+			zoom,
+			EngineConfig.camera.minZoom,
+			EngineConfig.camera.maxZoom,
+		);
+	}
+
+	/** Smoothly pan to a world-space ground point. */
+	setTargetLookAt(x: number, z: number): void {
+		this.targetLookAt.set(x, 0, z);
+	}
+
+	/**
+	 * Smoothly zoom and pan so the entire scene is visible.
+	 * Computes the world-space bounding box of the scene and fits
+	 * the camera to show everything.
+	 */
+	zoomExtents(scene: THREE.Scene): void {
+		const box = new THREE.Box3().setFromObject(scene);
+		if (box.isEmpty()) return;
+
+		const center = box.getCenter(new THREE.Vector3());
+		this.targetLookAt.set(center.x, 0, center.z);
+
+		const size = box.getSize(new THREE.Vector3());
+		const worldW = size.x;
+		const worldH = size.z;
+
+		const camera = this.isoCamera.getCamera();
+		const frustumW = (camera.right - camera.left) / camera.zoom;
+		const frustumH = (camera.top - camera.bottom) / camera.zoom;
+
+		// Isometric view rotates ~45°, so bounding box appears as a
+		// diamond. Account for this with sqrt(2) plus breathing room.
+		const isoScale = Math.SQRT2 * 1.25;
+		const zoomX = frustumW / (worldW * isoScale);
+		const zoomY = frustumH / (worldH * isoScale);
+		const fitZoom = Math.min(zoomX, zoomY);
+
+		this.setTargetZoom(fitZoom);
+	}
+
 	/** Returns the ground-plane point the camera is centred on (used for fog). */
 	getTargetPosition(): THREE.Vector3 {
 		return this.currentLookAt.clone();
@@ -114,14 +165,12 @@ export class CameraController {
 
 	private getGroundPlaneAxes(): { right: THREE.Vector3; forward: THREE.Vector3 } {
 		const camera = this.isoCamera.getCamera();
-		const lookDir = new THREE.Vector3();
-		camera.getWorldDirection(lookDir);
+		camera.getWorldDirection(this._lookDir);
 
-		const worldUp = new THREE.Vector3(0, 1, 0);
-		const right = new THREE.Vector3().crossVectors(lookDir, worldUp).normalize();
-		const forward = new THREE.Vector3().crossVectors(worldUp, right).normalize();
+		this._right.crossVectors(this._lookDir, this._worldUp).normalize();
+		this._forward.crossVectors(this._worldUp, this._right).normalize();
 
-		return { right, forward };
+		return { right: this._right, forward: this._forward };
 	}
 
 	private bindEvents(): void {
@@ -235,8 +284,7 @@ export class CameraController {
 	private handleFollowTarget(): void {
 		if (!this.followTarget) return;
 
-		const targetWorldPos = new THREE.Vector3();
-		this.followTarget.getWorldPosition(targetWorldPos);
-		this.targetLookAt.set(targetWorldPos.x, 0, targetWorldPos.z);
+		this.followTarget.getWorldPosition(this._targetWorldPos);
+		this.targetLookAt.set(this._targetWorldPos.x, 0, this._targetWorldPos.z);
 	}
 }

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEngine } from '../hooks/useEngine';
 import { events } from '../../core/Events';
 import type { BuildingType } from '../../simulation/bridge/BuildingFactory';
 import { BUILDING_LABELS } from '../../simulation/bridge/BuildingFactory';
+import { HOUSING_COLORS } from '../../rendering/Palette';
 import { Home, Server, Sun, Wind, Flame, Atom, Building2, Store, GraduationCap, Drama, TreePine } from 'lucide-react';
 import styles from './BuildToolbar.module.css';
 
@@ -23,6 +24,9 @@ const TOOLS: { type: BuildingType; icon: typeof Home; shortcut: string }[] = [
 export function BuildToolbar() {
 	const engine = useEngine();
 	const [active, setActive] = useState<BuildingType | null>(null);
+	const [colorIdx, setColorIdx] = useState(0);
+	const [showPalette, setShowPalette] = useState(false);
+	const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
 		const onModeChanged = (...args: unknown[]) => setActive(args[0] as BuildingType | null);
@@ -51,25 +55,76 @@ export function BuildToolbar() {
 		engine.setPlacementMode(active === type ? null : type);
 	};
 
+	const pickColor = (idx: number) => {
+		setColorIdx(idx);
+		engine.setHousingColor(HOUSING_COLORS[idx].hex);
+	};
+
+	const onEnterHousing = () => {
+		if (hideTimer.current) clearTimeout(hideTimer.current);
+		setShowPalette(true);
+	};
+
+	const onLeaveHousing = () => {
+		hideTimer.current = setTimeout(() => setShowPalette(false), 200);
+	};
+
 	return (
 		<div className={styles.wrapper}>
 			<div className={styles.toolbar}>
 				{TOOLS.map(tool => {
 					const Icon = tool.icon;
 					const isActive = active === tool.type;
+					const isHousing = tool.type === 'housing';
+
 					return (
-						<button
+						<div
 							key={tool.type}
-							className={`${styles.toolBtn} ${isActive ? styles.active : ''}`}
-							onClick={() => toggle(tool.type)}
-							aria-label={BUILDING_LABELS[tool.type]}
+							className={styles.toolWrap}
+							onMouseEnter={isHousing ? onEnterHousing : undefined}
+							onMouseLeave={isHousing ? onLeaveHousing : undefined}
 						>
-							<Icon size={16} strokeWidth={1.8} />
-							<span className={styles.tooltip}>
-								{BUILDING_LABELS[tool.type]}
-								<span className={styles.shortcut}>{tool.shortcut}</span>
-							</span>
-						</button>
+							<button
+								className={`${styles.toolBtn} ${isActive ? styles.active : ''}`}
+								onClick={() => toggle(tool.type)}
+								aria-label={BUILDING_LABELS[tool.type]}
+							>
+								<Icon size={16} strokeWidth={1.8} />
+								{/* colour indicator dot on housing button */}
+								{isHousing && (
+									<span
+										className={styles.colorDot}
+										style={{ background: HOUSING_COLORS[colorIdx].css }}
+									/>
+								)}
+								{!isActive && !isHousing && (
+									<span className={styles.tooltip}>
+										{BUILDING_LABELS[tool.type]}
+										<span className={styles.shortcut}>{tool.shortcut}</span>
+									</span>
+								)}
+							</button>
+
+							{/* Colour palette flyout for housing */}
+							{isHousing && showPalette && (
+								<div
+									className={styles.palette}
+									onMouseEnter={onEnterHousing}
+									onMouseLeave={onLeaveHousing}
+								>
+									{HOUSING_COLORS.map((c, i) => (
+										<button
+											key={c.name}
+											className={`${styles.swatch} ${i === colorIdx ? styles.swatchActive : ''}`}
+											style={{ background: c.css }}
+											onClick={() => pickColor(i)}
+											aria-label={c.name}
+											title={c.name}
+										/>
+									))}
+								</div>
+							)}
+						</div>
 					);
 				})}
 			</div>

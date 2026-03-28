@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import type { VoronoiCell } from './types';
 
 const COLOR_DEFAULT = 0xffffff;
-const COLOR_BUILD = 0xc8e6c9;   // soft green — "can build here"
-const COLOR_OCCUPIED = 0xfff9c4; // soft yellow — "already has housing"
+const COLOR_BUILD = 0xd0d0d0;   // light gray — "can build here"
+const COLOR_OCCUPIED = 0xb0b0b0; // mid gray — "already has housing"
 
 const OPACITY_FILL = 0.15;
 const OPACITY_OUTLINE = 0.5;
@@ -48,16 +48,28 @@ export class GridHighlighter {
 		this.outlineMesh.visible = false;
 	}
 
-	setCell(cell: VoronoiCell | null): void {
+	private currentHeight = 0;
+
+	/**
+	 * Show highlight for a cell at a given Y height.
+	 * @param cell - The cell to highlight, or null to clear.
+	 * @param height - Y offset (0 = ground, or top of existing building).
+	 */
+	setCell(cell: VoronoiCell | null, height = 0): void {
 		if (!cell) {
 			this.highlightMesh.visible = false;
 			this.outlineMesh.visible = false;
 			this.currentCell = -1;
+			this.currentHeight = 0;
 			return;
 		}
 
-		if (cell.index === this.currentCell) return;
+		if (cell.index === this.currentCell && height === this.currentHeight) return;
 		this.currentCell = cell.index;
+		this.currentHeight = height;
+
+		const y = height + 0.015;
+		const yOutline = height + 0.025;
 
 		const cx = cell.center.x;
 		const cz = cell.center.y;
@@ -68,9 +80,9 @@ export class GridHighlighter {
 		for (let i = 0; i < verts.length; i++) {
 			const a = verts[i];
 			const b = verts[(i + 1) % verts.length];
-			fillPositions.push(cx, 0.015, cz);
-			fillPositions.push(a.x, 0.015, a.y);
-			fillPositions.push(b.x, 0.015, b.y);
+			fillPositions.push(cx, y, cz);
+			fillPositions.push(a.x, y, a.y);
+			fillPositions.push(b.x, y, b.y);
 		}
 
 		this.highlightMesh.geometry.dispose();
@@ -84,7 +96,7 @@ export class GridHighlighter {
 		// Outline geometry
 		const outlinePositions: number[] = [];
 		for (const v of verts) {
-			outlinePositions.push(v.x, 0.025, v.y);
+			outlinePositions.push(v.x, yOutline, v.y);
 		}
 
 		this.outlineMesh.geometry.dispose();

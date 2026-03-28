@@ -122,8 +122,9 @@ export class SimulationBridge {
 
 		this.engine.addEntity(simEntity);
 
-		// Create 3D entity (prefer GLB model if available)
-		const { root: mesh, mixer } = createBuildingModel(type, this.modelFactory);
+		// Create 3D entity (prefer GLB model if available; pass cell for cell-filling types)
+		const cell = this.gridPlacement.getCell(cellIndex) ?? undefined;
+		const { root: mesh, mixer } = createBuildingModel(type, this.modelFactory, cell);
 		const entity = new Entity({
 			name: simEntity.name,
 			mesh,

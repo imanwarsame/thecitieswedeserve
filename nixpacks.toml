@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = [
+  "cd src/TCWD.Client && npm install",
+  "cd server && npm install"
+]
+
+[phases.build]
+cmds = [
+  "cd src/TCWD.Client && npm run build",
+  "mkdir -p server/dist/client",
+  "cp -r src/TCWD.Client/dist/* server/dist/client/",
+  "cd server && npm run build"
+]
+
+[start]
+cmd = "cd server && node dist/index.js"

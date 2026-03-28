@@ -2,6 +2,7 @@ import { useWorldClock } from '../hooks/useWorldClock';
 import { useTimeController } from '../hooks/useTimeController';
 import { EnergyDashboard } from '../controls/EnergyDashboard';
 import { CityDashboard } from '../controls/CityDashboard';
+import { SessionControls } from '../controls/SessionControls';
 import { SeasonControls } from '../controls/SeasonControls';
 import { formatWorldHour } from '../utils/formatWorldHour';
 import { Play, Pause, Clock } from 'lucide-react';
@@ -58,10 +59,12 @@ export function TopBar() {
 				<SeasonControls />
 			</div>
 
-			{/* Right panel — dashboards */}
+			{/* Right panel — dashboards + session */}
 			<div className={styles.panelRight}>
 				<EnergyDashboard />
 				<CityDashboard />
+				<span className={styles.sep} />
+				<SessionControls />
 			</div>
 		</>
 	);

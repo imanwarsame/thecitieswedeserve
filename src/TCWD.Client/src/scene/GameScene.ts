@@ -16,6 +16,8 @@ import { EntityManager } from '../entities/EntityManager';
 import { GridHighlighter } from '../grid/GridHighlighter';
 import { GridPlacement } from '../grid/GridPlacement';
 import type { BuiltGrid } from '../grid/GridBuilder';
+import { VegetationInstancer } from './VegetationInstancer';
+import { getCatalogEntry } from '../assets/AssetCatalog';
 
 const GROUPS = ['environment', 'terrain', 'entity', 'effects', 'debug'] as const;
 
@@ -34,6 +36,8 @@ export class GameScene {
 	private grid: BuiltGrid;
 	private gridHighlighter: GridHighlighter;
 	private gridPlacement: GridPlacement;
+	private vegetation: VegetationInstancer;
+	private formaGroup: THREE.Group | null = null;
 
 	constructor(assetManager: AssetManager, grid: BuiltGrid, materialRegistry: MaterialRegistry, modelFactory: ModelFactory, geometryFactory: GeometryFactory) {
 		this.root = new THREE.Scene();
@@ -51,6 +55,7 @@ export class GameScene {
 		this.grid = grid;
 		this.gridHighlighter = new GridHighlighter();
 		this.gridPlacement = new GridPlacement(grid);
+		this.vegetation = new VegetationInstancer();
 	}
 
 	init(): void {
@@ -71,6 +76,10 @@ export class GameScene {
 		for (const obj of this.gridHighlighter.getObjects()) {
 			this.graph.addToGroup('effects', obj);
 		}
+
+		// Load Forma GLB models + instanced vegetation into a shared container
+		// (same centering + scaling transform applied to all)
+		this.loadFormaModels();
 
 		console.log('[GameScene] Initialized.');
 	}
@@ -140,7 +149,83 @@ export class GameScene {
 		await this.lighting.loadEnvironmentHdr(renderer, this.root, path);
 	}
 
+	private loadFormaModels(): void {
+		const formaIds = ['roads', 'water', 'buildings', 'comercial', 'housing'];
+
+		const container = new THREE.Group();
+		container.name = 'forma-models';
+
+		let loaded = 0;
+		for (const id of formaIds) {
+			const entry = getCatalogEntry(id);
+			if (!entry) {
+				console.warn(`[GameScene] No catalog entry for "${id}"`);
+				continue;
+			}
+			try {
+				const model = this.modelFactory.create(id);
+				container.add(model);
+				loaded++;
+				console.log(`[GameScene] Created model "${id}" — children: ${model.children.length}`);
+			} catch (e) {
+				console.warn(`[GameScene] Skipped "${id}":`, e);
+			}
+		}
+
+		// Add instanced vegetation (same mm coordinate space as GLB models)
+		this.vegetation.init(container);
+
+		if (container.children.length === 0) {
+			console.warn('[GameScene] No models loaded — nothing to show.');
+			return;
+		}
+
+		// Everything in the container is in mm. Scale to meters.
+		container.scale.setScalar(0.001);
+
+		// Compute bounding box in world space (now meters) and center at origin
+		const box = new THREE.Box3().setFromObject(container);
+		if (box.isEmpty()) {
+			console.warn('[GameScene] Bounding box is empty after loading models.');
+			this.graph.getGroup('environment').add(container);
+			return;
+		}
+
+		const center = box.getCenter(new THREE.Vector3());
+		const size = box.getSize(new THREE.Vector3());
+		container.position.set(-center.x, 0, -center.z);
+
+		this.formaGroup = container;
+		this.graph.getGroup('environment').add(container);
+
+		console.log(`[GameScene] Loaded ${loaded} Forma models + vegetation`);
+		console.log(`[GameScene]   Extent: ${size.x.toFixed(0)}m × ${size.z.toFixed(0)}m, center offset: (${center.x.toFixed(0)}, ${center.z.toFixed(0)})`);
+	}
+
+	/** Raycast against Forma models; remove the hit mesh. Returns true if something was removed. */
+	removeFormaMeshAt(raycaster: THREE.Raycaster): boolean {
+		if (!this.formaGroup) return false;
+
+		const hits = raycaster.intersectObject(this.formaGroup, true);
+		if (hits.length === 0) return false;
+
+		const mesh = hits[0].object;
+		if (mesh instanceof THREE.Mesh) {
+			mesh.geometry.dispose();
+			if (mesh.parent) mesh.parent.remove(mesh);
+			console.log(`[GameScene] Removed Forma mesh: ${mesh.name || '(unnamed)'}`);
+			return true;
+		}
+		return false;
+	}
+
+	/** Get the terrain grid renderer to control line opacity. */
+	getGridRenderer() {
+		return this.terrain.getGridRenderer();
+	}
+
 	dispose(): void {
+		this.vegetation.dispose();
 		this.lighting.dispose();
 		this.celestialBodies.dispose();
 		this.terrain.dispose();

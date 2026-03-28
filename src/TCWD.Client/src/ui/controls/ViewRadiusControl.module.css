@@ -1,0 +1,13 @@
+.wrapper {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	z-index: 20;
+	pointer-events: auto;
+	padding: 6px 14px;
+	background: #f0f0f0;
+	border: 1px solid rgba(180, 180, 180, 0.4);
+	border-radius: 10px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+	width: 160px;
+}

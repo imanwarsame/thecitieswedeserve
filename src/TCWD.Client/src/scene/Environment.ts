@@ -13,34 +13,34 @@ interface EnvironmentPreset {
 
 const presets: Record<string, EnvironmentPreset> = {
 	day: {
-		backgroundColor: Palette.background,
-		fogColor: Palette.fog,
-		fogInnerRadius: 30,
-		fogOuterRadius: 120,
+		backgroundColor: Palette.background,  // neutral off-white
+		fogColor: Palette.fog,                // neutral haze
+		fogInnerRadius: 1200,
+		fogOuterRadius: 2200,
 	},
 	sunset: {
-		backgroundColor: 0xc0a888,
-		fogColor: 0xc0a888,
-		fogInnerRadius: 30,
-		fogOuterRadius: 120,
+		backgroundColor: 0xc8c8c8,           // cool gray
+		fogColor: 0xc8c8c8,
+		fogInnerRadius: 1000,
+		fogOuterRadius: 2000,
 	},
 	dusk: {
-		backgroundColor: 0x384058,
-		fogColor: 0x384058,
-		fogInnerRadius: 30,
-		fogOuterRadius: 120,
+		backgroundColor: 0x585868,           // cool dark gray
+		fogColor: 0x585868,
+		fogInnerRadius: 1000,
+		fogOuterRadius: 2000,
 	},
 	night: {
-		backgroundColor: 0x101828,
-		fogColor: 0x101828,
-		fogInnerRadius: 30,
-		fogOuterRadius: 120,
+		backgroundColor: 0x282830,           // deep charcoal
+		fogColor: 0x282830,
+		fogInnerRadius: 800,
+		fogOuterRadius: 1800,
 	},
 	foggy: {
-		backgroundColor: 0xb0b0b0,
-		fogColor: 0xb8b8b8,
-		fogInnerRadius: 10,
-		fogOuterRadius: 50,
+		backgroundColor: 0xebebeb,           // neutral fog
+		fogColor: 0xebebeb,
+		fogInnerRadius: 500,
+		fogOuterRadius: 1200,
 	},
 };
 
@@ -73,6 +73,7 @@ export class Environment {
 	private transitionTo!: EnvironmentPreset;
 	private transitionDuration = 0;
 	private transitionElapsed = 0;
+	private lastHour = -1;
 
 	constructor() {
 		this.fogEnabled = EngineConfig.environment.fog;
@@ -157,6 +158,9 @@ export class Environment {
 
 	private updateFromWorldClock(): void {
 		const hour = this.worldClock!.getHour();
+		// Skip if hour hasn't changed meaningfully
+		if (Math.abs(hour - this.lastHour) < 0.01) return;
+		this.lastHour = hour;
 
 		let lower = TIME_PRESETS[0];
 		let upper = TIME_PRESETS[1];
@@ -190,8 +194,7 @@ export class Environment {
 	private applyPreset(preset: EnvironmentPreset): void {
 		(this.scene.background as THREE.Color).set(preset.backgroundColor);
 		radialFogUniforms.fogColor.value.set(preset.fogColor);
-		radialFogUniforms.fogInnerRadius.value = preset.fogInnerRadius;
-		radialFogUniforms.fogOuterRadius.value = preset.fogOuterRadius;
+		// Fog radii are controlled by ViewRadiusControl — don't override here.
 	}
 
 	private applyInterpolated(a: EnvironmentPreset, b: EnvironmentPreset, t: number): void {
@@ -204,9 +207,7 @@ export class Environment {
 		_colorB.set(b.fogColor);
 		_colorResult.copy(_colorA).lerp(_colorB, t);
 		radialFogUniforms.fogColor.value.copy(_colorResult);
-
-		radialFogUniforms.fogInnerRadius.value = THREE.MathUtils.lerp(a.fogInnerRadius, b.fogInnerRadius, t);
-		radialFogUniforms.fogOuterRadius.value = THREE.MathUtils.lerp(a.fogOuterRadius, b.fogOuterRadius, t);
+		// Fog radii are controlled by ViewRadiusControl — don't override here.
 	}
 
 	private captureCurrentState(): EnvironmentPreset {

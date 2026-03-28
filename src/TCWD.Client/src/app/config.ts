@@ -6,8 +6,8 @@ export const EngineConfig = {
 	},
 	camera: {
 		zoom: 1,
-		minZoom: 0.5,
-		maxZoom: 3,
+		minZoom: 0.015,
+		maxZoom: 8,
 	},
 	world: {
 		dayLengthInSeconds: 300,

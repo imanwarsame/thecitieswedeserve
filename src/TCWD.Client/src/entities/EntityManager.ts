@@ -6,6 +6,7 @@ import type { MaterialRegistry } from '../rendering/MaterialRegistry';
 
 export class EntityManager {
 	private entities = new Map<string, Entity>();
+	private cellToEntity = new Map<number, Entity>();
 	private entityGroup: THREE.Group;
 	private materialRegistry: MaterialRegistry | null = null;
 
@@ -30,6 +31,9 @@ export class EntityManager {
 		}
 
 		this.entities.set(entity.id, entity);
+		if (entity.cellIndex >= 0) {
+			this.cellToEntity.set(entity.cellIndex, entity);
+		}
 		events.emit('entity:spawned', entity);
 		return entity;
 	}
@@ -45,6 +49,9 @@ export class EntityManager {
 			}
 		}
 
+		if (entity.cellIndex >= 0) {
+			this.cellToEntity.delete(entity.cellIndex);
+		}
 		entity.dispose();
 		this.entities.delete(id);
 		events.emit('entity:removed', id);
@@ -102,9 +109,6 @@ export class EntityManager {
 	}
 
 	getEntityAtCell(cellIndex: number): Entity | null {
-		for (const entity of this.entities.values()) {
-			if (entity.cellIndex === cellIndex) return entity;
-		}
-		return null;
+		return this.cellToEntity.get(cellIndex) ?? null;
 	}
 }

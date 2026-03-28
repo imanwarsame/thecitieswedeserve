@@ -13,6 +13,20 @@ export interface CornerPattern {
 /** A face direction on a voxel. */
 export type FaceDir = 'top' | 'bottom' | 'side';
 
+/** Thermal and embodied-carbon properties for energy modeling. */
+export interface EnergyProperties {
+	/** Thermal transmittance W/(m²·K). Lower = better insulated. */
+	uValue: number;
+	/** Solar heat gain coefficient (0–1). Only meaningful for glazed tiles. */
+	shgc?: number;
+	/** Embodied carbon kgCO₂e/m². */
+	embodiedCarbon?: number;
+	/** Thermal mass kJ/(m²·K). */
+	thermalMass?: number;
+	/** Material classification for envelope analysis. */
+	materialClass: 'opaque' | 'glazed' | 'mixed' | 'open';
+}
+
 /**
  * A tile definition — abstract identity, not geometry.
  * Sprint 04 maps each tile id to a mesh generator function.
@@ -26,6 +40,7 @@ export interface TileDef {
 	sideSocket: SocketId;
 	weight: number;
 	requiresSupport: boolean;
+	energy: EnergyProperties;
 }
 
 export class TileRegistry {

@@ -4,8 +4,8 @@ import { Palette } from './Palette';
 /** Global uniforms shared by all patched materials */
 export const radialFogUniforms = {
 	fogCenter: { value: new THREE.Vector3(0, 0, 0) },
-	fogInnerRadius: { value: 30.0 },
-	fogOuterRadius: { value: 120.0 },
+	fogInnerRadius: { value: 2500 },
+	fogOuterRadius: { value: 4000 },
 	fogColor: { value: new THREE.Color(Palette.fog) },
 };
 

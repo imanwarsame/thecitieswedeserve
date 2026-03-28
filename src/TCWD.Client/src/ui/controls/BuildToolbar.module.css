@@ -18,6 +18,11 @@
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+/* Wraps each tool button so the palette can be positioned relative to it */
+.toolWrap {
+	position: relative;
+}
+
 .toolBtn {
 	position: relative;
 	display: flex;
@@ -53,6 +58,19 @@
 	background: rgba(50, 120, 220, 0.18);
 }
 
+/* Small colour dot on the housing button showing the active tint */
+.colorDot {
+	position: absolute;
+	bottom: 2px;
+	right: 2px;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	pointer-events: none;
+}
+
+/* Tooltip */
 .tooltip {
 	position: absolute;
 	bottom: calc(100% + 10px);
@@ -84,4 +102,46 @@
 	font-size: 10px;
 	opacity: 0.5;
 	margin-left: 6px;
+}
+
+/* ── Colour palette flyout ─────────────────────────────── */
+
+.palette {
+	position: absolute;
+	bottom: calc(100% + 8px);
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	gap: 4px;
+	padding: 4px 6px;
+	background: #f0f0f0;
+	border: 1px solid rgba(180, 180, 180, 0.4);
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	animation: paletteIn 0.12s ease;
+}
+
+@keyframes paletteIn {
+	from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+	to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.swatch {
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	border: 2px solid transparent;
+	cursor: pointer;
+	transition: border-color 0.1s ease, transform 0.1s ease;
+	padding: 0;
+}
+
+.swatch:hover {
+	transform: scale(1.15);
+	border-color: rgba(0, 0, 0, 0.2);
+}
+
+.swatchActive {
+	border-color: rgba(50, 120, 220, 0.7);
+	box-shadow: 0 0 0 1px rgba(50, 120, 220, 0.3);
 }

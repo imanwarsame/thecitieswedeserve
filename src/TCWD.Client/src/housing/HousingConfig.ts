@@ -1,9 +1,9 @@
 export const HousingConfig = {
 	/** Maximum number of stacked layers. */
-	maxLayers: 8,
+	maxLayers: 20,
 
-	/** World-space height of each layer (in Three.js Y units). */
-	layerHeight: 1.5,
+	/** World-space height of each layer. Matched to cell scale (~2-3 unit cells). */
+	layerHeight: 1.0,
 
 	/**
 	 * Whether placing a block on an empty cell auto-fills ground (layer 0).
