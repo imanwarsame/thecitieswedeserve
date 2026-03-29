@@ -252,7 +252,7 @@ export class Engine {
 		});
 		this.resizeObserver.observe(canvas);
 
-		// Delete/Backspace removes selected Forma mesh
+		// Delete/Backspace removes selected Forma mesh; Ctrl+Z/Y for undo/redo
 		this.onDeleteKey = (e: KeyboardEvent) => {
 			const tag = (e.target as HTMLElement).tagName;
 			if (tag === 'INPUT' || tag === 'TEXTAREA') return;
@@ -265,6 +265,18 @@ export class Engine {
 					this.selectionManager.clearSelection();
 					console.log(`[Engine] Deleted mesh: ${selected.name || '(unnamed)'}`);
 				}
+			}
+
+			// Undo: Ctrl+Z (no shift)
+			if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+				e.preventDefault();
+				events.emit('collab:undo');
+			}
+			// Redo: Ctrl+Shift+Z or Ctrl+Y
+			if ((e.key === 'z' && (e.ctrlKey || e.metaKey) && e.shiftKey) ||
+				(e.key === 'y' && (e.ctrlKey || e.metaKey))) {
+				e.preventDefault();
+				events.emit('collab:redo');
 			}
 		};
 		window.addEventListener('keydown', this.onDeleteKey);
@@ -577,9 +589,13 @@ export class Engine {
 				}
 			}
 
-			// Double-click outside any cell → zoom extents
+			// Double-click on empty ground (no building/entity) → zoom extents
 			if (this.input.consumeDoubleClick()) {
-				if (!cell) {
+				const hasBuilding = cell
+					&& (this.housingSystem.hasHousing(cellIndex)
+						|| !gameScene.getGridPlacement().isCellFree(cellIndex));
+				const hoveredMesh = this.selectionManager.getHovered();
+				if (!hasBuilding && !hoveredMesh) {
 					this.cameraController.zoomExtents(this.sceneManager.getActiveScene().root);
 					this.deselectCell();
 					return;

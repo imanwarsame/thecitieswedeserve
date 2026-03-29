@@ -83,7 +83,14 @@
       "Bash(taskkill /PID 97752 /F)",
       "Bash(taskkill //PID 62988 //F)",
       "Bash(taskkill //PID 97752 //F)",
-      "Bash(railway version:*)"
+      "Bash(railway version:*)",
+      "Bash(ls src/TCWD.Client/package.json src/TCWD.Client/vite.config.*)",
+      "Bash(railway --help)",
+      "Bash(ls Dockerfile* railway.* nixpacks.toml Procfile)",
+      "Bash(find c:UsersARZEgithubthecitieswedeservesrcTCWD.Clientpublicmodels -type f -name *.glb -o -name *.gltf)",
+      "Bash(npx --yes gltf-transform inspect public/models/roads/roads.glb)",
+      "Bash(npx --yes @gltf-transform/cli inspect c:/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/public/models/roads/roads.glb)",
+      "Bash(ls -d */)"
     ]
   }
 }

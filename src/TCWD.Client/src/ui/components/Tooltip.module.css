@@ -1,0 +1,28 @@
+.content {
+	background: rgba(30, 30, 30, 0.92);
+	color: #fff;
+	font-family: 'Inter', system-ui, sans-serif;
+	font-size: 12px;
+	font-weight: 500;
+	padding: 5px 10px;
+	border-radius: 6px;
+	line-height: 1;
+	user-select: none;
+	animation: tooltipFadeIn 0.15s ease;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.arrow {
+	fill: rgba(30, 30, 30, 0.92);
+}
+
+@keyframes tooltipFadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(2px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}

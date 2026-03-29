@@ -41,7 +41,7 @@ export const MAT_HOUSING_WINDOW = new THREE.MeshStandardMaterial({
 	emissiveIntensity: 0,
 	fog: false,
 });
-const MAT_DC_WINDOW = new THREE.MeshStandardMaterial({
+export const MAT_DC_WINDOW = new THREE.MeshStandardMaterial({
 	color: 0x181818,
 	roughness: 1.0,
 	metalness: 0.0,
@@ -49,9 +49,33 @@ const MAT_DC_WINDOW = new THREE.MeshStandardMaterial({
 	emissiveIntensity: 0,
 	fog: false,
 });
+export const MAT_COMMERCIAL_WINDOW = new THREE.MeshStandardMaterial({
+	color: 0x221808,
+	roughness: 1.0,
+	metalness: 0.0,
+	emissive: 0xeebb77,         // warm amber storefront
+	emissiveIntensity: 0,
+	fog: false,
+});
+export const MAT_SCHOOL_WINDOW = new THREE.MeshStandardMaterial({
+	color: 0x1a1a10,
+	roughness: 1.0,
+	metalness: 0.0,
+	emissive: 0xddccaa,         // warm institutional white
+	emissiveIntensity: 0,
+	fog: false,
+});
+export const MAT_TRANSIT_WINDOW = new THREE.MeshStandardMaterial({
+	color: 0x181820,
+	roughness: 1.0,
+	metalness: 0.0,
+	emissive: 0xaabbcc,         // cool transit white
+	emissiveIntensity: 0,
+	fog: false,
+});
 
-/** Procedural meshes were authored at 1 unit ≈ 20 m; scale to 1 unit = 1 m. */
-const BUILDING_SCALE = 20;
+/** Procedural meshes scaled to fit ~12 m grid cells (townTriEdge = 12). */
+const BUILDING_SCALE = 12;
 
 function enableShadows(obj: THREE.Object3D): void {
 	obj.traverse(child => {
@@ -208,6 +232,7 @@ function createOfficeMesh(): THREE.Group {
 		group.add(strip);
 	}
 	group.add(body);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -219,7 +244,11 @@ function createCommercialMesh(): THREE.Group {
 	// Awning overhang
 	const awning = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.04, 0.25), MAT_CHIMNEY);
 	awning.position.set(0, 0.42, 0.35);
-	group.add(body, awning);
+	// Storefront window
+	const shopWin = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.18), MAT_COMMERCIAL_WINDOW);
+	shopWin.position.set(0, 0.22, 0.401);
+	group.add(body, awning, shopWin);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -231,7 +260,15 @@ function createSchoolMesh(): THREE.Group {
 	main.position.set(0, 0.225, 0);
 	const wing = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.5), MAT_SCHOOL);
 	wing.position.set(-0.3, 0.225, -0.45);
+	// Classroom windows on main wing front
+	const winGeo = new THREE.PlaneGeometry(0.18, 0.12);
+	for (let i = 0; i < 3; i++) {
+		const win = new THREE.Mesh(winGeo, MAT_SCHOOL_WINDOW);
+		win.position.set(-0.3 + i * 0.3, 0.28, 0.251);
+		group.add(win);
+	}
 	group.add(main, wing);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -240,10 +277,14 @@ function createLeisureMesh(): THREE.Group {
 	const group = new THREE.Group();
 	const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.5, 16), MAT_LEISURE);
 	body.position.y = 0.25;
-	// Small sign plane on front
-	const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.12), MAT_DC_WINDOW);
+	// Neon sign on front
+	const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.12), MAT_COMMERCIAL_WINDOW);
 	sign.position.set(0, 0.45, 0.451);
-	group.add(body, sign);
+	// Entrance glow at base
+	const entrance = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.15), MAT_COMMERCIAL_WINDOW);
+	entrance.position.set(0, 0.12, 0.451);
+	group.add(body, sign, entrance);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -256,7 +297,13 @@ function createMetroStationMesh(): THREE.Group {
 	// Entrance arch
 	const arch = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.1), MAT_CHIMNEY);
 	arch.position.set(0, 0.2, 0.35);
-	group.add(body, arch);
+	// Lit entrance panel
+	const entranceLight = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.28), MAT_TRANSIT_WINDOW);
+	entranceLight.position.set(0, 0.2, 0.401);
+	// Platform strip light
+	const strip = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.04), MAT_TRANSIT_WINDOW);
+	strip.position.set(0, 0.34, 0.301);
+	group.add(body, arch, entranceLight, strip);
 	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
@@ -271,7 +318,16 @@ function createTrainStationMesh(): THREE.Group {
 	const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8, 1, false, 0, Math.PI), MAT_WIND_POLE);
 	roof.rotation.z = Math.PI / 2;
 	roof.position.y = 0.65;
-	group.add(hall, roof);
+	// Lit hall windows on front
+	const winGeo = new THREE.PlaneGeometry(0.25, 0.2);
+	const win1 = new THREE.Mesh(winGeo, MAT_TRANSIT_WINDOW);
+	win1.position.set(-0.3, 0.35, 0.401);
+	const win2 = new THREE.Mesh(winGeo, MAT_TRANSIT_WINDOW);
+	win2.position.set(0.3, 0.35, 0.401);
+	// Entrance glow
+	const entrance = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.35), MAT_TRANSIT_WINDOW);
+	entrance.position.set(0, 0.25, 0.401);
+	group.add(hall, roof, win1, win2, entrance);
 	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
@@ -306,6 +362,7 @@ function createParkMesh(): THREE.Group {
 	const canopy2 = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.25, 8), MAT_PARK_TREE);
 	canopy2.position.set(-0.2, 0.38, -0.1);
 	group.add(ground, trunk, canopy, trunk2, canopy2);
+	group.scale.setScalar(BUILDING_SCALE);
 	enableShadows(group);
 	return group;
 }
@@ -697,6 +754,36 @@ function dataCentreGlow(hour: number): number {
 	return base + nightBoost;
 }
 
+function commercialGlow(hour: number): number {
+	// Shops/restaurants: warm storefront glow 8am–11pm
+	if (hour < 7) return 0.0;
+	if (hour < 8) return (hour - 7);
+	if (hour < 17) return 0.5;                           // daytime — lights on but subdued
+	if (hour < 20) return 0.5 + 0.5 * ((hour - 17) / 3); // evening ramp to full
+	if (hour < 23) return 1.0;                            // peak evening
+	return 1.0 - (hour - 23);                             // closing down
+}
+
+function schoolGlow(hour: number): number {
+	// Institutional hours only — dark at night
+	if (hour < 7) return 0.0;
+	if (hour < 8) return (hour - 7) * 0.7;
+	if (hour < 17) return 0.7;
+	if (hour < 18) return 0.7 * (1.0 - (hour - 17));
+	return 0.0;
+}
+
+function transitGlow(hour: number): number {
+	// 24/7 transit — always faintly lit, brighter at night
+	const base = 0.2;
+	const nightBoost = 0.8;
+	if (hour < 5) return base + nightBoost;
+	if (hour < 7) return base + nightBoost * (1.0 - (hour - 5) / 2);
+	if (hour < 17) return base;
+	if (hour < 19) return base + nightBoost * ((hour - 17) / 2);
+	return base + nightBoost;
+}
+
 /**
  * Update the shared emissive window / LED materials so buildings glow at
  * dusk, night and dawn.  Call once per frame with the current world hour.
@@ -704,4 +791,7 @@ function dataCentreGlow(hour: number): number {
 export function updateBuildingLights(hour: number): void {
 	MAT_HOUSING_WINDOW.emissiveIntensity = housingGlow(hour);
 	MAT_DC_WINDOW.emissiveIntensity = dataCentreGlow(hour);
+	MAT_COMMERCIAL_WINDOW.emissiveIntensity = commercialGlow(hour);
+	MAT_SCHOOL_WINDOW.emissiveIntensity = schoolGlow(hour);
+	MAT_TRANSIT_WINDOW.emissiveIntensity = transitGlow(hour);
 }
