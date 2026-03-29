@@ -163,10 +163,11 @@ export class RouteResolver {
 	): ResolvedRoute {
 		const path: number[] = [];
 		let current: number | undefined = destination;
-		while (current !== undefined) {
+		while (current !== undefined && current !== origin) {
 			path.push(current);
 			current = prev.get(current);
 		}
+		path.push(origin);
 		path.reverse();
 		return { mode, path, totalTimeMins, totalCost };
 	}

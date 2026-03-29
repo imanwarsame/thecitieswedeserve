@@ -24,9 +24,28 @@ const LAYERS: LayerDef[] = [
 		defaultOn: false,
 		onToggle: (engine, on) => engine.getFlowOverlayRenderer().setVisible(on),
 	},
-	// ── Add future layers here ──────────────────────────────────────
-	// { key: 'heat', label: 'Heat Map', shortcut: 'H', defaultOn: false, onToggle: ... },
-	// { key: 'noise', label: 'Noise', defaultOn: false, onToggle: ... },
+	{
+		key: 'landUse',
+		label: 'Land Use',
+		shortcut: 'L',
+		defaultOn: false,
+		onToggle: (engine, on) => {
+			const zone = engine.getZoneOverlayRenderer();
+			zone.setMode('landUse');
+			zone.setVisible(on);
+		},
+	},
+	{
+		key: 'energyUse',
+		label: 'Energy Use',
+		shortcut: 'E',
+		defaultOn: false,
+		onToggle: (engine, on) => {
+			const zone = engine.getZoneOverlayRenderer();
+			zone.setMode('energyUse');
+			zone.setVisible(on);
+		},
+	},
 ];
 
 export function LayerToggle() {
@@ -53,16 +72,34 @@ export function LayerToggle() {
 		return () => window.removeEventListener('pointerdown', handleOutside);
 	}, [panelOpen]);
 
+	/** Zone layers share a single renderer — enabling one must disable the other. */
+	const ZONE_KEYS = new Set(['landUse', 'energyUse']);
+
+	const applyToggle = (prev: Record<string, boolean>, layer: LayerDef): Record<string, boolean> => {
+		const turning = !prev[layer.key];
+		const next = { ...prev, [layer.key]: turning };
+
+		// If turning ON a zone layer, turn the sibling zone layer OFF
+		if (turning && ZONE_KEYS.has(layer.key)) {
+			for (const zk of ZONE_KEYS) {
+				if (zk !== layer.key && next[zk]) {
+					next[zk] = false;
+					const sibling = LAYERS.find(l => l.key === zk);
+					if (sibling) sibling.onToggle(engine, false);
+				}
+			}
+		}
+
+		layer.onToggle(engine, next[layer.key]);
+		return next;
+	};
+
 	// Keyboard shortcuts
 	const handleKey = useCallback((e: KeyboardEvent) => {
 		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 		for (const layer of LAYERS) {
 			if (layer.shortcut && e.key.toUpperCase() === layer.shortcut) {
-				setLayerState(prev => {
-					const next = { ...prev, [layer.key]: !prev[layer.key] };
-					layer.onToggle(engine, next[layer.key]);
-					return next;
-				});
+				setLayerState(prev => applyToggle(prev, layer));
 			}
 		}
 	}, [engine]);
@@ -73,11 +110,7 @@ export function LayerToggle() {
 	}, [handleKey]);
 
 	const toggleLayer = (layer: LayerDef) => {
-		setLayerState(prev => {
-			const next = { ...prev, [layer.key]: !prev[layer.key] };
-			layer.onToggle(engine, next[layer.key]);
-			return next;
-		});
+		setLayerState(prev => applyToggle(prev, layer));
 	};
 
 	return (

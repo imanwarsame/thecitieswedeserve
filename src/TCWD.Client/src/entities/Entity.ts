@@ -18,6 +18,8 @@ export class Entity {
 	cellIndex: number;
 	/** Links to the headless simulation entity id (set by SimulationBridge). */
 	simulationId: string;
+	/** If true, the mesh is managed externally (e.g. Forma GLB) — syncTransform is skipped. */
+	externalMesh: boolean;
 
 	constructor(options: {
 		id?: string;
@@ -27,6 +29,7 @@ export class Entity {
 		position?: THREE.Vector3;
 		cellIndex?: number;
 		simulationId?: string;
+		externalMesh?: boolean;
 	} = {}) {
 		this.id = options.id ?? `entity_${nextId++}`;
 		this.name = options.name ?? this.id;
@@ -38,6 +41,7 @@ export class Entity {
 		this.active = true;
 		this.cellIndex = options.cellIndex ?? -1;
 		this.simulationId = options.simulationId ?? '';
+		this.externalMesh = options.externalMesh ?? false;
 	}
 
 	init(): void {
@@ -100,7 +104,7 @@ export class Entity {
 	}
 
 	private syncTransform(): void {
-		if (!this.mesh) return;
+		if (!this.mesh || this.externalMesh) return;
 		this.mesh.position.copy(this.position);
 		this.mesh.rotation.copy(this.rotation);
 		// Do not override mesh scale — procedural meshes bake their own scale
