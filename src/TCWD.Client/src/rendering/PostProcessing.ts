@@ -43,8 +43,8 @@ export class PostProcessing {
 		this.depthRenderTarget = new THREE.WebGLRenderTarget(size.x, size.y, {
 			depthTexture: new THREE.DepthTexture(size.x, size.y),
 		});
-		this.depthRenderTarget.depthTexture.format = THREE.DepthFormat;
-		this.depthRenderTarget.depthTexture.type = THREE.UnsignedIntType;
+		this.depthRenderTarget.depthTexture!.format = THREE.DepthFormat;
+		this.depthRenderTarget.depthTexture!.type = THREE.UnsignedIntType;
 
 		// 1. Render pass
 		this.renderPass = new RenderPass(scene, camera);

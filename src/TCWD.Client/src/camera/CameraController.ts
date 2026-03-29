@@ -50,7 +50,6 @@ export class CameraController {
 
 	// Touch gesture state
 	private activeTouches = new Map<number, { x: number; y: number }>();
-	private lastPinchDist = 0;
 	private lastPinchAngle = 0;
 	private lastTouchCenter = new THREE.Vector2();
 	private touchGesture: 'none' | 'pan' | 'pinch' = 'none';

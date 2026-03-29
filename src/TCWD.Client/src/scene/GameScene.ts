@@ -217,20 +217,36 @@ export class GameScene {
 			try {
 				const model = this.modelFactory.create(id);
 
-				// Strip ground-fill meshes from Forma exports.
-				// Water: never strip. Everything else: any mesh that sits
-				// entirely below 3m and spans > 2m is a ground fill — real
-				// buildings always rise above 3m.
+				// Strip ground-fill surfaces from Forma exports.
+				// Water & roads: never strip.
+				// Other models: check vertex normals. Ground fills are flat
+				// planes with nearly ALL normals pointing up/down. Buildings
+				// have wall faces with horizontal normals.
 				const isWater = id === 'water';
+				const isRoads = id === 'roads';
 				const toRemove: THREE.Mesh[] = [];
-				if (!isWater) model.traverse((child) => {
+				if (!isWater && !isRoads) model.traverse((child) => {
 					if (!(child instanceof THREE.Mesh)) return;
 					child.geometry.computeBoundingBox();
 					const bb = child.geometry.boundingBox;
 					if (!bb) return;
 					const footprint = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z);
+					if (footprint < 2000) return; // skip small objects (< 2m)
 
-					if (bb.max.y < 3000 && footprint > 2000) {
+					const normals = child.geometry.getAttribute('normal');
+					if (!normals || normals.count === 0) {
+						toRemove.push(child);
+						return;
+					}
+
+					// Count normals pointing mostly vertical (|y| > 0.7)
+					let verticalCount = 0;
+					for (let i = 0; i < normals.count; i++) {
+						if (Math.abs(normals.getY(i)) > 0.7) verticalCount++;
+					}
+
+					// If > 80% of normals are vertical, it's a flat surface
+					if (verticalCount / normals.count > 0.8) {
 						toRemove.push(child);
 					}
 				});

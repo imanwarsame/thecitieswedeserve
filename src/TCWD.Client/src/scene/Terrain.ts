@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { SceneGraph } from './SceneGraph';
 import { GridRenderer } from '../grid/GridRenderer';
-import { Palette } from '../rendering/Palette';
 import { patchMaterialUniforms } from '../rendering/RadialFog';
 import type { OrganicGrid } from '../grid/types';
 

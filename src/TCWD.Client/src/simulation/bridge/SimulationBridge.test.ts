@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { SimulationBridge } from './SimulationBridge';
 import { EntityManager } from '../../entities/EntityManager';
@@ -45,12 +45,14 @@ describe('SimulationBridge – Forma entity registration', () => {
 				simulationType: 'housing',
 				meshCount: 10,
 				positions: [new THREE.Vector3(1, 0, 2), new THREE.Vector3(3, 0, 4)],
+				meshes: [],
 			},
 			{
 				catalogId: 'comercial',
 				simulationType: 'commercial',
 				meshCount: 5,
 				positions: [new THREE.Vector3(10, 0, 20)],
+				meshes: [],
 			},
 		];
 
@@ -89,6 +91,7 @@ describe('SimulationBridge – Forma entity registration', () => {
 				simulationType: 'housing',
 				meshCount: 3,
 				positions,
+				meshes: [],
 			},
 		];
 
@@ -108,6 +111,7 @@ describe('SimulationBridge – Forma entity registration', () => {
 				simulationType: 'office',
 				meshCount: 0,
 				positions: [],
+				meshes: [],
 			},
 		];
 
@@ -119,11 +123,11 @@ describe('SimulationBridge – Forma entity registration', () => {
 
 	it('creates correct entity types for all supported categories', () => {
 		const manifest: FormaManifestEntry[] = [
-			{ catalogId: 'buildings', simulationType: 'office', meshCount: 2, positions: [new THREE.Vector3()] },
-			{ catalogId: 'housing', simulationType: 'housing', meshCount: 3, positions: [new THREE.Vector3()] },
-			{ catalogId: 'comercial', simulationType: 'commercial', meshCount: 4, positions: [new THREE.Vector3()] },
-			{ catalogId: 'school', simulationType: 'school', meshCount: 1, positions: [new THREE.Vector3()] },
-			{ catalogId: 'leasure', simulationType: 'leisure', meshCount: 2, positions: [new THREE.Vector3()] },
+			{ catalogId: 'buildings', simulationType: 'office', meshCount: 2, positions: [new THREE.Vector3()], meshes: [] },
+			{ catalogId: 'housing', simulationType: 'housing', meshCount: 3, positions: [new THREE.Vector3()], meshes: [] },
+			{ catalogId: 'comercial', simulationType: 'commercial', meshCount: 4, positions: [new THREE.Vector3()], meshes: [] },
+			{ catalogId: 'school', simulationType: 'school', meshCount: 1, positions: [new THREE.Vector3()], meshes: [] },
+			{ catalogId: 'leasure', simulationType: 'leisure', meshCount: 2, positions: [new THREE.Vector3()], meshes: [] },
 		];
 
 		bridge.registerFormaEntities(manifest);
@@ -148,6 +152,7 @@ describe('SimulationBridge – Forma entity registration', () => {
 				simulationType: 'housing',
 				meshCount: 10,
 				positions: Array.from({ length: 10 }, () => new THREE.Vector3()),
+				meshes: [],
 			},
 		];
 

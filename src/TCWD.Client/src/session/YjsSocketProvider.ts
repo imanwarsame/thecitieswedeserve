@@ -6,15 +6,19 @@ import type { Socket } from 'socket.io-client';
  * Binary Uint8Array payloads — no base64 encoding needed (Socket.IO handles binary natively).
  */
 export class YjsSocketProvider {
+  readonly doc: Y.Doc;
+  private socket: Socket;
   private _synced = false;
   private _onUpdate: (update: Uint8Array, origin: unknown) => void;
   private _onSyncResponse: (data: ArrayBuffer) => void;
   private _onRemoteUpdate: (data: ArrayBuffer) => void;
 
   constructor(
-    public readonly doc: Y.Doc,
-    private socket: Socket,
+    doc: Y.Doc,
+    socket: Socket,
   ) {
+    this.doc = doc;
+    this.socket = socket;
     // Local doc changes → emit to server
     this._onUpdate = (update: Uint8Array, origin: unknown) => {
       if (origin === 'remote') return; // don't echo back remote updates

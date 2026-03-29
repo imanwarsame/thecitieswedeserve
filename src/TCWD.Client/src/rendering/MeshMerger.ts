@@ -73,7 +73,6 @@ export function mergeByMaterial(model: THREE.Object3D): void {
 		model.add(mergedMesh);
 	}
 
-	const totalAfter = model.children.filter(c => c instanceof THREE.Mesh).length;
 	// Count nested meshes too
 	let nestedCount = 0;
 	model.traverse(c => { if (c instanceof THREE.Mesh) nestedCount++; });

@@ -42,7 +42,6 @@ export class Lighting {
 	private hemisphere!: THREE.HemisphereLight;
 	private envMap: THREE.Texture | null = null;
 	private worldClock: WorldClock | null = null;
-	private _celestialBodies: CelestialBodies | null = null;
 	private readonly shadowCenter = new THREE.Vector3();
 	private lastHour = -1;
 
@@ -126,8 +125,7 @@ export class Lighting {
 		this.worldClock = clock;
 	}
 
-	setCelestialBodies(cb: CelestialBodies): void {
-		this._celestialBodies = cb;
+	setCelestialBodies(_cb: CelestialBodies): void {
 	}
 
 	setShadowCenter(pos: THREE.Vector3): void {
