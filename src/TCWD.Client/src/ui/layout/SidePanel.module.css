@@ -118,3 +118,68 @@
 .removeBtn:hover {
 	background: rgba(160, 80, 80, 0.08);
 }
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 768px), (pointer: coarse) {
+	/* Convert side panel to a bottom sheet on mobile */
+	.anchor {
+		grid-row: auto;
+		grid-column: 1 / -1;
+		justify-self: stretch;
+	}
+
+	.anchorOpen {
+		width: 100%;
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 30;
+		max-height: 50vh;
+	}
+
+	.anchorCollapsed {
+		width: 0;
+	}
+
+	.panel {
+		position: relative;
+		inset: auto;
+		border-left: none;
+		border-top: 1px solid rgba(180, 180, 180, 0.3);
+		border-radius: 12px 12px 0 0;
+		max-height: 50vh;
+		overflow-y: auto;
+		padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+	}
+
+	.toggle {
+		top: auto;
+		bottom: max(60px, calc(env(safe-area-inset-bottom, 12px) + 56px));
+		right: 8px;
+		left: auto;
+		transform: none;
+		width: 36px;
+		height: 36px;
+		border-radius: 8px;
+		border: 1px solid rgba(180, 180, 180, 0.3);
+	}
+
+	.toggleOpen {
+		right: 8px;
+		bottom: auto;
+		top: -44px;
+		position: absolute;
+	}
+
+	.toggleCollapsed {
+		position: fixed;
+		right: 8px;
+		bottom: max(70px, calc(env(safe-area-inset-bottom, 12px) + 64px));
+	}
+
+	.removeBtn {
+		padding: 10px 0;
+		font-size: 13px;
+	}
+}

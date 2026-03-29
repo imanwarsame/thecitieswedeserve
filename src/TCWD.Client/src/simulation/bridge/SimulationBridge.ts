@@ -12,6 +12,7 @@ import {
 	createPark,
 } from '../index';
 import type { SimulationState, Entity as SimEntity } from '../index';
+import type { FormaManifestEntry } from '../../scene/GameScene';
 import { events } from '../../core/Events';
 import { Entity } from '../../entities/Entity';
 import { EntityManager } from '../../entities/EntityManager';
@@ -54,6 +55,10 @@ export class SimulationBridge {
 
 	/** cell index → simulation entity id for WFC-placed housing */
 	private housingSimIds = new Map<number, string>();
+	/** Simulation entity ids created from pre-existing Forma GLB models */
+	private formaSimIds: string[] = [];
+	/** World-space positions of Forma building meshes (consumers for power lines) */
+	private formaConsumerPositions: THREE.Vector3[] = [];
 
 	private lastState: SimulationState;
 
@@ -87,6 +92,83 @@ export class SimulationBridge {
 	setTransportModule(module: TransportModule): void {
 		this.transportModule = module;
 		this.engine.setTransportModule(module);
+	}
+
+	// ── Forma baseline entities ─────────────────────────────
+
+	/**
+	 * Register pre-existing Forma GLB meshes as simulation entities.
+	 * Each manifest entry creates one simulation entity whose parameters
+	 * are scaled by the number of meshes in that GLB (≈ number of buildings).
+	 */
+	registerFormaEntities(manifest: readonly FormaManifestEntry[]): void {
+		for (const entry of manifest) {
+			const n = entry.meshCount;
+			if (n === 0) continue;
+
+			let simEntity: SimEntity;
+			switch (entry.simulationType) {
+				case 'housing':
+					simEntity = createHousing({
+						name: `Forma Housing (${n} meshes)`,
+						units: n * 50,
+						avgConsumptionKWh: 4_500,
+					});
+					break;
+				case 'commercial':
+					simEntity = createCommercial({
+						name: `Forma Commercial (${n} meshes)`,
+						floorArea: n * 800,
+						avgConsumptionKWh: n * 200_000,
+					});
+					break;
+				case 'office':
+					simEntity = createOffice({
+						name: `Forma Office (${n} meshes)`,
+						floorArea: n * 1_000,
+						employeeCount: n * 100,
+						avgConsumptionKWh: n * 250_000,
+					});
+					break;
+				case 'school':
+					simEntity = createSchool({
+						name: `Forma School (${n} meshes)`,
+						studentCapacity: n * 500,
+						avgConsumptionKWh: n * 400_000,
+					});
+					break;
+				case 'leisure':
+					simEntity = createLeisure({
+						name: `Forma Leisure (${n} meshes)`,
+						visitorCapacity: n * 300,
+						avgConsumptionKWh: n * 350_000,
+					});
+					break;
+				default:
+					continue;
+			}
+
+			this.engine.addEntity(simEntity);
+			this.formaSimIds.push(simEntity.id);
+
+			// Store mesh positions as consumer endpoints for power lines
+			for (const pos of entry.positions) {
+				this.formaConsumerPositions.push(pos.clone());
+			}
+
+			console.log(`[SimBridge] Registered Forma "${entry.catalogId}" → ${simEntity.type} (${n} meshes, id=${simEntity.id})`);
+		}
+
+		// Recompute so dashboard reflects the baseline immediately
+		if (this.formaSimIds.length > 0) {
+			this.lastState = this.engine.recompute();
+			events.emit('simulation:tick', this.lastState);
+		}
+	}
+
+	/** World-space positions of Forma building meshes (for infrastructure power lines). */
+	getFormaConsumerPositions(): THREE.Vector3[] {
+		return this.formaConsumerPositions;
 	}
 
 	// ── Building management ──────────────────────────────────

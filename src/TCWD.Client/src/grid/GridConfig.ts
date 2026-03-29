@@ -1,6 +1,6 @@
 export const GridConfig = {
 	/** World-space size of the grid (square side for voronoi, hex diameter for town). */
-	size: 2000,
+	size: 1600,
 
 	/** Random seed for deterministic generation. Same seed = same grid. */
 	seed: 42,
@@ -22,14 +22,14 @@ export const GridConfig = {
 	 * Circumradius of the flat-topped hex boundary (metres).
 	 * 1000 → hex width 2000m, covers most of the Forma city (4352m × 1784m).
 	 */
-	townHexRadius: 1000,
+	townHexRadius: 800,
 
 	/**
 	 * Triangle edge length for the base lattice (metres).
 	 * 20 → cells ~20m across (building-footprint scale).
 	 * Forma buildings: 8-25m footprint → buildings span 1-2 cells.
 	 */
-	townTriEdge: 20,
+	townTriEdge: 12,
 
 	/**
 	 * Global Laplacian relaxation iterations (smoothing).

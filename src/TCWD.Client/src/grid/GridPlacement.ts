@@ -5,6 +5,7 @@ import type { BuiltGrid } from './GridBuilder';
 export class GridPlacement {
 	private grid: BuiltGrid;
 	private occupied = new Set<number>();
+	private waterCells = new Set<number>();
 
 	constructor(grid: BuiltGrid) {
 		this.grid = grid;
@@ -12,6 +13,21 @@ export class GridPlacement {
 
 	isCellFree(cellIndex: number): boolean {
 		return !this.occupied.has(cellIndex);
+	}
+
+	/** Returns true if the cell is a water cell. */
+	isWater(cellIndex: number): boolean {
+		return this.waterCells.has(cellIndex);
+	}
+
+	/** Mark a cell as water (only wind turbines allowed). */
+	markWater(cellIndex: number): void {
+		this.waterCells.add(cellIndex);
+	}
+
+	/** Get the set of all water cell indices. */
+	getWaterCells(): ReadonlySet<number> {
+		return this.waterCells;
 	}
 
 	occupyCell(cellIndex: number): void {

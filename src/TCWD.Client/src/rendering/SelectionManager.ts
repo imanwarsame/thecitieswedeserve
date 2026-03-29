@@ -3,7 +3,7 @@ import { Input } from '../core/Input';
 import { events } from '../core/Events';
 import type { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
 
-const RAYCAST_THROTTLE = 3; // raycast every N frames
+const RAYCAST_THROTTLE = 6; // raycast every N frames (~10/sec at 60fps)
 
 export class SelectionManager {
 	private raycaster = new THREE.Raycaster();
@@ -17,6 +17,8 @@ export class SelectionManager {
 	private hoveredObject: THREE.Object3D | null = null;
 	private selectedObject: THREE.Object3D | null = null;
 	private frameCounter = 0;
+	private lastMouseX = 0;
+	private lastMouseY = 0;
 
 	init(
 		input: Input,
@@ -58,6 +60,13 @@ export class SelectionManager {
 	updateHoverOnly(): void {
 		this.frameCounter++;
 		if (this.frameCounter % RAYCAST_THROTTLE !== 0) return;
+
+		// Skip raycast entirely if mouse hasn't moved
+		const mx = this.input.mouse.x;
+		const my = this.input.mouse.y;
+		if (mx === this.lastMouseX && my === this.lastMouseY) return;
+		this.lastMouseX = mx;
+		this.lastMouseY = my;
 
 		const hit = this.raycastAll();
 

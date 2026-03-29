@@ -73,6 +73,13 @@ export function BuildToolbar() {
 		hideTimer.current = setTimeout(() => setShowPalette(false), 200);
 	};
 
+	const onTapHousing = () => {
+		// On touch devices, toggle palette on tap (since hover doesn't exist)
+		if ('ontouchstart' in window) {
+			setShowPalette(prev => !prev);
+		}
+	};
+
 	return (
 		<div className={styles.wrapper}>
 			<div className={styles.toolbar}>
@@ -87,6 +94,7 @@ export function BuildToolbar() {
 							className={styles.toolWrap}
 							onMouseEnter={isHousing ? onEnterHousing : undefined}
 							onMouseLeave={isHousing ? onLeaveHousing : undefined}
+							onTouchEnd={isHousing ? onTapHousing : undefined}
 						>
 							<button
 								className={`${styles.toolBtn} ${isActive ? styles.active : ''}`}

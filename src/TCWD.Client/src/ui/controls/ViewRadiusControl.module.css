@@ -11,3 +11,12 @@
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
 	width: 160px;
 }
+
+@media (max-width: 768px), (pointer: coarse) {
+	.wrapper {
+		bottom: max(68px, calc(env(safe-area-inset-bottom, 12px) + 60px));
+		right: 6px;
+		width: 130px;
+		padding: 8px 12px;
+	}
+}

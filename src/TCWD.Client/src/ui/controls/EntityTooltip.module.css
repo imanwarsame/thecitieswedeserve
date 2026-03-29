@@ -96,3 +96,22 @@
 	border-radius: 2px;
 	margin: 0 2px;
 }
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 768px), (pointer: coarse) {
+	.tooltip {
+		min-width: 140px;
+		max-width: calc(100vw - 32px);
+		padding: 12px 14px;
+	}
+
+	.deleteBtn {
+		width: 36px;
+		height: 36px;
+	}
+
+	/* Hide keyboard-shortcut hints on touch */
+	.hint {
+		display: none;
+	}
+}
