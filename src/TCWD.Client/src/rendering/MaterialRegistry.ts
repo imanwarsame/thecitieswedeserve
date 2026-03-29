@@ -76,7 +76,7 @@ export class MaterialRegistry {
 		// Register built-in materials that match the existing factory functions
 		this.define({ key: 'ground',    role: 'ground' });
 		this.define({ key: 'road',      role: 'ground', color: Palette.road });
-		this.define({ key: 'water',     role: 'glass',  color: Palette.water, opacity: 0.55, roughness: 0.15 });
+		this.define({ key: 'water',     role: 'glass',  color: Palette.water, opacity: 0.85, roughness: 0.3 });
 		this.define({ key: 'structure', role: 'structure' });
 		this.define({ key: 'detail',    role: 'detail' });
 		this.define({ key: 'accent',    role: 'accent' });
@@ -147,6 +147,9 @@ export class MaterialRegistry {
 	applyToModel(root: THREE.Object3D, presetName?: string): void {
 		const preset = presetName ? this.presets.get(presetName) : undefined;
 
+		// Share one cloned material per key within this model (not per mesh)
+		const sharedClones = new Map<string, THREE.MeshStandardMaterial>();
+
 		root.traverse((child) => {
 			if (!(child instanceof THREE.Mesh)) return;
 
@@ -154,12 +157,15 @@ export class MaterialRegistry {
 				? this.resolveMeshMaterial(child.name, preset)
 				: 'structure';
 
-			// Clone so each mesh instance has its own material
-			const baseMat = this.get(materialKey);
-			const cloned = baseMat.clone();
-			cloned.side = THREE.DoubleSide;
-			patchMaterialUniforms(cloned);
-			this.clonedMaterials.add(cloned);
+			let mat = sharedClones.get(materialKey);
+			if (!mat) {
+				const baseMat = this.get(materialKey);
+				mat = baseMat.clone();
+				mat.side = THREE.DoubleSide;
+				patchMaterialUniforms(mat);
+				this.clonedMaterials.add(mat);
+				sharedClones.set(materialKey, mat);
+			}
 
 			// Dispose the original material(s) from the GLTF
 			if (Array.isArray(child.material)) {
@@ -168,7 +174,7 @@ export class MaterialRegistry {
 				child.material.dispose();
 			}
 
-			child.material = cloned;
+			child.material = mat;
 			child.castShadow = true;
 			child.receiveShadow = true;
 		});

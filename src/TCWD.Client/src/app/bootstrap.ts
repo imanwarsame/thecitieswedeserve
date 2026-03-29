@@ -1,4 +1,5 @@
 import { Engine } from '../core/Engine';
+import { runStressTest } from '../utils/stressTest';
 
 let engine: Engine | null = null;
 
@@ -19,6 +20,13 @@ export async function bootstrap(canvas: HTMLCanvasElement): Promise<Engine> {
 	}
 
 	newEngine.start();
+
+	// Expose stress test on window for console access
+	(window as Record<string, unknown>).stressTest = (count?: number) => {
+		if (!engine) { console.warn('No engine'); return; }
+		runStressTest(engine, count);
+	};
+
 	return newEngine;
 }
 

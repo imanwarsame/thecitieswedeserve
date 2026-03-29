@@ -7,11 +7,11 @@ export const Palette = {
 	background: 0xf5f5f5,   // off-white
 	ground: 0xffffff,       // matte white
 	road: 0x888888,         // dark gray — visible against white ground
-	water: 0xc8dce8,        // pastel blue (unchanged)
+	water: 0x7eb8d8,        // clear blue
 	structure: 0xffffff,    // matte white
 	detail: 0xffffff,       // matte white
 	accent: 0xffffff,       // matte white
-	shadow: 0xb0b0b0,       // mid gray
+	shadow: 0xd0d0d0,       // light gray (soft shadows)
 
 	// Atmosphere
 	fog: 0xf3f3f3,          // light gray haze

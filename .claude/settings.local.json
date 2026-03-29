@@ -55,7 +55,23 @@
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
       "Bash(od -A d -c /c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/src/assets/AssetCatalog.ts)",
-      "Bash(find /c/Users/ARZE/github/thecitieswedeserve -name vite.config.* -o -name vite.config.ts)"
+      "Bash(find /c/Users/ARZE/github/thecitieswedeserve -name vite.config.* -o -name vite.config.ts)",
+      "Bash(tail -c 500 \"c:\\\\Users\\\\ARZE\\\\github\\\\thecitieswedeserve\\\\src\\\\TCWD.Client\\\\src\\\\scene\\\\TreePositions.ts\")",
+      "Bash(grep -r \"920\\\\|TREE_POSITIONS\" c:UsersARZEgithubthecitieswedeservesrcTCWD.Clientsrc --include=*.ts)",
+      "Bash(curl -sL https://raw.githubusercontent.com/specklesystems/speckle-server/main/packages/viewer/src/modules/pipeline/Pipelines.ts)",
+      "Bash(curl -sL https://raw.githubusercontent.com/specklesystems/speckle-server/main/packages/viewer/src/modules/pipeline/ArcticPipeline.ts)",
+      "Bash(curl -sL https://api.github.com/repos/specklesystems/speckle-server/contents/packages/viewer/src/modules/pipeline)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f''''{d[name]}''''\\) for d in data]\")",
+      "Bash(curl -sL https://api.github.com/repos/specklesystems/speckle-server/git/trees/main?recursive=1)",
+      "Bash(gh api:*)",
+      "WebSearch",
+      "Bash(grep -i -E \"packages/viewer.*\\\\.\\(ts|js|glsl\\)$\")",
+      "Bash(grep -i -E \"packages/viewer.*\\\\.\\(ts|js\\)$\")",
+      "Bash(grep -i -E \"viewer\\\\.ts$|IViewer|index\")",
+      "Bash(ls /c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules/three/examples/jsm/utils/BufferGeometryUtils*)",
+      "Bash(ls /c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules/three/addons/utils/BufferGeometryUtils*)",
+      "Bash(node -e \"const m = require.resolve\\(''three/addons/utils/BufferGeometryUtils.js'', {paths:[''/c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules'']}\\); console.log\\(m\\)\")",
+      "Bash(node -e \"const m = require.resolve\\(''three/examples/jsm/utils/BufferGeometryUtils.js'', {paths:[''/c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules'']}\\); console.log\\(m\\)\")"
     ]
   }
 }
