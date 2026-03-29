@@ -1,8 +1,10 @@
+import { isMobile } from '../core/Mobile';
+
 export const EngineConfig = {
 	renderer: {
-		useWebGPU: true,
-		antialias: true,
-		shadows: true,
+		antialias: !isMobile,         // disable MSAA on mobile for perf
+		shadows: !isMobile,           // disable shadows on mobile
+		maxPixelRatio: isMobile ? 1.5 : 2, // cap DPR on mobile
 	},
 	camera: {
 		zoom: 1,
@@ -19,17 +21,17 @@ export const EngineConfig = {
 		hdrPath: '' as string,  // e.g. '/assets/environment/studio.hdr' — leave empty for fallback
 	},
 	postProcessing: {
-		enabled: true,
+		enabled: !isMobile,           // disable post-processing on mobile
 		ao: {
-			enabled: true,
-			radius: 0.5,
-			intensity: 1.0,
+			enabled: !isMobile,
+			radius: 0.3,
+			intensity: 0.4,
 		},
 		bloom: {
 			enabled: false,
-			threshold: 0.8,
-			strength: 0.3,
-			radius: 0.4,
+			threshold: 0.95,
+			strength: 0.1,
+			radius: 0.3,
 		},
 	},
 	debug: import.meta.env.DEV,

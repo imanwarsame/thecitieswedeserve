@@ -18,6 +18,17 @@ import { GridPlacement } from '../grid/GridPlacement';
 import type { BuiltGrid } from '../grid/GridBuilder';
 import { VegetationInstancer } from './VegetationInstancer';
 import { getCatalogEntry } from '../assets/AssetCatalog';
+import type { BuildingType } from '../simulation/bridge/BuildingFactory';
+
+
+/** Describes a batch of Forma meshes that map to a simulation entity type. */
+export interface FormaManifestEntry {
+	catalogId: string;
+	simulationType: BuildingType;
+	meshCount: number;
+	/** World-space positions of individual meshes (computed after centering transform). */
+	positions: THREE.Vector3[];
+}
 
 const GROUPS = ['environment', 'terrain', 'entity', 'effects', 'debug'] as const;
 
@@ -38,6 +49,7 @@ export class GameScene {
 	private gridPlacement: GridPlacement;
 	private vegetation: VegetationInstancer;
 	private formaGroup: THREE.Group | null = null;
+	private formaManifest: FormaManifestEntry[] = [];
 
 	constructor(assetManager: AssetManager, grid: BuiltGrid, materialRegistry: MaterialRegistry, modelFactory: ModelFactory, geometryFactory: GeometryFactory) {
 		this.root = new THREE.Scene();
@@ -164,6 +176,11 @@ export class GameScene {
 		this.formaGroup.clear();
 	}
 
+	/** Manifest of Forma GLB models that have simulation type mappings. */
+	getFormaManifest(): readonly FormaManifestEntry[] {
+		return this.formaManifest;
+	}
+
 	initEnvironmentMap(renderer: THREE.WebGLRenderer): void {
 		this.lighting.initEnvironmentMap(renderer, this.root);
 	}
@@ -173,10 +190,13 @@ export class GameScene {
 	}
 
 	private loadFormaModels(): void {
-		const formaIds = ['roads', 'water', 'buildings', 'comercial', 'housing'];
+		const formaIds = ['roads', 'water', 'buildings', 'comercial', 'housing', 'leasure', 'school'];
 
 		const container = new THREE.Group();
 		container.name = 'forma-models';
+
+		// Track which models have simulation mappings (positions collected after centering)
+		const simModels: { id: string; simulationType: BuildingType; model: THREE.Object3D }[] = [];
 
 		let loaded = 0;
 		for (const id of formaIds) {
@@ -187,8 +207,38 @@ export class GameScene {
 			}
 			try {
 				const model = this.modelFactory.create(id);
+
+				// Strip large flat ground-plane meshes (footprint > 50m, height < 0.5m in mm)
+				// These block raycasting and aren't needed with our own ground plane.
+				const toRemove: THREE.Mesh[] = [];
+				model.traverse((child) => {
+					if (!(child instanceof THREE.Mesh)) return;
+					child.geometry.computeBoundingBox();
+					const bb = child.geometry.boundingBox;
+					if (!bb) return;
+					const sx = bb.max.x - bb.min.x;
+					const sy = bb.max.y - bb.min.y;
+					const sz = bb.max.z - bb.min.z;
+					const footprint = Math.max(sx, sz);
+					if (footprint > 50000 && sy < 500) {
+						toRemove.push(child);
+					}
+				});
+				for (const m of toRemove) {
+					m.geometry.dispose();
+					m.parent?.remove(m);
+				}
+				if (toRemove.length > 0) {
+					console.log(`[GameScene] Stripped ${toRemove.length} ground surfaces from "${id}"`);
+				}
+
 				container.add(model);
 				loaded++;
+
+				if (entry.simulationType) {
+					simModels.push({ id, simulationType: entry.simulationType, model });
+				}
+
 				console.log(`[GameScene] Created model "${id}" — children: ${model.children.length}`);
 			} catch (e) {
 				console.warn(`[GameScene] Skipped "${id}":`, e);
@@ -221,8 +271,84 @@ export class GameScene {
 		this.formaGroup = container;
 		this.graph.getGroup('environment').add(container);
 
+		// Compute world-space mesh positions for simulation-mapped models
+		// BEFORE merging (merging destroys individual mesh transforms).
+		// Use bounding-box centers, not getWorldPosition(), because Forma GLBs
+		// bake vertex positions into geometry — mesh nodes have identity transforms.
+		container.updateMatrixWorld(true);
+		const meshBox = new THREE.Box3();
+		for (const { id, simulationType, model } of simModels) {
+			const positions: THREE.Vector3[] = [];
+			model.traverse((child) => {
+				if (child instanceof THREE.Mesh) {
+					meshBox.setFromObject(child);
+					if (!meshBox.isEmpty()) {
+						positions.push(meshBox.getCenter(new THREE.Vector3()));
+					}
+				}
+			});
+			this.formaManifest.push({
+				catalogId: id,
+				simulationType,
+				meshCount: positions.length,
+				positions,
+			});
+		}
+
+
 		console.log(`[GameScene] Loaded ${loaded} Forma models + vegetation`);
 		console.log(`[GameScene]   Extent: ${size.x.toFixed(0)}m × ${size.z.toFixed(0)}m, center offset: (${center.x.toFixed(0)}, ${center.z.toFixed(0)})`);
+
+		// Block grid cells that overlap water meshes
+		this.blockWaterCells(container);
+	}
+
+	/** Find grid cells whose centers fall inside water mesh bounding boxes and mark them occupied. */
+	private blockWaterCells(container: THREE.Group): void {
+		// Collect world-space bounding boxes of all water meshes
+		const waterBoxes: THREE.Box3[] = [];
+		container.updateMatrixWorld(true);
+		container.traverse((child) => {
+			if (!(child instanceof THREE.Mesh)) return;
+			// Find meshes belonging to the water model
+			let node: THREE.Object3D | null = child;
+			while (node && node !== container) {
+				if (node.name === 'model_water') {
+					const box = new THREE.Box3().setFromObject(child);
+					waterBoxes.push(box);
+					break;
+				}
+				node = node.parent;
+			}
+		});
+
+		if (waterBoxes.length === 0) return;
+
+		// Test each grid cell center against water bounding boxes
+		let blocked = 0;
+		const testPoint = new THREE.Vector3();
+		for (const cell of this.grid.cells) {
+			testPoint.set(cell.center.x, 0, cell.center.y);
+			for (const box of waterBoxes) {
+				if (testPoint.x >= box.min.x && testPoint.x <= box.max.x &&
+					testPoint.z >= box.min.z && testPoint.z <= box.max.z) {
+					this.gridPlacement.markWater(cell.index);
+					blocked++;
+					break;
+				}
+			}
+		}
+
+		console.log(`[GameScene] Marked ${blocked} water cells (${waterBoxes.length} water meshes)`);
+
+		// Build white fill under water cells to hide grid lines behind water
+		const waterSet = this.gridPlacement.getWaterCells();
+		if (waterSet.size > 0) {
+			const mask = this.terrain.getGridRenderer().buildWaterMask(this.grid, waterSet as Set<number>);
+			if (mask) {
+				this.graph.getGroup('terrain').add(mask);
+			}
+		}
 	}
 
 	/** Raycast against Forma models; remove the hit mesh. Returns true if something was removed. */

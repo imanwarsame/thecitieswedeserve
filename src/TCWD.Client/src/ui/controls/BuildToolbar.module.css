@@ -174,3 +174,47 @@
 	border-color: rgba(50, 120, 220, 0.7);
 	box-shadow: 0 0 0 1px rgba(50, 120, 220, 0.3);
 }
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 768px), (pointer: coarse) {
+	.wrapper {
+		bottom: max(12px, env(safe-area-inset-bottom, 12px));
+		left: 50%;
+		transform: translateX(-50%);
+		max-width: calc(100vw - 24px);
+	}
+
+	.toolbar {
+		gap: 4px;
+		padding: 6px 8px;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+
+	.toolbar::-webkit-scrollbar {
+		display: none;
+	}
+
+	.toolBtn {
+		width: 44px;
+		height: 44px;
+		border-radius: 10px;
+		flex-shrink: 0;
+	}
+
+	/* Hide keyboard-shortcut tooltips on touch */
+	.tooltip {
+		display: none;
+	}
+
+	.swatch {
+		width: 28px;
+		height: 28px;
+	}
+
+	.palette {
+		gap: 6px;
+		padding: 6px 10px;
+	}
+}

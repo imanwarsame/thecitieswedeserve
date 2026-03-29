@@ -10,8 +10,8 @@
 	align-items: flex-start;
 	gap: 6px;
 	font-family: 'Inter', system-ui, sans-serif;
-	font-size: 12px;
-	color: rgba(45, 45, 45, 0.9);
+	font-size: 10px;
+	color: rgba(60, 60, 60, 0.8);
 	z-index: 15;
 }
 
@@ -28,15 +28,15 @@
 	pointer-events: auto;
 	display: flex;
 	align-items: center;
-	gap: 5px;
-	padding: 5px 10px;
-	background: rgba(246, 246, 246, 0.97);
-	border: 1px solid rgba(150, 150, 150, 0.25);
-	border-radius: 8px;
-	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.09);
+	gap: 4px;
+	padding: 3px 7px;
+	background: rgba(246, 246, 246, 0.92);
+	border: 1px solid rgba(170, 170, 170, 0.2);
+	border-radius: 6px;
+	box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
 	cursor: pointer;
-	font-size: 12px;
-	color: rgba(60, 60, 60, 0.85);
+	font-size: 10px;
+	color: rgba(80, 80, 80, 0.7);
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
 	transition: background 0.12s ease, border-color 0.12s ease;
@@ -56,17 +56,17 @@
 
 .panel {
 	pointer-events: auto;
-	width: 220px;
-	background: rgba(246, 246, 246, 0.97);
-	border: 1px solid rgba(150, 150, 150, 0.25);
-	border-radius: 10px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.11);
-	padding: 12px;
+	width: 170px;
+	background: rgba(246, 246, 246, 0.92);
+	border: 1px solid rgba(170, 170, 170, 0.2);
+	border-radius: 8px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+	padding: 8px 10px;
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 8px;
 }
 
 /* ── Sections ─────────────────────────────────────────────────────────────── */
@@ -74,23 +74,23 @@
 .section {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 4px;
 }
 
 .sectionTitle {
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	font-weight: 600;
-	font-size: 10px;
-	color: rgba(80, 80, 80, 0.6);
-	border-bottom: 1px solid rgba(180, 180, 180, 0.3);
-	padding-bottom: 4px;
+	font-size: 9px;
+	color: rgba(100, 100, 100, 0.5);
+	border-bottom: 1px solid rgba(180, 180, 180, 0.2);
+	padding-bottom: 3px;
 }
 
 .row {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 4px;
 }
 
 /* ── Switch / checkbox ────────────────────────────────────────────────────── */
@@ -118,29 +118,30 @@
 .modeList {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 2px;
 }
 
 .modeItem {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 4px;
 	cursor: pointer;
 	user-select: none;
+	font-size: 10px;
 }
 
 .modeDot {
 	display: inline-block;
-	width: 8px;
-	height: 8px;
+	width: 6px;
+	height: 6px;
 	border-radius: 50%;
 	flex-shrink: 0;
 }
 
 .modeFraction {
 	margin-left: auto;
-	font-size: 11px;
-	color: rgba(80, 80, 80, 0.55);
+	font-size: 9px;
+	color: rgba(100, 100, 100, 0.45);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -149,26 +150,26 @@
 .legendRow {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 4px;
 }
 
 .legendLabel {
-	font-size: 10px;
-	color: rgba(80, 80, 80, 0.6);
+	font-size: 9px;
+	color: rgba(100, 100, 100, 0.5);
 	flex-shrink: 0;
 }
 
 .legendBar {
 	flex: 1;
-	height: 8px;
-	border-radius: 4px;
+	height: 5px;
+	border-radius: 3px;
 	background: linear-gradient(to right, #3a9a3a, #c8a020, #c43030);
 }
 
 .legendHint {
 	margin: 0;
-	font-size: 10px;
-	color: rgba(80, 80, 80, 0.5);
+	font-size: 9px;
+	color: rgba(100, 100, 100, 0.4);
 }
 
 /* ── Stats grid ───────────────────────────────────────────────────────────── */
@@ -176,20 +177,20 @@
 .statsGrid {
 	display: grid;
 	grid-template-columns: 1fr auto;
-	gap: 3px 8px;
+	gap: 2px 6px;
 	align-items: baseline;
 }
 
 .statLabel {
-	font-size: 11px;
-	color: rgba(80, 80, 80, 0.65);
+	font-size: 9px;
+	color: rgba(100, 100, 100, 0.55);
 }
 
 .statValue {
-	font-size: 12px;
+	font-size: 10px;
 	font-weight: 500;
 	font-variant-numeric: tabular-nums;
 	text-align: right;
-	color: rgba(40, 40, 40, 0.85);
+	color: rgba(50, 50, 50, 0.75);
 	transition: color 0.3s ease;
 }

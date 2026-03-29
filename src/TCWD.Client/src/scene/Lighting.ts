@@ -14,17 +14,17 @@ const LIGHTING_KEYS: {
 	hemiIntensity: number;
 }[] = [
 	//                                                    sky (hemisphere top)    ground (hemisphere bottom)
-	{ hour: 0,  sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
-	{ hour: 5,  sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
-	{ hour: 6,  sun: 0xd0d0d0, sunIntensity: 0.6,  skyColor: 0xc8c8c8, groundColor: 0x808080, hemiIntensity: 0.35 },  // dawn
-	{ hour: 7,  sun: 0xe8e8e8, sunIntensity: 1.0,  skyColor: 0xe0e0e0, groundColor: 0xa0a0a0, hemiIntensity: 0.45 },  // morning
-	{ hour: 10, sun: Palette.sun, sunIntensity: 1.3, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.65 },
-	{ hour: 14, sun: Palette.sun, sunIntensity: 1.3, skyColor: Palette.ambient, groundColor: Palette.shadow, hemiIntensity: 0.65 },
-	{ hour: 17, sun: 0xe8e8e8, sunIntensity: 1.1,  skyColor: 0xe0e0e0, groundColor: 0xa0a0a0, hemiIntensity: 0.50 },  // afternoon
-	{ hour: 18, sun: 0xc8c8c8, sunIntensity: 0.7,  skyColor: 0xb0b0b0, groundColor: 0x787878, hemiIntensity: 0.35 },  // evening
-	{ hour: 19, sun: 0xa0a0b0, sunIntensity: 0.4,  skyColor: 0x909098, groundColor: 0x484850, hemiIntensity: 0.25 },  // dusk
-	{ hour: 21, sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
-	{ hour: 24, sun: 0x8888aa, sunIntensity: 0.25, skyColor: 0x707088, groundColor: 0x3a3a44, hemiIntensity: 0.20 },
+	{ hour: 0,  sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },  // midnight — soft twilight
+	{ hour: 5,  sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },
+	{ hour: 6,  sun: 0xe0e0e0, sunIntensity: 1.0,  skyColor: 0xd8d8d8, groundColor: 0xa0a0a0, hemiIntensity: 0.55 },  // dawn
+	{ hour: 7,  sun: 0xf0f0f0, sunIntensity: 1.6,  skyColor: 0xeaeaea, groundColor: 0xc0c0c0, hemiIntensity: 0.70 },  // morning
+	{ hour: 10, sun: Palette.sun, sunIntensity: 2.0, skyColor: Palette.ambient, groundColor: 0xd0d0d0, hemiIntensity: 0.90 },
+	{ hour: 14, sun: Palette.sun, sunIntensity: 2.0, skyColor: Palette.ambient, groundColor: 0xd0d0d0, hemiIntensity: 0.90 },
+	{ hour: 17, sun: 0xf0f0f0, sunIntensity: 1.7,  skyColor: 0xeaeaea, groundColor: 0xc0c0c0, hemiIntensity: 0.75 },  // afternoon
+	{ hour: 18, sun: 0xd8d8d8, sunIntensity: 1.1,  skyColor: 0xc8c8c8, groundColor: 0x909090, hemiIntensity: 0.55 },  // evening
+	{ hour: 19, sun: 0xc0c0d0, sunIntensity: 0.8,  skyColor: 0xb0b0b8, groundColor: 0x808090, hemiIntensity: 0.50 },  // dusk — twilight
+	{ hour: 21, sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },  // night — soft twilight
+	{ hour: 24, sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },
 ];
 
 const SUN_ORBIT_RADIUS = 2000;
@@ -48,7 +48,7 @@ export class Lighting {
 
 	init(graph: SceneGraph): void {
 		// Main directional (sun)
-		this.directional = new THREE.DirectionalLight(Palette.sun, 1.2);
+		this.directional = new THREE.DirectionalLight(Palette.sun, 2.0);
 		this.directional.position.set(15, 25, 15);
 		this.directional.castShadow = true;
 
@@ -56,11 +56,11 @@ export class Lighting {
 		shadow.mapSize.width = 4096;
 		shadow.mapSize.height = 4096;
 		shadow.camera.near = 1;
-		shadow.camera.far = 6000;
-		shadow.camera.left = -500;
-		shadow.camera.right = 500;
-		shadow.camera.top = 500;
-		shadow.camera.bottom = -500;
+		shadow.camera.far = 5000;
+		shadow.camera.left = -400;
+		shadow.camera.right = 400;
+		shadow.camera.top = 400;
+		shadow.camera.bottom = -400;
 		shadow.bias = -0.0003;
 		shadow.normalBias = 0.2;
 		shadow.radius = 1;
@@ -68,13 +68,13 @@ export class Lighting {
 		graph.addToGroup('environment', this.directional);
 
 		// Fill light — opposite side, no shadows
-		this.fill = new THREE.DirectionalLight(Palette.ambient, 0.2);
+		this.fill = new THREE.DirectionalLight(Palette.ambient, 0.5);
 		this.fill.position.set(-10, 15, -10);
 		this.fill.castShadow = false;
 		graph.addToGroup('environment', this.fill);
 
 		// Hemisphere light — sky/ground gradient replaces flat ambient
-		this.hemisphere = new THREE.HemisphereLight(Palette.sun, Palette.shadow, 0.6);
+		this.hemisphere = new THREE.HemisphereLight(Palette.sun, Palette.shadow, 0.9);
 		graph.addToGroup('environment', this.hemisphere);
 
 		console.log('[Lighting] Initialized.');
@@ -85,7 +85,7 @@ export class Lighting {
 		const pmrem = new THREE.PMREMGenerator(renderer);
 
 		const envScene = new THREE.Scene();
-		envScene.add(new THREE.HemisphereLight(0xf8f8f7, 0xbebcba, 1.0));
+		envScene.add(new THREE.HemisphereLight(0xffffff, 0xe0e0e0, 1.5));
 
 		this.envMap = pmrem.fromScene(envScene, 0, 0.1, 100).texture;
 		scene.environment = this.envMap;
@@ -227,6 +227,6 @@ export class Lighting {
 
 		// Fill light tracks hemisphere sky at lower intensity
 		this.fill.color.copy(this.hemisphere.color);
-		this.fill.intensity = this.hemisphere.intensity * 0.3;
+		this.fill.intensity = this.hemisphere.intensity * 0.5;
 	}
 }

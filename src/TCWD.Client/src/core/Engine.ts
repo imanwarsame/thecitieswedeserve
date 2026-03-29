@@ -170,6 +170,13 @@ export class Engine {
 		// Connect housing system to simulation so placed housing registers as energy demand
 		this.simulationBridge.setHousingSystem(this.housingSystem);
 
+		// Register pre-existing Forma GLB meshes as simulation entities
+		// so they contribute to baseline energy demand, city metrics, etc.
+		const formaManifest = gameScene.getFormaManifest();
+		if (formaManifest.length > 0) {
+			this.simulationBridge.registerFormaEntities(formaManifest);
+		}
+
 		// Transport module — multi-modal Pop ABM
 		this.transportModule = new TransportModule();
 		this.transportModule.init(this.grid.cells);
@@ -247,6 +254,9 @@ export class Engine {
 
 		// Delete/Backspace removes selected Forma mesh
 		this.onDeleteKey = (e: KeyboardEvent) => {
+			const tag = (e.target as HTMLElement).tagName;
+			if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
 			if (e.key === 'Delete' || e.key === 'Backspace') {
 				const selected = this.selectionManager.getSelected();
 				if (selected && selected instanceof THREE.Mesh) {
@@ -430,6 +440,7 @@ export class Engine {
 		return this.housingController;
 	}
 
+
 	getPlacementMode(): BuildingType | null {
 		return this._placementMode;
 	}
@@ -582,7 +593,7 @@ export class Engine {
 				return;
 			}
 
-			// Click — Forma mesh selection takes priority over grid cell
+			// Click — in placement mode, skip Forma mesh selection and go to grid
 			// (skip mesh hover check in road/metro/train mode so cell-filling buildings don't block placement)
 			if (this.input.consumeClick()) {
 				const skipMeshHover = this._placementMode === 'road' || this._placementMode === 'metro' || this._placementMode === 'train';
@@ -654,6 +665,12 @@ export class Engine {
 								}
 								return;
 							}
+						}
+
+						// Water cells: only wind turbines allowed
+						const isWater = gameScene.getGridPlacement().isWater(cellIndex);
+						if (isWater && this._placementMode !== 'wind') {
+							return; // block non-wind placement on water
 						}
 
 						if (this._placementMode === 'housing') {
