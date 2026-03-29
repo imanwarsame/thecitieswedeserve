@@ -52,6 +52,9 @@ function flowToColor(normalized: number): THREE.Color {
 }
 
 export class FlowOverlayRenderer {
+	/** Dedicated scene – rendered after the EffectComposer so no post-processing
+	 *  passes (GTAO, bloom, etc.) can darken or suppress the overlay. */
+	private overlayScene = new THREE.Scene();
 	private group: THREE.Group;
 	private ribbonMeshes: THREE.Mesh[] = [];
 	private pulseLines: THREE.LineSegments[] = [];
@@ -76,7 +79,6 @@ export class FlowOverlayRenderer {
 	private fadingOut: FadingSet | null = null;
 
 	constructor(
-		parent: THREE.Object3D,
 		transportModule: TransportModule,
 		cells: readonly VoronoiCell[],
 		scene?: THREE.Scene,
@@ -90,7 +92,9 @@ export class FlowOverlayRenderer {
 		this.group.name = 'flow-overlay';
 		// Starts hidden; toggled by the UI
 		this.group.visible = false;
-		parent.add(this.group);
+		// Add to the private overlay scene, not the main scene, so the group
+		// renders in a separate pass after EffectComposer (bypasses GTAO etc).
+		this.overlayScene.add(this.group);
 
 		events.on('simulation:tick', this.markDirty);
 	}
@@ -109,6 +113,11 @@ export class FlowOverlayRenderer {
 
 	isVisible(): boolean {
 		return this._visible;
+	}
+
+	/** The private scene to pass to the render pipeline for post-compositor rendering. */
+	getOverlayScene(): THREE.Scene {
+		return this.overlayScene;
 	}
 
 	setModeFilter(modes: Set<TransportMode>): void {

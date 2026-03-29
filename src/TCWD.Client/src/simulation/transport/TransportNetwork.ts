@@ -11,6 +11,9 @@ const MODE_SPEED: Record<TransportMode, number> = {
 	[TransportMode.Train]: 80,
 };
 
+/** Walking speed for station-access edges (km/h). */
+const WALK_SPEED = 5;
+
 const MODE_COST_PER_KM: Record<TransportMode, number> = {
 	[TransportMode.Road]: 0.15,
 	[TransportMode.Cycle]: 0,
@@ -33,6 +36,12 @@ export class TransportNetwork {
 	private trainCells = new Set<number>();
 	/** Player-placed road segments — only edges with explicit roads get Road+Cycle weights. */
 	private explicitRoads = new Set<string>();
+	/** Player-drawn metro links between (possibly non-adjacent) station cells. */
+	private explicitMetroLinks = new Set<string>();
+	/** Player-drawn train links between (possibly non-adjacent) station cells. */
+	private explicitTrainLinks = new Set<string>();
+	/** Stored cell reference for distance lookups on non-adjacent links. */
+	private cells: readonly VoronoiCell[] = [];
 
 	/** Initialise the graph from a set of Voronoi cells.
 	 *  Edges are created with adjacency/distance info but NO mode weights.
@@ -43,6 +52,9 @@ export class TransportNetwork {
 		this.metroCells.clear();
 		this.trainCells.clear();
 		this.explicitRoads.clear();
+		this.explicitMetroLinks.clear();
+		this.explicitTrainLinks.clear();
+		this.cells = cells;
 
 		for (const cell of cells) {
 			if (!this.edges.has(cell.index)) {
@@ -112,6 +124,34 @@ export class TransportNetwork {
 		return this.explicitRoads;
 	}
 
+	/** All explicit metro link keys (for rendering). */
+	getExplicitMetroLinks(): ReadonlySet<string> {
+		return this.explicitMetroLinks;
+	}
+
+	/** All explicit train link keys (for rendering). */
+	getExplicitTrainLinks(): ReadonlySet<string> {
+		return this.explicitTrainLinks;
+	}
+
+	/** Draw a metro link between two (possibly non-adjacent) station cells. */
+	addMetroLink(fromCell: number, toCell: number): void {
+		const key = edgeKey(fromCell, toCell);
+		if (this.explicitMetroLinks.has(key)) return;
+		this.explicitMetroLinks.add(key);
+		this.ensureVirtualEdge(fromCell, toCell);
+		this.rebuildEdgeWeights(fromCell, toCell);
+	}
+
+	/** Draw a train link between two (possibly non-adjacent) station cells. */
+	addTrainLink(fromCell: number, toCell: number): void {
+		const key = edgeKey(fromCell, toCell);
+		if (this.explicitTrainLinks.has(key)) return;
+		this.explicitTrainLinks.add(key);
+		this.ensureVirtualEdge(fromCell, toCell);
+		this.rebuildEdgeWeights(fromCell, toCell);
+	}
+
 	// ── Internal ────────────────────────────────────────────
 
 	private ensureEdge(a: VoronoiCell, b: VoronoiCell): void {
@@ -134,6 +174,28 @@ export class TransportNetwork {
 		}
 	}
 
+	/** Ensure a (possibly non-adjacent) edge exists for virtual metro/train links. */
+	private ensureVirtualEdge(a: number, b: number): void {
+		const aMap = this.edges.get(a) ?? new Map();
+		if (aMap.has(b)) return; // edge already exists (adjacent cells)
+
+		const cellA = this.cells[a];
+		const cellB = this.cells[b];
+		if (!cellA || !cellB) return;
+
+		const distM = Math.hypot(cellB.center.x - cellA.center.x, cellB.center.y - cellA.center.y);
+		const weights = this.buildWeights(a, b, distM);
+
+		aMap.set(b, { from: a, to: b, distanceM: distM, weights, isVirtual: true });
+		this.edges.set(a, aMap);
+
+		const bMap = this.edges.get(b) ?? new Map();
+		if (!bMap.has(a)) {
+			bMap.set(a, { from: b, to: a, distanceM: distM, weights, isVirtual: true });
+			this.edges.set(b, bMap);
+		}
+	}
+
 	private buildWeights(from: number, to: number, distM: number): Partial<Record<TransportMode, EdgeWeight>> {
 		const distKm = distM / 1000;
 		const w: Partial<Record<TransportMode, EdgeWeight>> = {};
@@ -150,16 +212,18 @@ export class TransportNetwork {
 			};
 		}
 
-		// Metro available if both endpoints have metro
-		if (this.metroCells.has(from) && this.metroCells.has(to)) {
+		// Metro: available on explicit metro links at metro speed.
+		// Walking access to/from stations is handled dynamically by the
+		// RouteResolver (walking fallback on any non-virtual adjacency edge).
+		if (this.explicitMetroLinks.has(edgeKey(from, to))) {
 			w[TransportMode.Metro] = {
 				timeMins: (distKm / MODE_SPEED[TransportMode.Metro]) * 60,
 				cost: distKm * MODE_COST_PER_KM[TransportMode.Metro],
 			};
 		}
 
-		// Train available if both endpoints have train
-		if (this.trainCells.has(from) && this.trainCells.has(to)) {
+		// Train: same pattern as metro.
+		if (this.explicitTrainLinks.has(edgeKey(from, to))) {
 			w[TransportMode.Train] = {
 				timeMins: (distKm / MODE_SPEED[TransportMode.Train]) * 60,
 				cost: distKm * MODE_COST_PER_KM[TransportMode.Train],

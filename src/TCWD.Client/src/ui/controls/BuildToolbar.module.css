@@ -7,6 +7,35 @@
 	pointer-events: auto;
 }
 
+@media (max-width: 600px) {
+	.wrapper {
+		bottom: 56px; /* above mobile bottom bar */
+		left: 0;
+		right: 0;
+		transform: none;
+		padding: 0 8px;
+	}
+
+	.toolbar {
+		gap: 1px;
+		padding: 4px 6px;
+		overflow-x: auto;
+		max-width: 100%;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+
+	.toolbar::-webkit-scrollbar {
+		display: none;
+	}
+
+	.toolBtn {
+		width: 32px;
+		height: 32px;
+		flex-shrink: 0;
+	}
+}
+
 .toolbar {
 	display: flex;
 	align-items: center;

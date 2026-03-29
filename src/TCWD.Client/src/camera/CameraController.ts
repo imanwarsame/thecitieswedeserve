@@ -36,6 +36,10 @@ export class CameraController {
 	private lastPointer = new THREE.Vector2();
 	private keysDown = new Set<string>();
 
+	// Touch / multi-pointer tracking
+	private activePointers = new Map<number, THREE.Vector2>();
+	private lastPinchDist = 0;
+
 	private followTarget: THREE.Object3D | null = null;
 
 	// Reusable vectors to avoid per-frame allocations
@@ -48,7 +52,7 @@ export class CameraController {
 	// Handlers stored for cleanup
 	private onPointerDown: (e: PointerEvent) => void = () => {};
 	private onPointerMove: (e: PointerEvent) => void = () => {};
-	private onPointerUp: () => void = () => {};
+	private onPointerUp: (e: PointerEvent) => void = () => {};
 	private onWheel: (e: WheelEvent) => void = () => {};
 	private onKeyDown: (e: KeyboardEvent) => void = () => {};
 	private onKeyUp: (e: KeyboardEvent) => void = () => {};
@@ -175,14 +179,32 @@ export class CameraController {
 
 	private bindEvents(): void {
 		this.onPointerDown = (e: PointerEvent) => {
+			// ── Touch input ──────────────────────────────────────────────
+			if (e.pointerType === 'touch') {
+				this.activePointers.set(e.pointerId, new THREE.Vector2(e.clientX, e.clientY));
+				this.domElement.setPointerCapture(e.pointerId);
+
+				if (this.activePointers.size === 1 && this.panEnabled) {
+					// Single finger → pan
+					this.isDragging = true;
+					this.dragButton = 1;
+					this.lastPointer.set(e.clientX, e.clientY);
+				} else if (this.activePointers.size === 2) {
+					// Two fingers → switch to pinch-zoom
+					this.isDragging = false;
+					this.dragButton = -1;
+					this.lastPinchDist = this.getPinchDistance();
+				}
+				return;
+			}
+
+			// ── Mouse input ──────────────────────────────────────────────
 			if (e.button === 1 && this.panEnabled) {
-				// Middle mouse = pan
 				this.isDragging = true;
 				this.dragButton = 1;
 				this.lastPointer.set(e.clientX, e.clientY);
 				this.domElement.setPointerCapture(e.pointerId);
 			} else if (e.button === 2) {
-				// Right mouse = elastic rotate
 				this.isDragging = true;
 				this.dragButton = 2;
 				this.isRotating = true;
@@ -192,6 +214,40 @@ export class CameraController {
 		};
 
 		this.onPointerMove = (e: PointerEvent) => {
+			// ── Touch input ──────────────────────────────────────────────
+			if (e.pointerType === 'touch') {
+				this.activePointers.set(e.pointerId, new THREE.Vector2(e.clientX, e.clientY));
+
+				if (this.activePointers.size === 2 && this.zoomEnabled) {
+					// Pinch-to-zoom
+					const dist = this.getPinchDistance();
+					if (this.lastPinchDist > 0) {
+						const scale = dist / this.lastPinchDist;
+						this.targetZoom = THREE.MathUtils.clamp(
+							this.targetZoom * scale,
+							EngineConfig.camera.minZoom,
+							EngineConfig.camera.maxZoom,
+						);
+					}
+					this.lastPinchDist = dist;
+					return;
+				}
+
+				// Single finger pan
+				if (this.isDragging && this.dragButton === 1) {
+					const dx = e.clientX - this.lastPointer.x;
+					const dy = e.clientY - this.lastPointer.y;
+					this.lastPointer.set(e.clientX, e.clientY);
+
+					const panScale = PAN_SPEED / (this.targetZoom * this.domElement.clientHeight);
+					const { right, forward } = this.getGroundPlaneAxes();
+					this.targetLookAt.addScaledVector(right, -dx * panScale);
+					this.targetLookAt.addScaledVector(forward, dy * panScale);
+				}
+				return;
+			}
+
+			// ── Mouse input ──────────────────────────────────────────────
 			if (!this.isDragging) return;
 
 			const dx = e.clientX - this.lastPointer.x;
@@ -220,7 +276,27 @@ export class CameraController {
 			}
 		};
 
-		this.onPointerUp = () => {
+		this.onPointerUp = (e: PointerEvent) => {
+			// ── Touch cleanup ────────────────────────────────────────────
+			if (e.pointerType === 'touch') {
+				this.activePointers.delete(e.pointerId);
+				if (this.activePointers.size < 2) {
+					this.lastPinchDist = 0;
+				}
+				if (this.activePointers.size === 1) {
+					// Went from pinch back to 1 finger → resume pan
+					const [remaining] = this.activePointers.values();
+					this.isDragging = true;
+					this.dragButton = 1;
+					this.lastPointer.copy(remaining);
+				} else if (this.activePointers.size === 0) {
+					this.isDragging = false;
+					this.dragButton = -1;
+				}
+				return;
+			}
+
+			// ── Mouse cleanup ────────────────────────────────────────────
 			if (this.dragButton === 2) {
 				this.isRotating = false;
 			}
@@ -286,5 +362,11 @@ export class CameraController {
 
 		this.followTarget.getWorldPosition(this._targetWorldPos);
 		this.targetLookAt.set(this._targetWorldPos.x, 0, this._targetWorldPos.z);
+	}
+
+	private getPinchDistance(): number {
+		if (this.activePointers.size < 2) return 0;
+		const pts = [...this.activePointers.values()];
+		return pts[0].distanceTo(pts[1]);
 	}
 }

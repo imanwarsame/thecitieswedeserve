@@ -18,10 +18,12 @@ export class PostProcessing {
 	private selectOutlinePass!: OutlinePass;
 	private bloomPass!: UnrealBloomPass;
 	private outputPass!: OutputPass;
+	private webglRenderer!: THREE.WebGLRenderer;
 
 	private effects = new Map<string, { pass: { enabled: boolean } }>();
 
 	init(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
+		this.webglRenderer = renderer;
 		// Use multisampled render target so MSAA works with post-processing
 		const size = renderer.getSize(new THREE.Vector2());
 		const renderTarget = new THREE.WebGLRenderTarget(size.x, size.y, {
@@ -99,6 +101,19 @@ export class PostProcessing {
 
 	render(): void {
 		this.composer.render();
+	}
+
+	/**
+	 * Render an overlay scene directly onto the canvas AFTER the EffectComposer
+	 * has finished, bypassing all post-processing passes (GTAO, bloom, etc.).
+	 * autoClear is disabled so the composed image is preserved underneath.
+	 */
+	renderOverlay(overlayScene: THREE.Scene, camera: THREE.Camera): void {
+		this.webglRenderer.autoClearColor = false;
+		this.webglRenderer.autoClearDepth = false;
+		this.webglRenderer.render(overlayScene, camera);
+		this.webglRenderer.autoClearColor = true;
+		this.webglRenderer.autoClearDepth = true;
 	}
 
 	resize(width: number, height: number): void {
