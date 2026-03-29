@@ -91,10 +91,47 @@
   background: rgba(180, 180, 180, 0.25);
 }
 
-.userDots {
+.avatarGroup {
   display: flex;
   align-items: center;
-  gap: 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: background 0.12s ease;
+}
+
+.avatarGroup:hover {
+  background: rgba(180, 180, 180, 0.2);
+}
+
+.avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #f0f0f0;
+  flex-shrink: 0;
+  margin-left: -6px;
+}
+
+.avatar:first-child {
+  margin-left: 0;
+}
+
+.initials {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
 }
 
 .dot {

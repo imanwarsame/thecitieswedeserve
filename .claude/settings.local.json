@@ -71,7 +71,10 @@
       "Bash(ls /c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules/three/examples/jsm/utils/BufferGeometryUtils*)",
       "Bash(ls /c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules/three/addons/utils/BufferGeometryUtils*)",
       "Bash(node -e \"const m = require.resolve\\(''three/addons/utils/BufferGeometryUtils.js'', {paths:[''/c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules'']}\\); console.log\\(m\\)\")",
-      "Bash(node -e \"const m = require.resolve\\(''three/examples/jsm/utils/BufferGeometryUtils.js'', {paths:[''/c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules'']}\\); console.log\\(m\\)\")"
+      "Bash(node -e \"const m = require.resolve\\(''three/examples/jsm/utils/BufferGeometryUtils.js'', {paths:[''/c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules'']}\\); console.log\\(m\\)\")",
+      "Bash(pkill -f vite)",
+      "Bash(lsof -ti:5173)",
+      "Bash(xargs kill:*)"
     ]
   }
 }

@@ -74,24 +74,28 @@ export function SessionControls() {
   // Active session
   return (
     <div className={styles.wrapper}>
-      <div className={styles.userDots}>
-        {collab.users.map(u => (
-          <div
-            key={u.id}
-            className={styles.dot}
-            style={{ background: u.color }}
-            title={u.name + (u.id === collab.me?.id ? ' (you)' : '')}
-          />
-        ))}
-      </div>
-
       <button
-        className={`${styles.shareBtn} ${styles.active}`}
+        className={styles.avatarGroup}
         onClick={() => setShowPanel(!showPanel)}
         title={`${collab.users.length} user${collab.users.length > 1 ? 's' : ''} connected`}
       >
-        <Users size={11} strokeWidth={2.2} />
-        <span>Live ({collab.users.length})</span>
+        {collab.users.map(u => {
+          const initials = u.name
+            .split(/\s+/)
+            .map(w => w[0]?.toUpperCase() ?? '')
+            .slice(0, 2)
+            .join('');
+          return (
+            <div
+              key={u.id}
+              className={styles.avatar}
+              style={{ background: u.color }}
+              title={u.name + (u.id === collab.me?.id ? ' (you)' : '')}
+            >
+              <span className={styles.initials}>{initials || '?'}</span>
+            </div>
+          );
+        })}
       </button>
 
       {showPanel && (
