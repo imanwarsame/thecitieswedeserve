@@ -67,8 +67,8 @@ export function ViewRadiusControl() {
 				min={0}
 				max={STEPS.length - 1}
 				step={1}
-				barSize={0.42}
-				textSize={0.72}
+				barSize={0.32}
+				textSize={0.6}
 				formatDisplay={formatRadius}
 				onChange={onChange}
 			/>
