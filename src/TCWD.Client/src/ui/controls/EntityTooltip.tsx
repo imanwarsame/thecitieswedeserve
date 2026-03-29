@@ -22,6 +22,7 @@ interface Selection {
 export function EntityTooltip() {
 	const engine = useEngine();
 	const [selected, setSelected] = useState<Selection | null>(null);
+	const [placementMode, setPlacementMode] = useState<string | null>(null);
 
 	const projectToScreen = useCallback((worldPos: THREE.Vector3) => {
 		const camera = engine.getIsometricCamera().getCamera();
@@ -45,6 +46,17 @@ export function EntityTooltip() {
 
 		return new THREE.Vector3(cell.center.x, 1.2, cell.center.y);
 	}, [engine]);
+
+	// Track placement mode — hide tooltip while building
+	useEffect(() => {
+		const onModeChanged = (...args: unknown[]) => {
+			const mode = args[0] as string | null;
+			setPlacementMode(mode);
+			if (mode) setSelected(null);
+		};
+		events.on('placement:modeChanged', onModeChanged);
+		return () => { events.off('placement:modeChanged', onModeChanged); };
+	}, []);
 
 	useEffect(() => {
 		const onSelect = (...args: unknown[]) => {
@@ -125,7 +137,7 @@ export function EntityTooltip() {
 		setSelected(null);
 	};
 
-	if (!selected) return null;
+	if (!selected || placementMode) return null;
 
 	// Position tooltip above the object, clamped to viewport
 	const tooltipX = Math.max(110, Math.min(selected.screenX, window.innerWidth - 110));

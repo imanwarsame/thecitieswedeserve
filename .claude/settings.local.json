@@ -53,7 +53,9 @@
       "Bash(python -c \":*)",
       "Bash(MSYS_NO_PATHCONV=1 railway variables --set \"CLIENT_DIST=/app/dist/client\")",
       "Bash(git checkout:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(od -A d -c /c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/src/assets/AssetCatalog.ts)",
+      "Bash(find /c/Users/ARZE/github/thecitieswedeserve -name vite.config.* -o -name vite.config.ts)"
     ]
   }
 }

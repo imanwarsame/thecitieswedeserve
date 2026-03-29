@@ -26,10 +26,10 @@ export const GridConfig = {
 
 	/**
 	 * Triangle edge length for the base lattice (metres).
-	 * 40 → cells ~40m across (city-block scale).
-	 * With hexRadius 1000: ~2100 cells.
+	 * 20 → cells ~20m across (building-footprint scale).
+	 * Forma buildings: 8-25m footprint → buildings span 1-2 cells.
 	 */
-	townTriEdge: 40,
+	townTriEdge: 20,
 
 	/**
 	 * Global Laplacian relaxation iterations (smoothing).
