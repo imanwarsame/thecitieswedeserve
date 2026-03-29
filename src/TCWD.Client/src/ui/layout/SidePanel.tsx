@@ -48,8 +48,14 @@ export function SidePanel() {
 	}, [engine]);
 
 	const handleRemove = () => {
-		if (!selected?.entity) return;
-		engine.getSimulationBridge().removeBuilding(selected.entity.id);
+		if (!selected) return;
+		if (selected.entity) {
+			engine.getSimulationBridge().removeBuilding(selected.entity.id);
+		} else if (selected.buildingType === 'housing') {
+			engine.getHousingController().destroy(selected.cellIndex);
+		} else {
+			return;
+		}
 		engine.deselectCell();
 		setSelected(null);
 	};
@@ -69,7 +75,7 @@ export function SidePanel() {
 							<div className={styles.stats}>
 								<BuildingStats sim={selected.simEntity} />
 							</div>
-							{selected.entity && (
+							{(selected.entity || selected.buildingType === 'housing') && (
 								<button
 									type="button"
 									className={styles.removeBtn}

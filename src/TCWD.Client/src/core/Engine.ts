@@ -533,9 +533,18 @@ export class Engine {
 			}
 
 			// Click — Forma mesh selection takes priority over grid cell
+			// (skip mesh hover check in road mode so cell-filling buildings don't block road placement)
 			if (this.input.consumeClick()) {
-				const hoveredMesh = this.selectionManager.getHovered();
+				const hoveredMesh = this._placementMode !== 'road' ? this.selectionManager.getHovered() : null;
 				if (hoveredMesh) {
+					// If the hovered mesh belongs to an entity, do a proper cell selection
+					// so cell-filling buildings (office, gas, etc.) trigger the info/delete UI.
+					const ownedEntity = gameScene.getEntityManager().getEntityByMesh(hoveredMesh);
+					if (ownedEntity && ownedEntity.cellIndex >= 0) {
+						this.forceSelectCell(ownedEntity.cellIndex);
+						return;
+					}
+					// Otherwise it's a Forma mesh — select it directly
 					this.selectionManager.setSelected(hoveredMesh);
 					return;
 				}
