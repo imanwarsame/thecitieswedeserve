@@ -24,3 +24,15 @@
 		padding: 4px 8px;
 	}
 }
+
+@media (max-width: 600px) {
+	.wrapper {
+		position: static;
+		width: 110px;
+		padding: 0;
+		background: transparent;
+		border: none;
+		box-shadow: none;
+		border-radius: 0;
+	}
+}

@@ -8,8 +8,16 @@ import { MinHeap } from './MinHeap';
 // Dijkstra-based shortest path per mode.  Uses an LRU cache to avoid
 // re-computing the same origin→destination for the same mode within
 // a short time window.
+//
+// For Metro and Train modes, the Dijkstra allows walking (at WALK_SPEED)
+// on any non-virtual adjacency edge.  This lets pops walk to a station,
+// ride the transit link, and walk to their destination — all within a
+// single per-mode shortest-path search.
 
 const CACHE_MAX = 2048;
+
+/** Walking speed (km/h) used when pops walk to/from transit stations. */
+const WALK_SPEED = 5;
 
 interface CacheEntry {
 	route: ResolvedRoute | null;
@@ -90,7 +98,16 @@ export class RouteResolver {
 			if (!edges) continue;
 
 			for (const [neighbor, edge] of edges) {
-				const weight = edge.weights[mode];
+				let weight = edge.weights[mode];
+
+				// Metro/Train: allow walking on any non-virtual (adjacency) edge
+				// so pops can walk to/from stations as part of their transit trip.
+				if (!weight && !edge.isVirtual &&
+					(mode === TransportMode.Metro || mode === TransportMode.Train)) {
+					const distKm = edge.distanceM / 1000;
+					weight = { timeMins: (distKm / WALK_SPEED) * 60, cost: 0 };
+				}
+
 				if (!weight) continue; // mode not available on this edge
 
 				const newDist = d + weight.timeMins;

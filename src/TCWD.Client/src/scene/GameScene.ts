@@ -157,6 +157,25 @@ export class GameScene {
 		return this.formaGroup;
 	}
 
+	/** Remove all children from the Forma models group (imported GLBs, Copenhagen city model, vegetation). */
+	clearFormaModels(): void {
+		if (!this.formaGroup) return;
+		// Dispose vegetation instancer first (nulls its mesh refs)
+		this.vegetation.dispose();
+		// Dispose geometry/materials for every descendant mesh
+		this.formaGroup.traverse((obj) => {
+			if (obj instanceof THREE.Mesh) {
+				obj.geometry?.dispose();
+				if (Array.isArray(obj.material)) {
+					for (const m of obj.material) m.dispose();
+				} else if (obj.material) {
+					obj.material.dispose();
+				}
+			}
+		});
+		this.formaGroup.clear();
+	}
+
 	/** Manifest of Forma GLB models that have simulation type mappings. */
 	getFormaManifest(): readonly FormaManifestEntry[] {
 		return this.formaManifest;

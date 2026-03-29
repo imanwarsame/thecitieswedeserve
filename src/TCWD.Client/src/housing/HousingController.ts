@@ -28,6 +28,11 @@ export class HousingController {
 		return this.currentAction;
 	}
 
+	/** Directly demolish all housing at a cell (used by the UI delete button). */
+	destroy(cellIndex: number): void {
+		this.handleDemolish(cellIndex);
+	}
+
 	dispose(): void {
 		events.off('grid:cellClicked', this.onCellClicked);
 	}

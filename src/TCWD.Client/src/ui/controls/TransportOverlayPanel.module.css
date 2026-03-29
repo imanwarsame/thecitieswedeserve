@@ -15,6 +15,13 @@
 	z-index: 15;
 }
 
+/* Hide on mobile — replaced by LayerToggle */
+@media (max-width: 600px) {
+	.root {
+		display: none;
+	}
+}
+
 /* ── Toggle button ────────────────────────────────────────────────────────── */
 
 .toggleBtn {
