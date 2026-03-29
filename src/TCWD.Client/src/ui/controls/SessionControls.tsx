@@ -111,9 +111,13 @@ export function SessionControls() {
           </div>
 
           <div className={styles.userList}>
-            {collab.users.map(u => (
+            {collab.users.map(u => {
+              const ini = u.name.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').slice(0, 2).join('');
+              return (
               <div key={u.id} className={styles.userRow}>
-                <div className={styles.dot} style={{ background: u.color }} />
+                <div className={styles.avatarSmall} style={{ background: u.color }}>
+                  <span className={styles.initials}>{ini || '?'}</span>
+                </div>
                 <span className={styles.userName}>
                   {u.name}
                 </span>
@@ -138,7 +142,8 @@ export function SessionControls() {
                   </form>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {collab.role === 'creator' && (

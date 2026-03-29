@@ -217,12 +217,10 @@ export class GameScene {
 			try {
 				const model = this.modelFactory.create(id);
 
-				// Strip flat fill-rectangle meshes from Forma exports.
-				// Water: never strip (all meshes are legitimate water bodies).
-				// Roads: strip low-vertex-count rectangles (fills have large area
-				//   but only 4-8 verts; real road segments are narrow → small area).
-				// Other models: strip anything > 50m footprint and < 0.5m height.
-				const isRoads = id === 'roads';
+				// Strip ground-fill meshes from Forma exports.
+				// Water: never strip. Everything else: any mesh that sits
+				// entirely below 3m and spans > 2m is a ground fill — real
+				// buildings always rise above 3m.
 				const isWater = id === 'water';
 				const toRemove: THREE.Mesh[] = [];
 				if (!isWater) model.traverse((child) => {
@@ -230,22 +228,9 @@ export class GameScene {
 					child.geometry.computeBoundingBox();
 					const bb = child.geometry.boundingBox;
 					if (!bb) return;
-					const sx = bb.max.x - bb.min.x;
-					const sy = bb.max.y - bb.min.y;
-					const sz = bb.max.z - bb.min.z;
-					const footprint = Math.max(sx, sz);
+					const footprint = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z);
 
-					if (isRoads) {
-						// Fill patches are big rectangles with few verts (area > 2000m², ≤ 8 verts).
-						// Real roads are narrow, so area stays small even when long.
-						const verts = child.geometry.getAttribute('position')?.count ?? 0;
-						const areaM2 = (sx / 1000) * (sz / 1000);
-						if (areaM2 > 2000 && verts <= 8) {
-							toRemove.push(child);
-						}
-					} else if (sy < 400 && footprint > 3000 && bb.max.y < 1000) {
-						// Flat surface (< 0.4m tall), wider than 3m, at ground level (top < 1m).
-						// Catches Forma ground fills that sit between/under buildings.
+					if (bb.max.y < 3000 && footprint > 2000) {
 						toRemove.push(child);
 					}
 				});
