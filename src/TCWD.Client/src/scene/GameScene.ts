@@ -234,7 +234,9 @@ export class GameScene {
 						if (areaM2 > 2000 && verts <= 8) {
 							toRemove.push(child);
 						}
-					} else if (footprint > 50000 && sy < 500) {
+					} else if (sy < 400 && footprint > 3000 && bb.max.y < 1000) {
+						// Flat surface (< 0.4m tall), wider than 3m, at ground level (top < 1m).
+						// Catches Forma ground fills that sit between/under buildings.
 						toRemove.push(child);
 					}
 				});

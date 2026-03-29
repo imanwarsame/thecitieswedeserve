@@ -144,7 +144,13 @@ export class CameraController {
 	 * the camera to show everything.
 	 */
 	zoomExtents(scene: THREE.Scene): void {
-		const box = new THREE.Box3().setFromObject(scene);
+		const box = new THREE.Box3();
+		scene.traverse((obj) => {
+			if (obj.name === 'shadowGround') return;
+			if ((obj as THREE.Mesh).isMesh) {
+				box.expandByObject(obj);
+			}
+		});
 		if (box.isEmpty()) return;
 
 		const center = box.getCenter(new THREE.Vector3());
