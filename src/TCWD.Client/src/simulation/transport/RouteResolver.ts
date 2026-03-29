@@ -9,10 +9,11 @@ import { MinHeap } from './MinHeap';
 // re-computing the same origin→destination for the same mode within
 // a short time window.
 //
-// For Metro and Train modes, the Dijkstra allows walking (at WALK_SPEED)
-// on any non-virtual adjacency edge.  This lets pops walk to a station,
-// ride the transit link, and walk to their destination — all within a
-// single per-mode shortest-path search.
+// For Metro and Train modes, walking is limited to first-mile and
+// last-mile only: pops may walk one hop from the origin to an adjacent
+// transit station, ride explicit transit links, then walk one hop from
+// the exit station to the destination.  No walking is permitted in
+// between — all intermediate edges must be explicit infrastructure.
 
 const CACHE_MAX = 2048;
 
@@ -76,6 +77,13 @@ export class RouteResolver {
 	// ── Dijkstra ────────────────────────────────────────────
 
 	private dijkstra(origin: number, destination: number, mode: TransportMode): ResolvedRoute | null {
+		const isTransit = mode === TransportMode.Metro || mode === TransportMode.Train;
+		const hasStation = isTransit
+			? (cell: number) => (mode === TransportMode.Metro
+				? this.network.hasMetro(cell)
+				: this.network.hasTrain(cell))
+			: undefined;
+
 		const dist = new Map<number, number>();
 		const costMap = new Map<number, number>();
 		const prev = new Map<number, number>();
@@ -84,6 +92,27 @@ export class RouteResolver {
 		dist.set(origin, 0);
 		costMap.set(origin, 0);
 		heap.push(0, origin);
+
+		// Transit first-mile: if origin itself is not a station, seed
+		// Dijkstra with walking to adjacent station cells so pops can
+		// reach the transit network in one hop.
+		if (hasStation && !hasStation(origin)) {
+			const originEdges = this.network.getEdges(origin);
+			if (originEdges) {
+				for (const [neighbor, edge] of originEdges) {
+					if (!edge.isVirtual && hasStation(neighbor)) {
+						const distKm = edge.distanceM / 1000;
+						const walkTime = (distKm / WALK_SPEED) * 60;
+						if (walkTime < (dist.get(neighbor) ?? Infinity)) {
+							dist.set(neighbor, walkTime);
+							costMap.set(neighbor, 0);
+							prev.set(neighbor, origin);
+							heap.push(walkTime, neighbor);
+						}
+					}
+				}
+			}
+		}
 
 		while (heap.size > 0) {
 			const { priority: d, value: current } = heap.pop()!;
@@ -100,10 +129,11 @@ export class RouteResolver {
 			for (const [neighbor, edge] of edges) {
 				let weight = edge.weights[mode];
 
-				// Metro/Train: allow walking on any non-virtual (adjacency) edge
-				// so pops can walk to/from stations as part of their transit trip.
-				if (!weight && !edge.isVirtual &&
-					(mode === TransportMode.Metro || mode === TransportMode.Train)) {
+				// Transit last-mile: allow walking from a station to the
+				// destination cell if it is adjacent — no other walking
+				// is permitted inside the main Dijkstra traversal.
+				if (!weight && hasStation && !edge.isVirtual &&
+					neighbor === destination && hasStation(current)) {
 					const distKm = edge.distanceM / 1000;
 					weight = { timeMins: (distKm / WALK_SPEED) * 60, cost: 0 };
 				}
