@@ -3,10 +3,10 @@ import { IsometricCamera } from './IsometricCamera';
 import { EngineConfig } from '../app/config';
 import { isTouchDevice } from '../core/Mobile';
 
-const PAN_SPEED = 2000;
-const ZOOM_SPEED = 0.1;
-const SMOOTHING = 0.08;
-const ARROW_PAN_SPEED = 1500;
+const PAN_SPEED = 800;
+const ZOOM_SPEED = 0.05;
+const SMOOTHING = 0.15;
+const ARROW_PAN_SPEED = 600;
 
 const ROTATE_SPEED = 0.004;
 const ROTATION_SPRING = 0.08;
@@ -14,7 +14,7 @@ const MAX_YAW_OFFSET = Math.PI / 4;   // ±45°
 const MAX_PITCH_OFFSET = Math.PI / 8; // ±22.5°
 
 // Touch gesture thresholds
-const TOUCH_PAN_SPEED = 3000;
+const TOUCH_PAN_SPEED = 1200;
 const PINCH_ZOOM_SPEED = 0.008;
 const TWO_FINGER_ROTATE_SPEED = 0.006;
 
@@ -144,7 +144,13 @@ export class CameraController {
 	 * the camera to show everything.
 	 */
 	zoomExtents(scene: THREE.Scene): void {
-		const box = new THREE.Box3().setFromObject(scene);
+		const box = new THREE.Box3();
+		scene.traverse((obj) => {
+			if (obj.name === 'shadowGround') return;
+			if ((obj as THREE.Mesh).isMesh) {
+				box.expandByObject(obj);
+			}
+		});
 		if (box.isEmpty()) return;
 
 		const center = box.getCenter(new THREE.Vector3());
@@ -357,7 +363,9 @@ export class CameraController {
 			if (!this.zoomEnabled) return;
 			e.preventDefault();
 
-			const zoomDelta = -Math.sign(e.deltaY) * ZOOM_SPEED;
+			// Clamp deltaY to ±1 to tame trackpad momentum / fast scrolling
+			const clamped = THREE.MathUtils.clamp(e.deltaY, -60, 60) / 60;
+			const zoomDelta = -clamped * ZOOM_SPEED;
 			this.targetZoom = THREE.MathUtils.clamp(
 				this.targetZoom + zoomDelta * this.targetZoom,
 				EngineConfig.camera.minZoom,

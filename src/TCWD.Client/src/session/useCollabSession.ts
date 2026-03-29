@@ -90,6 +90,7 @@ export function useCollabSession() {
 
     socket.on('session-closed', () => {
       clearSession();
+      events.emit('collab:socketDisconnected');
       setState({
         active: false, sessionId: null, role: null,
         shareUrl: null, users: [], me: null, error: 'Session ended by creator.',
@@ -98,58 +99,25 @@ export function useCollabSession() {
       socket.disconnect();
     });
 
-    socket.on('scene-delta', (delta: { type: string; cellIndex: number; color?: number; buildingType?: string }) => {
-      events.emit('collab:remoteDelta', delta);
-    });
-
-    socket.on('state-request', (data: { requesterId: string }) => {
-      events.emit('collab:stateRequest', data.requesterId);
-    });
-
-    socket.on('sync-state', (fullState: unknown) => {
-      events.emit('collab:syncState', fullState);
-    });
-
-    // Remote cursor positions
+    // Remote cursor positions (stays on raw Socket.IO)
     socket.on('cursor-move', (data: { userId: string; color: string; name: string; x: number; y: number; z: number }) => {
       events.emit('collab:cursorMove', data);
     });
+
+    // Notify CollabBridge that the socket is ready for Yjs sync
+    events.emit('collab:socketReady', socket);
   }, []);
 
   const wireLocalEvents = useCallback((socket: Socket) => {
-    const onHousingPlaced = (...args: unknown[]) => {
-      const data = args[0] as { cellIndex: number; height: number };
-      socket.emit('scene-delta', { type: 'housing:place', cellIndex: data.cellIndex });
-    };
-    const onHousingDemolished = (...args: unknown[]) => {
-      const data = args[0] as { cellIndex: number };
-      socket.emit('scene-delta', { type: 'housing:demolish', cellIndex: data.cellIndex });
-    };
-    const onBuildingPlaced = (...args: unknown[]) => {
-      const data = args[0] as { type: string; cellIndex: number };
-      socket.emit('scene-delta', { type: 'building:place', buildingType: data.type, cellIndex: data.cellIndex });
-    };
-    const onSendState = (...args: unknown[]) => {
-      const data = args[0] as { targetId: string; state: unknown };
-      socket.emit('state-response', data);
-    };
-
+    // Cursor broadcasting stays on raw Socket.IO
     const onLocalCursor = (...args: unknown[]) => {
       const pos = args[0] as { x: number; y: number; z: number };
       socket.emit('cursor-move', pos);
     };
 
-    events.on('housing:placed', onHousingPlaced);
-    events.on('housing:demolished', onHousingDemolished);
-    events.on('building:placed', onBuildingPlaced);
-    events.on('collab:sendState', onSendState);
     events.on('collab:localCursor', onLocalCursor);
 
     (socket as unknown as Record<string, unknown>).__cleanupFns = [
-      () => events.off('housing:placed', onHousingPlaced),
-      () => events.off('housing:demolished', onHousingDemolished),
-      () => events.off('building:placed', onBuildingPlaced),
-      () => events.off('collab:sendState', onSendState),
       () => events.off('collab:localCursor', onLocalCursor),
     ];
   }, []);
@@ -185,6 +153,7 @@ export function useCollabSession() {
   const stopCollab = useCallback(() => {
     const socket = socketRef.current;
     if (socket) {
+      events.emit('collab:socketDisconnected');
       const fns = (socket as unknown as Record<string, unknown>).__cleanupFns as Array<() => void> | undefined;
       fns?.forEach(fn => fn());
       socket.disconnect();

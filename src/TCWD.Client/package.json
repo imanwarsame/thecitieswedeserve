@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@radix-ui/react-tooltip": "^1.2.8",
     "d3-delaunay": "^6.0.4",
     "delaunator": "^5.1.0",
     "lucide-react": "^1.7.0",
@@ -20,7 +21,8 @@
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
     "socket.io-client": "^4.8.3",
-    "three": "^0.183.2"
+    "three": "^0.183.2",
+    "yjs": "^13.6.30"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
