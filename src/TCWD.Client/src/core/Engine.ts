@@ -199,11 +199,13 @@ export class Engine {
 
 		// Population flow / congestion overlay (toggleable)
 		this.flowOverlayRenderer = new FlowOverlayRenderer(
-			gameScene.getGroup('effects'),
 			this.transportModule,
 			this.grid.cells,
 			gameScene.root,
 		);
+		// Register the overlay's private scene so it renders after the EffectComposer,
+		// bypassing GTAO / bloom darkening that was suppressing the ribbon visibility.
+		this.renderPipeline.setOverlayScene(this.flowOverlayRenderer.getOverlayScene());
 
 		this.loop = new Loop(this.renderPipeline, gameScene.root, camera, this.time);
 
@@ -300,6 +302,42 @@ export class Engine {
 		// singleton destroys listeners belonging to a *new* Engine instance
 		// when React StrictMode causes overlapping init/teardown cycles.
 		console.log('[Engine] Stopped.');
+	}
+
+	/** Remove every user-placed element (buildings, housing, roads, imported models) and reset to a blank slate. */
+	clearAll(): void {
+		const gameScene = this.sceneManager.getActiveScene();
+
+		// 1. Deselect everything
+		this.deselectCell();
+		this.selectionManager.clearSelection();
+		this._placementMode = null;
+		this._roadStartCell = -1;
+		this.hoveredCellIndex = -1;
+
+		// 2. Clear simulation bridge (entities ↔ sim mappings, resets sim engine)
+		this.simulationBridge.clearAll();
+
+		// 3. Clear 3D entities
+		gameScene.getEntityManager().clear();
+
+		// 4. Clear grid placement (occupied cells)
+		gameScene.getGridPlacement().clearAll();
+
+		// 5. Clear housing (voxel grid + meshes)
+		this.housingSystem.dispose();
+
+		// 6. Re-initialise transport network from grid (clears roads, metro, train)
+		this.transportModule.init(this.grid.cells);
+
+		// 7. Clear Forma / imported model meshes
+		gameScene.clearFormaModels();
+
+		// 8. Force renderers to rebuild (they'll find nothing to draw)
+		events.emit('simulation:tick', this.simulationBridge.getState());
+		events.emit('placement:modeChanged', null);
+
+		console.log('[Engine] Cleared all user content.');
 	}
 
 	pause(): void {
@@ -413,7 +451,15 @@ export class Engine {
 		if (type !== 'housing') {
 			this.housingController.setAction('none');
 		}
+		// Auto-show transit lines when entering metro/train drawing mode
+		if (type === 'metro' || type === 'train') {
+			this.transportRenderer.setTransitLinesVisible(true);
+		}
 		events.emit('placement:modeChanged', type);
+	}
+
+	getTransportRenderer(): TransportRenderer {
+		return this.transportRenderer;
 	}
 
 	setHousingColor(color: number): void {
@@ -498,11 +544,15 @@ export class Engine {
 
 			// Highlight color based on mode
 			if (cell && this._placementMode) {
+				const isTransitDraw = (this._placementMode === 'metro' || this._placementMode === 'train');
 				if (this._placementMode === 'road' as BuildingType && this._roadStartCell !== -1) {
 					// Road drawing: show "build" highlight on the hovered cell
 					// to signal that clicking will complete the road segment
 					const isNeighbor = this.grid.query.getCell(this._roadStartCell)?.neighbors.includes(cellIndex);
 					highlighter.setMode(isNeighbor ? 'build' : 'occupied');
+				} else if (isTransitDraw && this._roadStartCell !== -1) {
+					// Metro/train link drawing: any cell is a valid target
+					highlighter.setMode('build');
 				} else {
 					const hasHousing = this.housingSystem.hasHousing(cellIndex);
 					const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
@@ -544,13 +594,21 @@ export class Engine {
 			}
 
 			// Click — in placement mode, skip Forma mesh selection and go to grid
+			// (skip mesh hover check in road/metro/train mode so cell-filling buildings don't block placement)
 			if (this.input.consumeClick()) {
-				if (!this._placementMode) {
-					const hoveredMesh = this.selectionManager.getHovered();
-					if (hoveredMesh) {
-						this.selectionManager.setSelected(hoveredMesh);
+				const skipMeshHover = this._placementMode === 'road' || this._placementMode === 'metro' || this._placementMode === 'train';
+				const hoveredMesh = !skipMeshHover ? this.selectionManager.getHovered() : null;
+				if (hoveredMesh) {
+					// If the hovered mesh belongs to an entity, do a proper cell selection
+					// so cell-filling buildings (office, gas, etc.) trigger the info/delete UI.
+					const ownedEntity = gameScene.getEntityManager().getEntityByMesh(hoveredMesh);
+					if (ownedEntity && ownedEntity.cellIndex >= 0) {
+						this.forceSelectCell(ownedEntity.cellIndex);
 						return;
 					}
+					// Otherwise it's a Forma mesh — select it directly
+					this.selectionManager.setSelected(hoveredMesh);
+					return;
 				}
 
 				if (cell) {
@@ -572,6 +630,37 @@ export class Engine {
 									this._roadStartCell = cellIndex;
 								} else {
 									// Non-adjacent — restart from clicked cell
+									this._roadStartCell = cellIndex;
+								}
+								return;
+							}
+						}
+
+						// Metro / Train placement: two-click link drawing (no adjacency constraint)
+						if (this._placementMode === 'metro' || this._placementMode === 'train') {
+							if (this._roadStartCell === -1) {
+								// First click — place station and mark start
+								const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
+								if (isFree) {
+									this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+								}
+								this._roadStartCell = cellIndex;
+								return;
+							} else {
+								const from = this._roadStartCell;
+								if (from !== cellIndex) {
+									// Place station at target if the cell is free
+									const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
+									if (isFree) {
+										this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+									}
+									// Create the link between the two stations
+									if (this._placementMode === 'metro') {
+										this.simulationBridge.addMetroLink(from, cellIndex);
+									} else {
+										this.simulationBridge.addTrainLink(from, cellIndex);
+									}
+									// Chain mode: endpoint becomes new start
 									this._roadStartCell = cellIndex;
 								}
 								return;

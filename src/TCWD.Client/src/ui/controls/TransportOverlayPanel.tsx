@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useEngine } from '../hooks/useEngine';
 import { useSimulation } from '../hooks/useSimulation';
 import { TransportMode } from '../../simulation/transport/types';
-import { Layers } from 'lucide-react';
+import { Layers, TrainTrack } from 'lucide-react';
 import styles from './TransportOverlayPanel.module.css';
 
 const ALL_MODES = Object.values(TransportMode) as TransportMode[];
@@ -28,12 +28,13 @@ export function TransportOverlayPanel() {
 
 	const [panelOpen, setPanelOpen]         = useState(false);
 	const [overlayOn, setOverlayOn]         = useState(false);
+	const [transitOn, setTransitOn]         = useState(false);
 	const [enabledModes, setEnabledModes]   = useState<Set<TransportMode>>(new Set(ALL_MODES));
 
 	// ── Keyboard shortcut: T to toggle overlay ───────────────────────────────
 	const handleKey = useCallback((e: KeyboardEvent) => {
 		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-		if (e.key === 't' || e.key === 'T') {
+		if (e.key === 'f' || e.key === 'F') {
 			setOverlayOn(v => {
 				const next = !v;
 				engine.getFlowOverlayRenderer().setVisible(next);
@@ -54,6 +55,14 @@ export function TransportOverlayPanel() {
 			const next = !v;
 			engine.getFlowOverlayRenderer().setVisible(next);
 			if (next) setPanelOpen(true);
+			return next;
+		});
+	};
+
+	const toggleTransitLines = () => {
+		setTransitOn(v => {
+			const next = !v;
+			engine.getTransportRenderer().setTransitLinesVisible(next);
 			return next;
 		});
 	};
@@ -80,12 +89,22 @@ export function TransportOverlayPanel() {
 
 	return (
 		<div className={styles.root}>
+			<button
+				className={`${styles.toggleBtn} ${transitOn ? styles.toggleBtnActive : ''}`}
+				onClick={toggleTransitLines}
+				onMouseEnter={() => setPanelOpen(true)}
+				title="Transit Lines (metro / train)"
+			>
+				<TrainTrack size={14} strokeWidth={2} />
+				<span>Lines</span>
+			</button>
+
 			{/* Toggle button — always visible */}
 			<button
 				className={`${styles.toggleBtn} ${overlayOn ? styles.toggleBtnActive : ''}`}
 				onClick={toggleOverlay}
 				onMouseEnter={() => setPanelOpen(true)}
-				title="Transport Flow Overlay (T)"
+				title="Transport Flow Overlay (F)"
 			>
 				<Layers size={12} strokeWidth={1.8} />
 				<span>Flow</span>
@@ -110,7 +129,7 @@ export function TransportOverlayPanel() {
 									className={styles.checkbox}
 								/>
 								{overlayOn ? 'On' : 'Off'}
-								<span className={styles.hint}> — press T</span>
+								<span className={styles.hint}> — press F</span>
 							</label>
 						</div>
 					</div>

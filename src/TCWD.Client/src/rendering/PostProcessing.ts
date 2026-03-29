@@ -23,10 +23,12 @@ export class PostProcessing {
 	private depthRenderTarget!: THREE.WebGLRenderTarget;
 	private scene!: THREE.Scene;
 	private camera!: THREE.Camera;
+	private webglRenderer!: THREE.WebGLRenderer;
 
 	private effects = new Map<string, { pass: { enabled: boolean } }>();
 
 	init(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
+		this.webglRenderer = renderer;
 		this.scene = scene;
 		this.camera = camera;
 
@@ -135,6 +137,19 @@ export class PostProcessing {
 		}
 
 		this.composer.render();
+	}
+
+	/**
+	 * Render an overlay scene directly onto the canvas AFTER the EffectComposer
+	 * has finished, bypassing all post-processing passes (GTAO, bloom, etc.).
+	 * autoClear is disabled so the composed image is preserved underneath.
+	 */
+	renderOverlay(overlayScene: THREE.Scene, camera: THREE.Camera): void {
+		this.webglRenderer.autoClearColor = false;
+		this.webglRenderer.autoClearDepth = false;
+		this.webglRenderer.render(overlayScene, camera);
+		this.webglRenderer.autoClearColor = true;
+		this.webglRenderer.autoClearDepth = true;
 	}
 
 	resize(width: number, height: number): void {

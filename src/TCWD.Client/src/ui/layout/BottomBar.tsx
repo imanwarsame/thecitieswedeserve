@@ -1,10 +1,12 @@
-import { TimeControls } from '../controls/TimeControls';
+import { ViewRadiusControl } from '../controls/ViewRadiusControl';
 import styles from './BottomBar.module.css';
 
 export function BottomBar() {
 	return (
 		<div className={styles.bar}>
-			<TimeControls />
+			<div className={styles.viewSlider}>
+				<ViewRadiusControl />
+			</div>
 		</div>
 	);
 }

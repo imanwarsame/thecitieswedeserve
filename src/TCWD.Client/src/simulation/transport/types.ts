@@ -59,6 +59,8 @@ export interface TransportEdge {
 	readonly distanceM: number;
 	/** Available modes and their traversal costs. */
 	readonly weights: Partial<Record<TransportMode, EdgeWeight>>;
+	/** True for non-adjacency edges created for metro/train links (no walking allowed). */
+	readonly isVirtual?: boolean;
 }
 
 // ── Routing types ───────────────────────────────────────────

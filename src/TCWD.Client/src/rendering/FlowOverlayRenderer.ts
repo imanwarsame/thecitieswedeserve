@@ -5,6 +5,7 @@ import type { TransportModule } from '../simulation/transport/TransportModule';
 import type { FlowSegment, OccupancyRate } from '../simulation/transport/types';
 import type { VoronoiCell } from '../grid/types';
 import { FlowLineShader } from './shaders/FlowLineShader';
+import { FlowRibbonShader } from './shaders/FlowRibbonShader';
 
 // ── Flow Overlay Renderer ─────────────────────────────────────────────────────
 //
@@ -22,8 +23,19 @@ import { FlowLineShader } from './shaders/FlowLineShader';
 const CONGESTION_THRESHOLD = 200;  // trips/hr — mirrors FlowAccumulator
 const FLOW_Y               = 0.35; // above infrastructure (0.15) & old flow lines (0.25)
 const HALO_Y               = 0.04;
-const MIN_HALF_WIDTH       = 0.25;
-const MAX_HALF_WIDTH       = 2.8;
+const MIN_HALF_WIDTH       = 0.30;
+const MAX_HALF_WIDTH       = 3.6;
+const FADE_DURATION        = 1.2;  // seconds for cross-fade in/out
+const DISC_SEGMENTS        = 12;   // polygon count for junction fill discs
+
+// Outgoing geometry set kept alive while fading out
+interface FadingSet {
+	meshes:      THREE.Mesh[];
+	lines:       THREE.LineSegments[];
+	disposables: (THREE.Material | THREE.BufferGeometry)[];
+	mats:        THREE.ShaderMaterial[];
+	fade:        number; // 1 → 0
+}
 
 // Slight Y offset per mode so overlapping edges on the same cell pair don't Z-fight
 const MODE_PULSE_Y: Record<TransportMode, number> = {
@@ -40,6 +52,9 @@ function flowToColor(normalized: number): THREE.Color {
 }
 
 export class FlowOverlayRenderer {
+	/** Dedicated scene – rendered after the EffectComposer so no post-processing
+	 *  passes (GTAO, bloom, etc.) can darken or suppress the overlay. */
+	private overlayScene = new THREE.Scene();
 	private group: THREE.Group;
 	private ribbonMeshes: THREE.Mesh[] = [];
 	private pulseLines: THREE.LineSegments[] = [];
@@ -48,19 +63,22 @@ export class FlowOverlayRenderer {
 	private disposables: (THREE.Material | THREE.BufferGeometry)[] = [];
 	/** Live pulse shader material references for per-frame uniform updates. */
 	private pulseMaterials: THREE.ShaderMaterial[] = [];
+	/** Ribbon materials requiring only uDarkness updates (no uTime). */
+	private ribbonMaterials: THREE.ShaderMaterial[] = [];
 
 	private transportModule: TransportModule;
 	private cells: readonly VoronoiCell[];
 	private modeFilter: Set<TransportMode>;
 	private scene: THREE.Scene | null;
 
-	private _visible = false;
-	private dirty    = true;
-	private elapsed  = 0;
-	private bgLum    = new THREE.Color();
+	private _visible   = false;
+	private dirty      = true;
+	private elapsed    = 0;
+	private bgLum      = new THREE.Color();
+	private fadeIn     = 1.0;  // 0→1 for current active geometry
+	private fadingOut: FadingSet | null = null;
 
 	constructor(
-		parent: THREE.Object3D,
 		transportModule: TransportModule,
 		cells: readonly VoronoiCell[],
 		scene?: THREE.Scene,
@@ -74,7 +92,9 @@ export class FlowOverlayRenderer {
 		this.group.name = 'flow-overlay';
 		// Starts hidden; toggled by the UI
 		this.group.visible = false;
-		parent.add(this.group);
+		// Add to the private overlay scene, not the main scene, so the group
+		// renders in a separate pass after EffectComposer (bypasses GTAO etc).
+		this.overlayScene.add(this.group);
 
 		events.on('simulation:tick', this.markDirty);
 	}
@@ -93,6 +113,11 @@ export class FlowOverlayRenderer {
 
 	isVisible(): boolean {
 		return this._visible;
+	}
+
+	/** The private scene to pass to the render pipeline for post-compositor rendering. */
+	getOverlayScene(): THREE.Scene {
+		return this.overlayScene;
 	}
 
 	setModeFilter(modes: Set<TransportMode>): void {
@@ -119,9 +144,39 @@ export class FlowOverlayRenderer {
 				darkness = 1 - hsl.l;
 			}
 		}
+
+		// ── Advance cross-fades ───────────────────────────────────────────────
+
+		// Fade in new geometry
+		if (this.fadeIn < 1.0) {
+			this.fadeIn = Math.min(1.0, this.fadeIn + delta / FADE_DURATION);
+		}
+
+		// Fade out old geometry, dispose once fully transparent
+		if (this.fadingOut) {
+			this.fadingOut.fade = Math.max(0, this.fadingOut.fade - delta / FADE_DURATION);
+			for (const mat of this.fadingOut.mats) {
+				mat.uniforms.uFade.value     = this.fadingOut.fade;
+				mat.uniforms.uDarkness.value = darkness;
+				if ('uTime' in mat.uniforms) mat.uniforms.uTime.value = this.elapsed;
+			}
+			if (this.fadingOut.fade <= 0) {
+				for (const m of this.fadingOut.meshes) this.group.remove(m);
+				for (const l of this.fadingOut.lines)  this.group.remove(l);
+				for (const d of this.fadingOut.disposables) d.dispose();
+				this.fadingOut = null;
+			}
+		}
+
+		// Update active materials
 		for (const mat of this.pulseMaterials) {
 			mat.uniforms.uTime.value     = this.elapsed;
 			mat.uniforms.uDarkness.value = darkness;
+			mat.uniforms.uFade.value     = this.fadeIn;
+		}
+		for (const mat of this.ribbonMaterials) {
+			mat.uniforms.uDarkness.value = darkness;
+			mat.uniforms.uFade.value     = this.fadeIn;
 		}
 
 		if (this.dirty && this._visible) {
@@ -143,8 +198,37 @@ export class FlowOverlayRenderer {
 	};
 
 	private rebuild(): void {
-		this.clear();
 		const result = this.transportModule.getLastResult();
+
+		// ── Retire current geometry into the fade-out set ─────────────────────
+		// Immediately drop any previously fading-out set to avoid accumulation.
+		if (this.fadingOut) {
+			for (const m of this.fadingOut.meshes) this.group.remove(m);
+			for (const l of this.fadingOut.lines)  this.group.remove(l);
+			for (const d of this.fadingOut.disposables) d.dispose();
+			this.fadingOut = null;
+		}
+
+		const hasActive = this.ribbonMeshes.length + this.pulseLines.length + this.haloMeshes.length > 0;
+		if (hasActive) {
+			this.fadingOut = {
+				meshes:      [...this.ribbonMeshes, ...this.haloMeshes],
+				lines:       [...this.pulseLines],
+				disposables: [...this.disposables],
+				mats:        [...this.ribbonMaterials, ...this.pulseMaterials],
+				fade:        this.fadeIn, // fade out from whatever opacity we reached
+			};
+		}
+
+		// ── Build new geometry (starts invisible; fades in via update()) ───────
+		this.ribbonMeshes    = [];
+		this.pulseLines      = [];
+		this.haloMeshes      = [];
+		this.disposables     = [];
+		this.pulseMaterials  = [];
+		this.ribbonMaterials = [];
+		this.fadeIn          = 0.0;
+
 		if (result.segments.length === 0) return;
 
 		// Pre-compute max flow across all visible-mode segments for normalisation
@@ -160,12 +244,18 @@ export class FlowOverlayRenderer {
 		this.buildHalos(result.occupancy, result.totalPassengers);
 	}
 
-	// ── Layer 1: variable-width colour ribbons ────────────────────────────────
+	// ── Layer 1: variable-width glowing ribbons + junction fill discs ───────────
 
 	private buildRibbons(segments: readonly FlowSegment[], maxFlow: number): void {
-		// Collect all filtered segments separately per mode in a single pass
-		type BatchData = { verts: number[]; indices: number[]; colors: number[]; offset: number };
-		const batches = new Map<TransportMode, BatchData>();
+		const verts:   number[] = [];
+		const indices: number[] = [];
+		const colors:  number[] = [];
+		const edgeUVs: number[] = [];
+		const flows:   number[] = [];
+		let   offset = 0;
+
+		// Track the max-flow norm at each cell for junction disc sizing
+		const cellMaxFlow = new Map<number, number>();
 
 		for (const seg of segments) {
 			if (!this.modeFilter.has(seg.mode)) continue;
@@ -173,46 +263,68 @@ export class FlowOverlayRenderer {
 			const toCell   = this.cells[seg.to];
 			if (!fromCell || !toCell) continue;
 
-			let batch = batches.get(seg.mode);
-			if (!batch) {
-				batch = { verts: [], indices: [], colors: [], offset: 0 };
-				batches.set(seg.mode, batch);
-			}
+			const norm  = Math.min(seg.tripsPerHour / maxFlow, 1);
+			const halfW = MIN_HALF_WIDTH + (MAX_HALF_WIDTH - MIN_HALF_WIDTH) * norm;
+			const col   = flowToColor(norm);
 
-			const norm   = Math.min(seg.tripsPerHour / maxFlow, 1);
-			const halfW  = MIN_HALF_WIDTH + (MAX_HALF_WIDTH - MIN_HALF_WIDTH) * norm;
-			const col    = flowToColor(norm);
-			batch.offset = pushColoredRibbon(
+			offset = pushFlowRibbon(
 				fromCell.center.x, fromCell.center.y,
 				toCell.center.x,   toCell.center.y,
-				halfW, FLOW_Y, col,
-				batch.verts, batch.indices, batch.colors, batch.offset,
+				halfW, FLOW_Y, col, norm,
+				verts, indices, colors, edgeUVs, flows,
+				offset,
+			);
+
+			// Record the highest-flow norm seen at each endpoint
+			cellMaxFlow.set(seg.from, Math.max(cellMaxFlow.get(seg.from) ?? 0, norm));
+			cellMaxFlow.set(seg.to,   Math.max(cellMaxFlow.get(seg.to)   ?? 0, norm));
+		}
+
+		// Junction fill discs — smooth the blocky ribbon endpoints/intersections.
+		// Each disc uses aEdgeUV=0.5 at the centre (full glow) and aEdgeUV=0 at
+		// the rim (transparent), creating a radial glow profile that melts into
+		// the ribbons arriving from all directions.
+		for (const [cellIdx, norm] of cellMaxFlow) {
+			const cell  = this.cells[cellIdx];
+			if (!cell) continue;
+			const halfW = MIN_HALF_WIDTH + (MAX_HALF_WIDTH - MIN_HALF_WIDTH) * norm;
+			offset = pushFlowDisc(
+				cell.center.x, cell.center.y,
+				halfW, FLOW_Y, flowToColor(norm), norm,
+				verts, indices, colors, edgeUVs, flows, offset,
 			);
 		}
 
-		for (const batch of batches.values()) {
-			if (batch.verts.length === 0) continue;
+		if (verts.length === 0) return;
 
-			const mat = new THREE.MeshBasicMaterial({
-				vertexColors: true,
-				transparent:  true,
-				opacity:      0.72,
-				depthWrite:   false,
-				side:         THREE.DoubleSide,
-			});
-			this.disposables.push(mat);
+		const mat = new THREE.ShaderMaterial({
+			uniforms: {
+				uDarkness: { value: 0.0 },
+				uFade:     { value: 0.0 }, // will be set to this.fadeIn each frame
+			},
+			vertexShader:   FlowRibbonShader.vertexShader,
+			fragmentShader: FlowRibbonShader.fragmentShader,
+			transparent:    true,
+			depthWrite:     false,
+			depthTest:      false, // always draw on top of buildings/terrain
+			side:           THREE.DoubleSide,
+		});
+		this.ribbonMaterials.push(mat);
+		this.disposables.push(mat);
 
-			const geo = new THREE.BufferGeometry();
-			geo.setAttribute('position', new THREE.Float32BufferAttribute(batch.verts,  3));
-			geo.setAttribute('color',    new THREE.Float32BufferAttribute(batch.colors, 3));
-			geo.setIndex(batch.indices);
-			this.disposables.push(geo);
+		const geo = new THREE.BufferGeometry();
+		geo.setAttribute('position', new THREE.Float32BufferAttribute(verts,   3));
+		geo.setAttribute('aColor',   new THREE.Float32BufferAttribute(colors,  3));
+		geo.setAttribute('aEdgeUV',  new THREE.Float32BufferAttribute(edgeUVs, 1));
+		geo.setAttribute('aFlow',    new THREE.Float32BufferAttribute(flows,   1));
+		geo.setIndex(indices);
+		this.disposables.push(geo);
 
-			const mesh = new THREE.Mesh(geo, mat);
-			mesh.frustumCulled = false;
-			this.ribbonMeshes.push(mesh);
-			this.group.add(mesh);
-		}
+		const mesh = new THREE.Mesh(geo, mat);
+		mesh.frustumCulled = false;
+		mesh.renderOrder   = 999; // render after all opaque scene geometry
+		this.ribbonMeshes.push(mesh);
+		this.group.add(mesh);
 	}
 
 	// ── Layer 2: animated pulse LineSegments ─────────────────────────────────
@@ -254,11 +366,13 @@ export class FlowOverlayRenderer {
 			uniforms: {
 				uTime:     { value: this.elapsed },
 				uDarkness: { value: 0.0 },
+				uFade:     { value: 0.0 }, // will be set to this.fadeIn each frame
 			},
 			vertexShader:   FlowLineShader.vertexShader,
 			fragmentShader: FlowLineShader.fragmentShader,
 			transparent:    true,
 			depthWrite:     false,
+			depthTest:      false, // always draw on top of buildings/terrain
 		});
 		this.pulseMaterials.push(mat);
 		this.disposables.push(mat);
@@ -272,6 +386,7 @@ export class FlowOverlayRenderer {
 
 		const line = new THREE.LineSegments(geo, mat);
 		line.frustumCulled = false;
+		line.renderOrder   = 998;
 		this.pulseLines.push(line);
 		this.group.add(line);
 	}
@@ -321,30 +436,96 @@ export class FlowOverlayRenderer {
 	// ── Cleanup ──────────────────────────────────────────────────────────────
 
 	private clear(): void {
+		// Dispose any in-flight fade-out set
+		if (this.fadingOut) {
+			for (const m of this.fadingOut.meshes) this.group.remove(m);
+			for (const l of this.fadingOut.lines)  this.group.remove(l);
+			for (const d of this.fadingOut.disposables) d.dispose();
+			this.fadingOut = null;
+		}
 		for (const m of this.ribbonMeshes) this.group.remove(m);
 		for (const l of this.pulseLines)   this.group.remove(l);
 		for (const h of this.haloMeshes)   this.group.remove(h);
 		for (const d of this.disposables)  d.dispose();
-		this.ribbonMeshes   = [];
-		this.pulseLines     = [];
-		this.haloMeshes     = [];
-		this.disposables    = [];
-		this.pulseMaterials = [];
+		this.ribbonMeshes    = [];
+		this.pulseLines      = [];
+		this.haloMeshes      = [];
+		this.disposables     = [];
+		this.pulseMaterials  = [];
+		this.ribbonMaterials = [];
+		this.fadeIn          = 1.0;
 	}
 }
 
 // ── Geometry helpers ─────────────────────────────────────────────────────────
 
-/** Push a flat ribbon quad (2 triangles) with per-vertex colours. */
-function pushColoredRibbon(
+/**
+ * Push a junction fill disc (triangle fan) using the same FlowRibbonShader
+ * attributes as the ribbon quads, so it melds seamlessly.
+ *
+ * Centre vertex:  aEdgeUV = 0.5  → sin(PI * 0.5) = 1  → fully bright
+ * Rim vertices:   aEdgeUV = 0.0  → sin(PI * 0.0) = 0  → transparent edge
+ * Result: a radial soft-glow blob that fills the gap between arriving ribbons.
+ */
+function pushFlowDisc(
+	cx: number, cz: number,
+	radius: number,
+	y: number,
+	col: THREE.Color,
+	flow: number,
+	verts: number[],
+	indices: number[],
+	colors: number[],
+	edgeUVs: number[],
+	flows: number[],
+	vertexOffset: number,
+): number {
+	// Centre vertex
+	verts.push(cx, y, cz);
+	colors.push(col.r, col.g, col.b);
+	edgeUVs.push(0.5); // bright centre
+	flows.push(flow);
+
+	// Rim vertices
+	for (let i = 0; i < DISC_SEGMENTS; i++) {
+		const angle = (i / DISC_SEGMENTS) * Math.PI * 2;
+		verts.push(
+			cx + Math.cos(angle) * radius,
+			y,
+			cz + Math.sin(angle) * radius,
+		);
+		colors.push(col.r, col.g, col.b);
+		edgeUVs.push(0.0); // transparent rim
+		flows.push(flow);
+	}
+
+	// Triangle fan: centre → rim[i] → rim[(i+1)%N]
+	const o = vertexOffset;
+	for (let i = 0; i < DISC_SEGMENTS; i++) {
+		indices.push(o, o + 1 + i, o + 1 + (i + 1) % DISC_SEGMENTS);
+	}
+	return vertexOffset + DISC_SEGMENTS + 1;
+}
+
+/**
+ * Push a ribbon quad (2 triangles) with per-vertex attributes for the
+ * FlowRibbonShader (colour, edge UV, flow intensity).
+ *
+ * aEdgeUV: 0 = left edge, 1 = right edge.  The shader uses sin(UV * PI)
+ * to produce a bright centre and transparent edges (soft glow profile).
+ */
+function pushFlowRibbon(
 	ax: number, az: number,
 	bx: number, bz: number,
 	halfWidth: number,
 	y: number,
 	col: THREE.Color,
+	flow: number,
 	verts: number[],
 	indices: number[],
 	colors: number[],
+	edgeUVs: number[],
+	flows: number[],
 	vertexOffset: number,
 ): number {
 	const dx  = bx - ax;
@@ -355,6 +536,7 @@ function pushColoredRibbon(
 	const px = (-dz / len) * halfWidth;
 	const pz = ( dx / len) * halfWidth;
 
+	// 4 vertices: left-start, right-start, left-end, right-end
 	verts.push(
 		ax + px, y, az + pz,  // 0: left-start
 		ax - px, y, az - pz,  // 1: right-start
@@ -362,6 +544,8 @@ function pushColoredRibbon(
 		bx - px, y, bz - pz,  // 3: right-end
 	);
 	for (let i = 0; i < 4; i++) colors.push(col.r, col.g, col.b);
+	edgeUVs.push(0, 1, 0, 1);   // left=0, right=1
+	for (let i = 0; i < 4; i++) flows.push(flow);
 
 	const o = vertexOffset;
 	indices.push(o, o + 1, o + 2, o + 1, o + 3, o + 2);

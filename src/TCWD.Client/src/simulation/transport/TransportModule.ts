@@ -77,6 +77,18 @@ export class TransportModule {
 		this.resolver.clearCache();
 	}
 
+	/** Draw a metro link between two station cells (enables metro routing between them). */
+	addMetroLink(fromCell: number, toCell: number): void {
+		this.network.addMetroLink(fromCell, toCell);
+		this.resolver.clearCache();
+	}
+
+	/** Draw a train link between two station cells (enables train routing between them). */
+	addTrainLink(fromCell: number, toCell: number): void {
+		this.network.addTrainLink(fromCell, toCell);
+		this.resolver.clearCache();
+	}
+
 	/** Core computation — called once per simulation tick by the TransportLayer. */
 	compute(entities: readonly Entity[], clock: ClockState): TransportResult {
 		this.resolver.advanceTick();

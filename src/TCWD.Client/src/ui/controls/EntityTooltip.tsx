@@ -131,8 +131,14 @@ export function EntityTooltip() {
 	});
 
 	const handleRemove = () => {
-		if (!selected?.entity) return;
-		engine.getSimulationBridge().removeBuilding(selected.entity.id);
+		if (!selected) return;
+		if (selected.entity) {
+			engine.getSimulationBridge().removeBuilding(selected.entity.id);
+		} else if (selected.buildingType === 'housing') {
+			engine.getHousingController().destroy(selected.cellIndex);
+		} else {
+			return;
+		}
 		engine.deselectCell();
 		setSelected(null);
 	};
@@ -152,7 +158,7 @@ export function EntityTooltip() {
 				<span className={styles.title}>
 					{BUILDING_LABELS[selected.buildingType] ?? selected.buildingType}
 				</span>
-				{selected.entity && (
+				{(selected.entity || selected.buildingType === 'housing') && (
 					<button
 						className={styles.deleteBtn}
 						onClick={handleRemove}
