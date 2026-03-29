@@ -19,7 +19,7 @@ import type { BuiltGrid } from '../grid/GridBuilder';
 import { VegetationInstancer } from './VegetationInstancer';
 import { getCatalogEntry } from '../assets/AssetCatalog';
 import type { BuildingType } from '../simulation/bridge/BuildingFactory';
-import { mergeByMaterial } from '../rendering/MeshMerger';
+
 
 /** Describes a batch of Forma meshes that map to a simulation entity type. */
 export interface FormaManifestEntry {
@@ -188,6 +188,31 @@ export class GameScene {
 			}
 			try {
 				const model = this.modelFactory.create(id);
+
+				// Strip large flat ground-plane meshes (footprint > 50m, height < 0.5m in mm)
+				// These block raycasting and aren't needed with our own ground plane.
+				const toRemove: THREE.Mesh[] = [];
+				model.traverse((child) => {
+					if (!(child instanceof THREE.Mesh)) return;
+					child.geometry.computeBoundingBox();
+					const bb = child.geometry.boundingBox;
+					if (!bb) return;
+					const sx = bb.max.x - bb.min.x;
+					const sy = bb.max.y - bb.min.y;
+					const sz = bb.max.z - bb.min.z;
+					const footprint = Math.max(sx, sz);
+					if (footprint > 50000 && sy < 500) {
+						toRemove.push(child);
+					}
+				});
+				for (const m of toRemove) {
+					m.geometry.dispose();
+					m.parent?.remove(m);
+				}
+				if (toRemove.length > 0) {
+					console.log(`[GameScene] Stripped ${toRemove.length} ground surfaces from "${id}"`);
+				}
+
 				container.add(model);
 				loaded++;
 
@@ -228,15 +253,19 @@ export class GameScene {
 		this.graph.getGroup('environment').add(container);
 
 		// Compute world-space mesh positions for simulation-mapped models
-		// BEFORE merging (merging destroys individual mesh transforms)
+		// BEFORE merging (merging destroys individual mesh transforms).
+		// Use bounding-box centers, not getWorldPosition(), because Forma GLBs
+		// bake vertex positions into geometry — mesh nodes have identity transforms.
 		container.updateMatrixWorld(true);
+		const meshBox = new THREE.Box3();
 		for (const { id, simulationType, model } of simModels) {
 			const positions: THREE.Vector3[] = [];
 			model.traverse((child) => {
 				if (child instanceof THREE.Mesh) {
-					const pos = new THREE.Vector3();
-					child.getWorldPosition(pos);
-					positions.push(pos);
+					meshBox.setFromObject(child);
+					if (!meshBox.isEmpty()) {
+						positions.push(meshBox.getCenter(new THREE.Vector3()));
+					}
 				}
 			});
 			this.formaManifest.push({
@@ -247,14 +276,6 @@ export class GameScene {
 			});
 		}
 
-		// Merge meshes that share the same material into single draw calls.
-		// This collapses ~2500 individual meshes down to ~5-10.
-		// Do this AFTER collecting simulation positions but BEFORE rendering.
-		for (const child of [...container.children]) {
-			if (child instanceof THREE.Group || child instanceof THREE.Object3D) {
-				mergeByMaterial(child);
-			}
-		}
 
 		console.log(`[GameScene] Loaded ${loaded} Forma models + vegetation`);
 		console.log(`[GameScene]   Extent: ${size.x.toFixed(0)}m × ${size.z.toFixed(0)}m, center offset: (${center.x.toFixed(0)}, ${center.z.toFixed(0)})`);

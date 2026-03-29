@@ -14,17 +14,17 @@ const LIGHTING_KEYS: {
 	hemiIntensity: number;
 }[] = [
 	//                                                    sky (hemisphere top)    ground (hemisphere bottom)
-	{ hour: 0,  sun: 0x9999bb, sunIntensity: 0.4,  skyColor: 0x808098, groundColor: 0x505060, hemiIntensity: 0.30 },
-	{ hour: 5,  sun: 0x9999bb, sunIntensity: 0.4,  skyColor: 0x808098, groundColor: 0x505060, hemiIntensity: 0.30 },
-	{ hour: 6,  sun: 0xe0e0e0, sunIntensity: 1.0,  skyColor: 0xd8d8d8, groundColor: 0xa0a0a0, hemiIntensity: 0.50 },  // dawn
+	{ hour: 0,  sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },  // midnight — soft twilight
+	{ hour: 5,  sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },
+	{ hour: 6,  sun: 0xe0e0e0, sunIntensity: 1.0,  skyColor: 0xd8d8d8, groundColor: 0xa0a0a0, hemiIntensity: 0.55 },  // dawn
 	{ hour: 7,  sun: 0xf0f0f0, sunIntensity: 1.6,  skyColor: 0xeaeaea, groundColor: 0xc0c0c0, hemiIntensity: 0.70 },  // morning
 	{ hour: 10, sun: Palette.sun, sunIntensity: 2.0, skyColor: Palette.ambient, groundColor: 0xd0d0d0, hemiIntensity: 0.90 },
 	{ hour: 14, sun: Palette.sun, sunIntensity: 2.0, skyColor: Palette.ambient, groundColor: 0xd0d0d0, hemiIntensity: 0.90 },
 	{ hour: 17, sun: 0xf0f0f0, sunIntensity: 1.7,  skyColor: 0xeaeaea, groundColor: 0xc0c0c0, hemiIntensity: 0.75 },  // afternoon
-	{ hour: 18, sun: 0xd8d8d8, sunIntensity: 1.1,  skyColor: 0xc8c8c8, groundColor: 0x909090, hemiIntensity: 0.50 },  // evening
-	{ hour: 19, sun: 0xb0b0c0, sunIntensity: 0.6,  skyColor: 0xa0a0a8, groundColor: 0x606068, hemiIntensity: 0.35 },  // dusk
-	{ hour: 21, sun: 0x9999bb, sunIntensity: 0.4,  skyColor: 0x808098, groundColor: 0x505060, hemiIntensity: 0.30 },
-	{ hour: 24, sun: 0x9999bb, sunIntensity: 0.4,  skyColor: 0x808098, groundColor: 0x505060, hemiIntensity: 0.30 },
+	{ hour: 18, sun: 0xd8d8d8, sunIntensity: 1.1,  skyColor: 0xc8c8c8, groundColor: 0x909090, hemiIntensity: 0.55 },  // evening
+	{ hour: 19, sun: 0xc0c0d0, sunIntensity: 0.8,  skyColor: 0xb0b0b8, groundColor: 0x808090, hemiIntensity: 0.50 },  // dusk — twilight
+	{ hour: 21, sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },  // night — soft twilight
+	{ hour: 24, sun: 0xb0b0cc, sunIntensity: 0.6,  skyColor: 0x9898b0, groundColor: 0x707088, hemiIntensity: 0.45 },
 ];
 
 const SUN_ORBIT_RADIUS = 2000;

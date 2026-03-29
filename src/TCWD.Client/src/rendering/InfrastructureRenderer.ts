@@ -105,8 +105,11 @@ export class InfrastructureRenderer {
 		// Build all segments into a single geometry
 		const LINE_Y = 0.15;
 		const segmentCount = plants.length * consumers.length;
-		const positions = new Float32Array(segmentCount * 6); // 2 points × 3 floats
+		const positions   = new Float32Array(segmentCount * 6); // 2 points × 3 floats
+		const segmentTs   = new Float32Array(segmentCount * 2); // 0 at start, 1 at end
+		const timeOffsets = new Float32Array(segmentCount * 2); // random per-segment
 		let idx = 0;
+		let attrIdx = 0;
 
 		for (const plantPos of plants) {
 			for (const consumerPos of consumers) {
@@ -116,17 +119,25 @@ export class InfrastructureRenderer {
 				positions[idx++] = consumerPos.x;
 				positions[idx++] = LINE_Y;
 				positions[idx++] = consumerPos.z;
+
+				const offset = Math.random() * 50;
+				segmentTs[attrIdx]   = 0.0;
+				timeOffsets[attrIdx] = offset;
+				attrIdx++;
+				segmentTs[attrIdx]   = 1.0;
+				timeOffsets[attrIdx] = offset;
+				attrIdx++;
 			}
 		}
 
 		const geometry = new THREE.BufferGeometry();
-		geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+		geometry.setAttribute('position',    new THREE.BufferAttribute(positions, 3));
+		geometry.setAttribute('aSegmentT',   new THREE.BufferAttribute(segmentTs, 1));
+		geometry.setAttribute('aTimeOffset', new THREE.BufferAttribute(timeOffsets, 1));
 
 		this.material = new THREE.ShaderMaterial({
 			uniforms: {
 				uTime:        { value: this.elapsed },
-				uLineLength:  { value: 100 },
-				uTimeOffset:  { value: 0 },
 				uColor:       { value: new THREE.Color(0x888888) },
 				uOpacity:     { value: EnergyLineShader.uniforms.uOpacity.value },
 				uPulseSpeed:  { value: EnergyLineShader.uniforms.uPulseSpeed.value },
