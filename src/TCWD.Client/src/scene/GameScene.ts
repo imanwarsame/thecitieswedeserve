@@ -208,10 +208,15 @@ export class GameScene {
 			try {
 				const model = this.modelFactory.create(id);
 
-				// Strip large flat ground-plane meshes (footprint > 50m, height < 0.5m in mm)
-				// These block raycasting and aren't needed with our own ground plane.
+				// Strip flat fill-rectangle meshes from Forma exports.
+				// Water: never strip (all meshes are legitimate water bodies).
+				// Roads: strip low-vertex-count rectangles (fills have large area
+				//   but only 4-8 verts; real road segments are narrow → small area).
+				// Other models: strip anything > 50m footprint and < 0.5m height.
+				const isRoads = id === 'roads';
+				const isWater = id === 'water';
 				const toRemove: THREE.Mesh[] = [];
-				model.traverse((child) => {
+				if (!isWater) model.traverse((child) => {
 					if (!(child instanceof THREE.Mesh)) return;
 					child.geometry.computeBoundingBox();
 					const bb = child.geometry.boundingBox;
@@ -220,7 +225,16 @@ export class GameScene {
 					const sy = bb.max.y - bb.min.y;
 					const sz = bb.max.z - bb.min.z;
 					const footprint = Math.max(sx, sz);
-					if (footprint > 50000 && sy < 500) {
+
+					if (isRoads) {
+						// Fill patches are big rectangles with few verts (area > 2000m², ≤ 8 verts).
+						// Real roads are narrow, so area stays small even when long.
+						const verts = child.geometry.getAttribute('position')?.count ?? 0;
+						const areaM2 = (sx / 1000) * (sz / 1000);
+						if (areaM2 > 2000 && verts <= 8) {
+							toRemove.push(child);
+						}
+					} else if (footprint > 50000 && sy < 500) {
 						toRemove.push(child);
 					}
 				});
@@ -351,15 +365,27 @@ export class GameScene {
 		}
 	}
 
-	/** Raycast against Forma models; remove the hit mesh. Returns true if something was removed. */
+	/** Raycast against Forma models; remove the hit mesh. Protects water and road meshes. */
 	removeFormaMeshAt(raycaster: THREE.Raycaster): boolean {
 		if (!this.formaGroup) return false;
 
 		const hits = raycaster.intersectObject(this.formaGroup, true);
-		if (hits.length === 0) return false;
+		for (const hit of hits) {
+			const mesh = hit.object;
+			if (!(mesh instanceof THREE.Mesh)) continue;
 
-		const mesh = hits[0].object;
-		if (mesh instanceof THREE.Mesh) {
+			// Walk up to check if this mesh belongs to a protected model
+			let node: THREE.Object3D | null = mesh;
+			let isProtected = false;
+			while (node && node !== this.formaGroup) {
+				if (node.name === 'model_water' || node.name === 'model_roads') {
+					isProtected = true;
+					break;
+				}
+				node = node.parent;
+			}
+			if (isProtected) continue;
+
 			mesh.geometry.dispose();
 			if (mesh.parent) mesh.parent.remove(mesh);
 			console.log(`[GameScene] Removed Forma mesh: ${mesh.name || '(unnamed)'}`);
