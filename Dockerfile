@@ -11,6 +11,9 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd src/TCWD.Client && npm ci
 RUN cd server && npm ci
 
+# Cache bust arg — change value to force rebuild
+ARG CACHE_BUST=1
+
 # Copy all source code
 COPY src/TCWD.Client/ ./src/TCWD.Client/
 COPY server/ ./server/
