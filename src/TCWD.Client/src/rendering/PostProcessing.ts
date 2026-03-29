@@ -22,7 +22,12 @@ export class PostProcessing {
 	private effects = new Map<string, { pass: { enabled: boolean } }>();
 
 	init(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
-		this.composer = new EffectComposer(renderer);
+		// Use multisampled render target so MSAA works with post-processing
+		const size = renderer.getSize(new THREE.Vector2());
+		const renderTarget = new THREE.WebGLRenderTarget(size.x, size.y, {
+			samples: 4,
+		});
+		this.composer = new EffectComposer(renderer, renderTarget);
 
 		// 1. Render pass
 		this.renderPass = new RenderPass(scene, camera);

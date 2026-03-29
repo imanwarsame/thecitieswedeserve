@@ -53,17 +53,17 @@ export class Lighting {
 		this.directional.castShadow = true;
 
 		const shadow = this.directional.shadow;
-		shadow.mapSize.width = 2048;
-		shadow.mapSize.height = 2048;
-		shadow.camera.near = 0.5;
-		shadow.camera.far = 100;
-		shadow.camera.left = -30;
-		shadow.camera.right = 30;
-		shadow.camera.top = 30;
-		shadow.camera.bottom = -30;
-		shadow.bias = -0.003;
-		shadow.normalBias = 0.5;
-		shadow.radius = 3;
+		shadow.mapSize.width = 4096;
+		shadow.mapSize.height = 4096;
+		shadow.camera.near = 1;
+		shadow.camera.far = 6000;
+		shadow.camera.left = -500;
+		shadow.camera.right = 500;
+		shadow.camera.top = 500;
+		shadow.camera.bottom = -500;
+		shadow.bias = -0.0003;
+		shadow.normalBias = 0.2;
+		shadow.radius = 1;
 
 		graph.addToGroup('environment', this.directional);
 
@@ -132,6 +132,10 @@ export class Lighting {
 
 	setShadowCenter(pos: THREE.Vector3): void {
 		this.shadowCenter.copy(pos);
+		// Move the shadow camera target to follow the view so the
+		// high-res shadow map always covers the visible area.
+		this.directional.target.position.copy(pos);
+		this.directional.target.updateMatrixWorld();
 	}
 
 	setDirectionalPosition(x: number, y: number, z: number): void {

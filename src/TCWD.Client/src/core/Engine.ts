@@ -64,6 +64,7 @@ export class Engine {
 	private _roadStartCell = -1;
 	/** Tint applied to the next housing placement at the clicked cell. */
 	private _housingColor = HOUSING_COLORS[0].hex;
+	private onDeleteKey: (e: KeyboardEvent) => void = () => {};
 
 	constructor() {
 		this.renderer = new Renderer();
@@ -135,6 +136,10 @@ export class Engine {
 			pp.getHoverOutlinePass(),
 			pp.getSelectOutlinePass(),
 		);
+
+		// Enable mesh-level selection on Forma GLB models
+		const formaGroup = gameScene.getFormaGroup();
+		if (formaGroup) this.selectionManager.setFormaGroup(formaGroup);
 
 		// Simulation bridge — connects the 3D world to the headless simulation
 		this.simulationBridge = new SimulationBridge(
@@ -227,6 +232,20 @@ export class Engine {
 		});
 		this.resizeObserver.observe(canvas);
 
+		// Delete/Backspace removes selected Forma mesh
+		this.onDeleteKey = (e: KeyboardEvent) => {
+			if (e.key === 'Delete' || e.key === 'Backspace') {
+				const selected = this.selectionManager.getSelected();
+				if (selected && selected instanceof THREE.Mesh) {
+					selected.geometry.dispose();
+					if (selected.parent) selected.parent.remove(selected);
+					this.selectionManager.clearSelection();
+					console.log(`[Engine] Deleted mesh: ${selected.name || '(unnamed)'}`);
+				}
+			}
+		};
+		window.addEventListener('keydown', this.onDeleteKey);
+
 		console.log('[Engine] Initialized.');
 	}
 
@@ -248,6 +267,7 @@ export class Engine {
 		this.input?.dispose();
 		this.cameraController?.dispose();
 		this.resizeObserver?.disconnect();
+		window.removeEventListener('keydown', this.onDeleteKey);
 		this.sceneManager.dispose();
 		this.materialRegistry?.dispose();
 		this.assetManager.dispose();
@@ -496,58 +516,65 @@ export class Engine {
 				return;
 			}
 
-			// Click
-			if (this.input.consumeClick() && cell) {
-				if (this._placementMode) {
-					// Road placement: cell-to-cell (click A then adjacent B)
-					if (this._placementMode === 'road' as BuildingType) {
-						if (this._roadStartCell === -1) {
-							// First click — mark start cell
-							this._roadStartCell = cellIndex;
-							events.emit('transport:roadStarted', { cellIndex });
-							return;
-						} else {
-							const from = this._roadStartCell;
-							// Only allow adjacent cells
-							const fromCell = this.grid.query.getCell(from);
-							if (fromCell && fromCell.neighbors.includes(cellIndex)) {
-								this.simulationBridge.addRoad(from, cellIndex);
-								// Chain mode: endpoint becomes new start for continuous drawing
-								this._roadStartCell = cellIndex;
-							} else {
-								// Non-adjacent — restart from clicked cell
-								this._roadStartCell = cellIndex;
-							}
-							return;
-						}
-					}
-
-					if (this._placementMode === 'housing') {
-						// Housing placement mode — place or stack
-						const hasHousing = this.housingSystem.hasHousing(cellIndex);
-						const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
-						if (isFree || hasHousing) {
-							this.housingSystem.setHousingColor(cellIndex, this._housingColor);
-							this.housingController.setAction('build');
-							events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
-							this.forceSelectCell(cellIndex);
-							return;
-						}
-					} else {
-						// Non-housing placement (solar, wind, etc.)
-						const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
-						if (placed) this.forceSelectCell(cellIndex);
-						return;
-					}
+			// Click — Forma mesh selection takes priority over grid cell
+			if (this.input.consumeClick()) {
+				const hoveredMesh = this.selectionManager.getHovered();
+				if (hoveredMesh) {
+					this.selectionManager.setSelected(hoveredMesh);
+					return;
 				}
 
-				// No placement mode — select/deselect
-				const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
-				events.emit('grid:cellClicked', { cellIndex, cell, entity });
-				if (this.selectedCellIndex === cellIndex) {
-					this.deselectCell();
-				} else {
-					this.selectCell(cellIndex);
+				if (cell) {
+					if (this._placementMode) {
+						// Road placement: cell-to-cell (click A then adjacent B)
+						if (this._placementMode === 'road' as BuildingType) {
+							if (this._roadStartCell === -1) {
+								// First click — mark start cell
+								this._roadStartCell = cellIndex;
+								events.emit('transport:roadStarted', { cellIndex });
+								return;
+							} else {
+								const from = this._roadStartCell;
+								// Only allow adjacent cells
+								const fromCell = this.grid.query.getCell(from);
+								if (fromCell && fromCell.neighbors.includes(cellIndex)) {
+									this.simulationBridge.addRoad(from, cellIndex);
+									// Chain mode: endpoint becomes new start for continuous drawing
+									this._roadStartCell = cellIndex;
+								} else {
+									// Non-adjacent — restart from clicked cell
+									this._roadStartCell = cellIndex;
+								}
+								return;
+							}
+						}
+
+						if (this._placementMode === 'housing') {
+							// Housing placement mode — place or stack
+							const hasHousing = this.housingSystem.hasHousing(cellIndex);
+							const isFree = gameScene.getGridPlacement().isCellFree(cellIndex);
+							if (isFree || hasHousing) {
+								this.housingSystem.setHousingColor(cellIndex, this._housingColor);
+								this.housingController.setAction('build');
+								events.emit('grid:cellClicked', { cellIndex, cell, entity: null });
+								this.forceSelectCell(cellIndex);
+								return;
+							}
+						} else {
+							// Non-housing placement (solar, wind, etc.)
+							const placed = this.simulationBridge.addBuilding(this._placementMode, cellIndex);
+							if (placed) this.forceSelectCell(cellIndex);
+							return;
+						}
+					}
+
+					const entity = gameScene.getEntityManager().getEntityAtCell(cellIndex);
+					events.emit('grid:cellClicked', { cellIndex, cell, entity });
+					if (this.selectedCellIndex === cellIndex) {
+						this.deselectCell();
+					} else {
+						this.selectCell(cellIndex);
+					}
 				}
 			}
 		} else {
@@ -564,9 +591,15 @@ export class Engine {
 				return;
 			}
 
-			// Click on empty space deselects
+			// Click on empty space — select hovered forma mesh or deselect
 			if (this.input.consumeClick()) {
-				this.deselectCell();
+				const hovered = this.selectionManager.getHovered();
+				if (hovered) {
+					this.selectionManager.setSelected(hovered);
+				} else {
+					this.deselectCell();
+					this.selectionManager.clearSelection();
+				}
 			}
 		}
 	}

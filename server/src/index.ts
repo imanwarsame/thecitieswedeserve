@@ -35,6 +35,10 @@ app.get('/health', (_req, res) => {
 // Track which socket created each session
 const sessionCreators = new Map<string, string>(); // sessionId → socketId
 
+// Grace period timers for creator disconnects (allows refresh without destroying session)
+const creatorGraceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const CREATOR_GRACE_MS = 10_000; // 10 seconds to rejoin
+
 // Track users per session: sessionId → Map<socketId, UserInfo>
 interface UserInfo { id: string; name: string; color: string }
 const sessionUsers = new Map<string, Map<string, UserInfo>>();
@@ -106,6 +110,30 @@ io.on('connection', (socket) => {
     io.to(sessionId).emit('users-updated', getUserList(sessionId));
   });
 
+  // Creator rejoining after refresh — reclaim ownership
+  socket.on('rejoin-session', async (sessionId: string) => {
+    const session = await store.getSession(sessionId);
+    if (!session) {
+      socket.emit('session-error', 'Session not found or expired');
+      return;
+    }
+
+    // Cancel grace timer if pending
+    const timer = creatorGraceTimers.get(sessionId);
+    if (timer) { clearTimeout(timer); creatorGraceTimers.delete(sessionId); }
+
+    currentSession = sessionId;
+    userInfo = randomUser(socket.id);
+    sessionCreators.set(sessionId, socket.id);
+
+    if (!sessionUsers.has(sessionId)) sessionUsers.set(sessionId, new Map());
+    sessionUsers.get(sessionId)!.set(socket.id, userInfo);
+
+    socket.join(sessionId);
+    socket.emit('session-joined', { sessionId, role: 'creator', user: userInfo });
+    io.to(sessionId).emit('users-updated', getUserList(sessionId));
+  });
+
   // Creator sends full state to a specific joiner
   socket.on('state-response', (data: { targetId: string; state: unknown }) => {
     io.to(data.targetId).emit('sync-state', data.state);
@@ -138,20 +166,29 @@ io.on('connection', (socket) => {
     socket.to(currentSession).emit('scene-delta', delta);
   });
 
-  socket.on('disconnect', async () => {
+  socket.on('disconnect', () => {
     if (!currentSession) return;
+    const sid = currentSession;
 
     // Remove user from tracking
-    sessionUsers.get(currentSession)?.delete(socket.id);
+    sessionUsers.get(sid)?.delete(socket.id);
 
-    // If the creator disconnects, destroy the session
-    if (sessionCreators.get(currentSession) === socket.id) {
-      io.to(currentSession).emit('session-closed', 'Creator left — session ended.');
-      sessionCreators.delete(currentSession);
-      sessionUsers.delete(currentSession);
-      await store.deleteSession(currentSession);
+    if (sessionCreators.get(sid) === socket.id) {
+      // Creator disconnected — start grace period (allows refresh)
+      const timer = setTimeout(async () => {
+        creatorGraceTimers.delete(sid);
+        // If no one reclaimed creator role, destroy the session
+        if (sessionCreators.get(sid) === socket.id) {
+          io.to(sid).emit('session-closed', 'Creator left — session ended.');
+          sessionCreators.delete(sid);
+          sessionUsers.delete(sid);
+          await store.deleteSession(sid);
+        }
+      }, CREATOR_GRACE_MS);
+      creatorGraceTimers.set(sid, timer);
+      io.to(sid).emit('users-updated', getUserList(sid));
     } else {
-      io.to(currentSession).emit('users-updated', getUserList(currentSession));
+      io.to(sid).emit('users-updated', getUserList(sid));
     }
   });
 });

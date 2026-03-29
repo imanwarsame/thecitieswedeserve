@@ -10,6 +10,7 @@ export class SelectionManager {
 	private input!: Input;
 	private camera!: THREE.Camera;
 	private entityGroup!: THREE.Group;
+	private formaGroup: THREE.Group | null = null;
 	private hoverOutline!: OutlinePass;
 	private selectOutline!: OutlinePass;
 
@@ -31,16 +32,18 @@ export class SelectionManager {
 		this.selectOutline = selectOutline;
 	}
 
+	/** Set the GLB container so individual meshes inside it can be hovered/selected. */
+	setFormaGroup(group: THREE.Group): void {
+		this.formaGroup = group;
+	}
+
 	update(): void {
 		this.frameCounter++;
 
 		// Throttle raycasting
 		if (this.frameCounter % RAYCAST_THROTTLE !== 0) return;
 
-		this.raycaster.setFromCamera(this.input.mouse, this.camera);
-		const intersects = this.raycaster.intersectObjects(this.entityGroup.children, true);
-
-		const hit = intersects.length > 0 ? this.resolveTopLevelObject(intersects[0].object) : null;
+		const hit = this.raycastAll();
 
 		if (hit !== this.hoveredObject) {
 			const previous = this.hoveredObject;
@@ -56,9 +59,7 @@ export class SelectionManager {
 		this.frameCounter++;
 		if (this.frameCounter % RAYCAST_THROTTLE !== 0) return;
 
-		this.raycaster.setFromCamera(this.input.mouse, this.camera);
-		const intersects = this.raycaster.intersectObjects(this.entityGroup.children, true);
-		const hit = intersects.length > 0 ? this.resolveTopLevelObject(intersects[0].object) : null;
+		const hit = this.raycastAll();
 
 		if (hit !== this.hoveredObject) {
 			const previous = this.hoveredObject;
@@ -113,6 +114,34 @@ export class SelectionManager {
 		}
 	}
 
+	/**
+	 * Raycast against both entity group (resolve to entity root) and
+	 * forma group (resolve to individual mesh). Returns the closest hit.
+	 */
+	private raycastAll(): THREE.Object3D | null {
+		this.raycaster.setFromCamera(this.input.mouse, this.camera);
+
+		let bestHit: THREE.Object3D | null = null;
+		let bestDist = Infinity;
+
+		// Entity group — resolve to top-level entity
+		const entityHits = this.raycaster.intersectObjects(this.entityGroup.children, true);
+		if (entityHits.length > 0) {
+			bestHit = this.resolveTopLevelObject(entityHits[0].object);
+			bestDist = entityHits[0].distance;
+		}
+
+		// Forma group — resolve to individual mesh
+		if (this.formaGroup) {
+			const formaHits = this.raycaster.intersectObject(this.formaGroup, true);
+			if (formaHits.length > 0 && formaHits[0].distance < bestDist) {
+				bestHit = this.resolveMesh(formaHits[0].object);
+			}
+		}
+
+		return bestHit;
+	}
+
 	/** Walk up to the direct child of entityGroup (the entity root mesh) */
 	private resolveTopLevelObject(object: THREE.Object3D): THREE.Object3D {
 		let current = object;
@@ -120,5 +149,16 @@ export class SelectionManager {
 			current = current.parent;
 		}
 		return current;
+	}
+
+	/** Resolve to the nearest Mesh ancestor (individual GLB mesh). */
+	private resolveMesh(object: THREE.Object3D): THREE.Object3D {
+		if (object instanceof THREE.Mesh) return object;
+		let current = object;
+		while (current.parent) {
+			if (current instanceof THREE.Mesh) return current;
+			current = current.parent;
+		}
+		return object;
 	}
 }
