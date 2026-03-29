@@ -543,12 +543,14 @@ export class Engine {
 				return;
 			}
 
-			// Click — Forma mesh selection takes priority over grid cell
+			// Click — in placement mode, skip Forma mesh selection and go to grid
 			if (this.input.consumeClick()) {
-				const hoveredMesh = this.selectionManager.getHovered();
-				if (hoveredMesh) {
-					this.selectionManager.setSelected(hoveredMesh);
-					return;
+				if (!this._placementMode) {
+					const hoveredMesh = this.selectionManager.getHovered();
+					if (hoveredMesh) {
+						this.selectionManager.setSelected(hoveredMesh);
+						return;
+					}
 				}
 
 				if (cell) {
