@@ -11,8 +11,8 @@ const MODE_SPEED: Record<TransportMode, number> = {
 	[TransportMode.Train]: 80,
 };
 
-/** Walking speed for station-access edges (km/h). */
-const WALK_SPEED = 5;
+// /** Walking speed for station-access edges (km/h). */
+// const WALK_SPEED = 5;
 
 const MODE_COST_PER_KM: Record<TransportMode, number> = {
 	[TransportMode.Road]: 0.15,
@@ -214,7 +214,7 @@ export class TransportNetwork {
 
 		// Metro: available on explicit metro links at metro speed.
 		// Walking access to/from stations is handled dynamically by the
-		// RouteResolver (walking fallback on any non-virtual adjacency edge).
+		// RouteResolver (walking fallback on adjacency edges near stations).
 		if (this.explicitMetroLinks.has(edgeKey(from, to))) {
 			w[TransportMode.Metro] = {
 				timeMins: (distKm / MODE_SPEED[TransportMode.Metro]) * 60,
