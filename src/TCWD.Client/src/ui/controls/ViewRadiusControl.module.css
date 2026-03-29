@@ -4,19 +4,23 @@
 	right: 20px;
 	z-index: 20;
 	pointer-events: auto;
-	padding: 6px 14px;
+	padding: 4px 6px;
 	background: #f0f0f0;
 	border: 1px solid rgba(180, 180, 180, 0.4);
 	border-radius: 10px;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
-	width: 160px;
+	width: 100px;
+	display: flex;
+	align-items: center;
+	height: 36px;
+	box-sizing: border-box;
 }
 
 @media (max-width: 768px), (pointer: coarse) {
 	.wrapper {
 		bottom: max(68px, calc(env(safe-area-inset-bottom, 12px) + 60px));
 		right: 6px;
-		width: 130px;
-		padding: 8px 12px;
+		width: 90px;
+		padding: 4px 8px;
 	}
 }
