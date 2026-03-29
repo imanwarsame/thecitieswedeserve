@@ -155,6 +155,7 @@ export class ZoneOverlayRenderer {
 	}
 
 	update(_delta: number): void {
+		void _delta;
 		if (this.dirty && this._visible) {
 			this.dirty = false;
 			this.rebuild();
