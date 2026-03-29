@@ -1,111 +1,244 @@
-.panelLeft,
-.panelRight {
+/* ── Full-width top bar ─────────────────────────────────── */
+.topBar {
 	position: fixed;
-	top: 12px;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 15;
 	pointer-events: auto;
 	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px 8px;
-	background: #f0f0f0;
-	border: 1px solid rgba(180, 180, 180, 0.35);
-	border-radius: 8px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+	flex-direction: column;
+	background: rgba(244, 244, 244, 0.97);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border-bottom: 1px solid rgba(140, 140, 140, 0.2);
+	box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
 	font-family: 'Inter', system-ui, sans-serif;
-	font-size: 11px;
-	color: rgba(70, 70, 70, 0.8);
-	z-index: 15;
+	font-size: 15px;
+	color: rgba(30, 30, 30, 0.9);
 }
 
-/* Width follows compact dashboards; avoid spanning past center on wide screens */
-.panelRight {
-	width: max-content;
-	max-width: max(280px, min(92vw, calc(100vw - 520px)));
-	flex-wrap: nowrap;
+.row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 7px 16px;
+	gap: 12px;
+	min-height: 44px;
 }
 
-.panelLeft {
-	left: 12px;
+.row + .row:not(.rowEnd) {
+	border-top: 1px solid rgba(150, 150, 150, 0.15);
 }
 
-.panelRight {
-	right: 12px;
+.rowLeft {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: 1;
+	min-width: 0;
 }
 
+.rowRight {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+/* Full-width row content — info bars use this */
+.rowFull {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+}
+
+/* ── Desktop: info bars float as a stacked pill column ───── */
+@media (min-width: 601px) {
+	.floatingBars {
+		position: fixed;
+		right: 16px;
+		top: 66px;
+		z-index: 15;
+		pointer-events: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		max-width: calc(100vw - 32px);
+		align-items: stretch;
+	}
+
+	.rowEnd {
+		width: 100%;
+		max-width: 100%;
+		padding: 6px 14px;
+		background: rgba(244, 244, 244, 0.97);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		border: 1px solid rgba(140, 140, 140, 0.2);
+		border-radius: 12px;
+		box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
+		min-height: auto;
+		gap: 0;
+		justify-content: flex-start;
+	}
+
+	.rowEnd .rowFull {
+		flex: 0 1 auto;
+		min-width: 0;
+	}
+}
+
+/* ── Playback ───────────────────────────────────────────── */
 .iconBtn {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 22px;
-	height: 22px;
+	width: 34px;
+	height: 34px;
 	border: none;
 	background: transparent;
-	color: rgba(60, 60, 60, 0.7);
+	color: rgba(30, 30, 30, 0.75);
 	cursor: pointer;
-	border-radius: 4px;
+	border-radius: 7px;
 	padding: 0;
 	transition: background 0.12s ease;
+	flex-shrink: 0;
+	touch-action: manipulation;
 }
 
 .iconBtn:hover {
-	background: rgba(180, 180, 180, 0.25);
+	background: rgba(150, 150, 150, 0.18);
+}
+
+.iconBtn:active {
+	background: rgba(130, 130, 130, 0.28);
 }
 
 .speeds {
 	display: flex;
-	gap: 1px;
+	gap: 3px;
 }
 
 .speedBtn {
 	border: none;
 	background: transparent;
-	color: rgba(80, 80, 80, 0.45);
+	color: rgba(55, 55, 55, 0.6);
 	font-family: ui-monospace, Consolas, monospace;
-	font-size: 9px;
+	font-size: 13px;
 	cursor: pointer;
-	padding: 2px 4px;
-	border-radius: 3px;
+	padding: 5px 9px;
+	border-radius: 6px;
+	min-height: 30px;
 	transition: background 0.12s ease, color 0.12s ease;
+	touch-action: manipulation;
 }
 
 .speedBtn:hover {
-	background: rgba(180, 180, 180, 0.25);
+	background: rgba(150, 150, 150, 0.18);
+	color: rgba(25, 25, 25, 0.9);
 }
 
 .speedActive {
-	background: rgba(160, 160, 160, 0.35);
-	color: rgba(40, 40, 40, 0.85);
+	background: rgba(120, 120, 120, 0.2);
+	color: rgba(20, 20, 20, 0.95);
+	font-weight: 600;
 }
 
+/* ── Time display ───────────────────────────────────────── */
 .sep {
 	width: 1px;
-	height: 14px;
-	background: rgba(170, 170, 170, 0.3);
+	height: 20px;
+	background: rgba(150, 150, 150, 0.3);
 	flex-shrink: 0;
 }
 
 .clock {
 	display: flex;
 	align-items: center;
-	gap: 3px;
+	gap: 5px;
 	font-family: ui-monospace, Consolas, monospace;
-	font-size: 11px;
-	color: rgba(60, 60, 60, 0.7);
+	font-size: 16px;
+	font-weight: 600;
+	color: rgba(25, 25, 25, 0.9);
 	white-space: nowrap;
+	letter-spacing: 0.02em;
 }
 
 .phase {
-	font-size: 9px;
-	font-weight: 400;
-	color: rgba(80, 80, 80, 0.4);
+	font-size: 12px;
+	font-weight: 500;
+	color: rgba(60, 60, 60, 0.65);
 	text-transform: uppercase;
-	letter-spacing: 0.05em;
+	letter-spacing: 0.07em;
 	white-space: nowrap;
 }
 
 .day {
 	font-family: ui-monospace, Consolas, monospace;
-	font-size: 9px;
-	color: rgba(80, 80, 80, 0.4);
+	font-size: 14px;
+	font-weight: 500;
+	color: rgba(60, 60, 60, 0.65);
 	white-space: nowrap;
+}
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 600px) {
+	.row {
+		padding: 5px 12px;
+		min-height: 38px;
+		gap: 8px;
+	}
+
+	.rowLeft {
+		gap: 7px;
+		flex-wrap: wrap;
+	}
+
+	/* floatingBars becomes a normal block column inside the bar */
+	.floatingBars {
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Info bar rows scroll horizontally on mobile */
+	.rowEnd .rowFull {
+		flex: 1;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+
+	.rowEnd .rowFull::-webkit-scrollbar {
+		display: none;
+	}
+
+	.rowEnd + .rowEnd {
+		border-top: 1px solid rgba(150, 150, 150, 0.15);
+	}
+
+	.phase {
+		display: none;
+	}
+}
+
+
+/* ── Very small screens ─────────────────────────────────── */
+@media (max-width: 400px) {
+	.day {
+		display: none;
+	}
+
+	.speedBtn {
+		padding: 5px 7px;
+		font-size: 12px;
+	}
+
+	.clock {
+		font-size: 15px;
+	}
 }

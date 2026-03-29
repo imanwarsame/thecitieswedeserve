@@ -2,9 +2,6 @@ import { useId, useMemo } from 'react';
 import {
 	Area,
 	AreaChart,
-	Bar,
-	BarChart,
-	Cell,
 	Tooltip,
 	XAxis,
 	YAxis,
@@ -30,7 +27,7 @@ const tipStyle = {
 	boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
 };
 
-export function EnergyDashboard() {
+export function EnergyBar() {
 	const stabGradId = `energy-stab-${useId().replace(/:/g, '')}`;
 	const { state } = useSimulation();
 	const { energy, history } = state;
@@ -47,14 +44,6 @@ export function EnergyDashboard() {
 		];
 	}, [history, energy.gridStability]);
 
-	const powerRows = useMemo(
-		() => [
-			{ k: 'D', v: Math.max(0, energy.totalDemandMWh) },
-			{ k: 'S', v: Math.max(0, energy.totalSupplyMWh) },
-		],
-		[energy.totalDemandMWh, energy.totalSupplyMWh],
-	);
-
 	const stabilityClass =
 		energy.gridStability < 0.9 ? styles.warn :
 			energy.gridStability >= 1.0 ? styles.ok : '';
@@ -65,36 +54,13 @@ export function EnergyDashboard() {
 
 			<div className={styles.block}>
 				<span className={styles.blockLabel}>MW</span>
-				<div className={styles.chartBox}>
-					<BarChart
-						width={52}
-						height={30}
-						data={powerRows}
-						layout="vertical"
-						margin={{ left: 0, right: 2, top: 0, bottom: 0 }}
-					>
-						<XAxis type="number" hide domain={[0, 'dataMax']} />
-						<YAxis
-							type="category"
-							dataKey="k"
-							width={12}
-							tick={{ fontSize: 7, fill: 'rgba(80, 80, 80, 0.45)' }}
-							axisLine={false}
-							tickLine={false}
-						/>
-						<Tooltip
-							cursor={false}
-							contentStyle={tipStyle}
-							formatter={(v) => {
-								const n = typeof v === 'number' ? v : Number(v);
-								return Number.isFinite(n) ? [`${fmt(n)} MW`, ''] : ['', ''];
-							}}
-						/>
-						<Bar dataKey="v" radius={[0, 2, 2, 0]} barSize={6} isAnimationActive={false}>
-							<Cell fill="hsl(var(--chart-1))" />
-							<Cell fill="hsl(var(--chart-2))" />
-						</Bar>
-					</BarChart>
+				<div className={styles.metric}>
+					<span className={styles.label}>D</span>
+					<span className={`${styles.value} ${styles.warn}`}>{fmt(Math.max(0, energy.totalDemandMWh))}</span>
+				</div>
+				<div className={styles.metric}>
+					<span className={styles.label}>S</span>
+					<span className={`${styles.value} ${styles.ok}`}>{fmt(Math.max(0, energy.totalSupplyMWh))}</span>
 				</div>
 			</div>
 
@@ -104,10 +70,10 @@ export function EnergyDashboard() {
 				<span className={styles.blockLabel}>Stab</span>
 				<div className={styles.sparkCol}>
 					<AreaChart
-						width={44}
-						height={22}
+						width={90}
+						height={28}
 						data={stabilitySeries}
-						margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+						margin={{ top: 2, right: 0, left: 0, bottom: 2 }}
 					>
 						<defs>
 							<linearGradient id={stabGradId} x1="0" y1="0" x2="0" y2="1">

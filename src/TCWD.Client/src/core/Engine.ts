@@ -18,6 +18,7 @@ import { installRadialFog } from '../rendering/RadialFog';
 import { HOUSING_COLORS } from '../rendering/Palette';
 import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
 import { TransportRenderer } from '../rendering/TransportRenderer';
+import { FlowOverlayRenderer } from '../rendering/FlowOverlayRenderer';
 import { TransportModule } from '../simulation/transport/TransportModule';
 import { ModelFactory } from '../assets/ModelFactory';
 import { AssetCatalog, DefaultMaterialPresets } from '../assets/AssetCatalog';
@@ -55,6 +56,7 @@ export class Engine {
 	private infrastructureRenderer!: InfrastructureRenderer;
 	private transportModule!: TransportModule;
 	private transportRenderer!: TransportRenderer;
+	private flowOverlayRenderer!: FlowOverlayRenderer;
 	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 	private raycaster = new THREE.Raycaster();
 	private hoveredCellIndex = -1;
@@ -188,6 +190,14 @@ export class Engine {
 			this.grid.cells,
 		);
 
+		// Population flow / congestion overlay (toggleable)
+		this.flowOverlayRenderer = new FlowOverlayRenderer(
+			gameScene.getGroup('effects'),
+			this.transportModule,
+			this.grid.cells,
+			gameScene.root,
+		);
+
 		this.loop = new Loop(this.renderPipeline, gameScene.root, camera, this.time);
 
 		this.loop.register((delta, unscaledDelta) => {
@@ -204,6 +214,7 @@ export class Engine {
 			this.cameraController.update(unscaledDelta);
 			this.infrastructureRenderer.update(delta);
 			this.transportRenderer.update();
+			this.flowOverlayRenderer.update(delta);
 			// Use unscaledDelta so animations play regardless of game time speed
 			this.simulationBridge.updateAnimations(unscaledDelta);
 
@@ -262,6 +273,7 @@ export class Engine {
 		this.housingSystem?.dispose();
 		this.simulationBridge?.dispose();
 		this.transportRenderer?.dispose();
+		this.flowOverlayRenderer?.dispose();
 		this.infrastructureRenderer?.dispose();
 		this.selectionManager?.dispose();
 		this.input?.dispose();
@@ -366,6 +378,10 @@ export class Engine {
 
 	getSimulationBridge(): SimulationBridge {
 		return this.simulationBridge;
+	}
+
+	getFlowOverlayRenderer(): FlowOverlayRenderer {
+		return this.flowOverlayRenderer;
 	}
 
 	getHousingSystem(): HousingSystem {
