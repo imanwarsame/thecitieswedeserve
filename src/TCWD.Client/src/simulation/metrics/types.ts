@@ -62,13 +62,15 @@ export interface CityMetrics {
 	readonly tourismIndex: number;
 }
 
-// ── Transport metrics (stub — future layer) ─────────────────
+// ── Transport metrics ────────────────────────────────────────
 
 export interface TransportMetrics {
 	readonly totalPassengersPerHour: number;
 	readonly averageCommuteMins: number;
 	readonly congestionIndex: number;
 	readonly evAdoptionRate: number;
+	/** Fraction of trips per mode (0–1 each). */
+	readonly modalSplit: Readonly<Record<string, number>>;
 }
 
 // ── Water metrics (stub — future layer) ─────────────────────

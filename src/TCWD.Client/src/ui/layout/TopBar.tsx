@@ -1,7 +1,7 @@
 import { useWorldClock } from '../hooks/useWorldClock';
 import { useTimeController } from '../hooks/useTimeController';
-import { EnergyDashboard } from '../controls/EnergyDashboard';
-import { CityDashboard } from '../controls/CityDashboard';
+import { EnergyBar } from '../controls/EnergyDashboard';
+import { CityBar } from '../controls/CityDashboard';
 import { SessionControls } from '../controls/SessionControls';
 import { SeasonControls } from '../controls/SeasonControls';
 import { formatWorldHour } from '../utils/formatWorldHour';
@@ -19,53 +19,61 @@ export function TopBar() {
 	const { paused, speed, tc } = useTimeController();
 
 	return (
-		<>
-			{/* Left panel — time info + controls */}
-			<div className={styles.panelLeft}>
-				<button
-					className={styles.iconBtn}
-					onClick={() => paused ? tc.play() : tc.pause()}
-					title={paused ? 'Play (Space)' : 'Pause (Space)'}
-				>
-					{paused
-						? <Play size={12} strokeWidth={2.2} />
-						: <Pause size={12} strokeWidth={2.2} />
-					}
-				</button>
+		<div className={styles.topBar}>
+			{/* Row 1 — playback controls + time + session */}
+			<div className={styles.row}>
+				<div className={styles.rowLeft}>
+					<button
+						className={styles.iconBtn}
+						onClick={() => paused ? tc.play() : tc.pause()}
+						title={paused ? 'Play (Space)' : 'Pause (Space)'}
+					>
+						{paused
+							? <Play size={18} strokeWidth={2} />
+							: <Pause size={18} strokeWidth={2} />
+						}
+					</button>
 
-				<div className={styles.speeds}>
-					{SPEED_PRESETS.map(p => (
-						<button
-							key={p.label}
-							className={`${styles.speedBtn} ${speed === p.value && !paused ? styles.speedActive : ''}`}
-							onClick={() => { tc.play(); tc.setSpeed(p.value); }}
-						>
-							{p.label}
-						</button>
-					))}
+					<div className={styles.speeds}>
+						{SPEED_PRESETS.map(p => (
+							<button
+								key={p.label}
+								className={`${styles.speedBtn} ${speed === p.value && !paused ? styles.speedActive : ''}`}
+								onClick={() => { tc.play(); tc.setSpeed(p.value); }}
+							>
+								{p.label}
+							</button>
+						))}
+					</div>
+
+					<span className={styles.sep} />
+
+					<span className={styles.clock}>
+						<Clock size={15} strokeWidth={2} />
+						{formatWorldHour(hour)}
+					</span>
+
+					<span className={styles.phase}>{phase}</span>
+
+					<span className={styles.day}>D{dayCount + 1}</span>
+
+					<SeasonControls />
 				</div>
 
-				<span className={styles.sep} />
-
-				<span className={styles.clock}>
-					<Clock size={10} strokeWidth={2} />
-					{formatWorldHour(hour)}
-				</span>
-
-				<span className={styles.phase}>{phase}</span>
-
-				<span className={styles.day}>D{dayCount + 1}</span>
-
-				<SeasonControls />
+				<div className={styles.rowRight}>
+					<SessionControls />
+				</div>
 			</div>
 
-			{/* Right panel — dashboards + session */}
-			<div className={styles.panelRight}>
-				<EnergyDashboard />
-				<CityDashboard />
-				<span className={styles.sep} />
-				<SessionControls />
+			{/* Info bars — floating pills on desktop, inline rows on mobile */}
+			<div className={styles.floatingBars}>
+				<div className={`${styles.row} ${styles.rowEnd}`}>
+					<div className={styles.rowFull}><EnergyBar /></div>
+				</div>
+				<div className={`${styles.row} ${styles.rowEnd}`}>
+					<div className={styles.rowFull}><CityBar /></div>
+				</div>
 			</div>
-		</>
+		</div>
 	);
 }

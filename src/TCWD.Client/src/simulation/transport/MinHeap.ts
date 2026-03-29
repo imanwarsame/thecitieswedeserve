@@ -1,0 +1,55 @@
+// ── Binary Min-Heap (for Dijkstra) ──────────────────────────
+//
+// Generic priority queue keyed by a numeric priority.
+
+export interface HeapEntry<T> {
+	priority: number;
+	value: T;
+}
+
+export class MinHeap<T> {
+	private data: HeapEntry<T>[] = [];
+
+	get size(): number {
+		return this.data.length;
+	}
+
+	push(priority: number, value: T): void {
+		this.data.push({ priority, value });
+		this.bubbleUp(this.data.length - 1);
+	}
+
+	pop(): HeapEntry<T> | undefined {
+		if (this.data.length === 0) return undefined;
+		const top = this.data[0];
+		const last = this.data.pop()!;
+		if (this.data.length > 0) {
+			this.data[0] = last;
+			this.sinkDown(0);
+		}
+		return top;
+	}
+
+	private bubbleUp(i: number): void {
+		while (i > 0) {
+			const parent = (i - 1) >> 1;
+			if (this.data[i].priority >= this.data[parent].priority) break;
+			[this.data[i], this.data[parent]] = [this.data[parent], this.data[i]];
+			i = parent;
+		}
+	}
+
+	private sinkDown(i: number): void {
+		const n = this.data.length;
+		while (true) {
+			let smallest = i;
+			const left = 2 * i + 1;
+			const right = 2 * i + 2;
+			if (left < n && this.data[left].priority < this.data[smallest].priority) smallest = left;
+			if (right < n && this.data[right].priority < this.data[smallest].priority) smallest = right;
+			if (smallest === i) break;
+			[this.data[i], this.data[smallest]] = [this.data[smallest], this.data[i]];
+			i = smallest;
+		}
+	}
+}

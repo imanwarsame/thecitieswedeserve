@@ -28,6 +28,9 @@ const MAT_LEISURE = new THREE.MeshStandardMaterial({ color: 0x9898b0, roughness:
 const MAT_PARK_GROUND = new THREE.MeshStandardMaterial({ color: 0x6a7a5a, roughness: 1.0, metalness: 0.0, fog: false });
 const MAT_PARK_TREE = new THREE.MeshStandardMaterial({ color: 0x5a6a4a, roughness: 0.9, metalness: 0.0, fog: false });
 const MAT_PARK_TRUNK = new THREE.MeshStandardMaterial({ color: 0x8a7060, roughness: 0.95, metalness: 0.0, fog: false });
+const MAT_METRO = new THREE.MeshStandardMaterial({ color: 0x505060, roughness: 0.5, metalness: 0.3, fog: false });
+const MAT_TRAIN = new THREE.MeshStandardMaterial({ color: 0x686878, roughness: 0.55, metalness: 0.25, fog: false });
+const MAT_CYCLE = new THREE.MeshStandardMaterial({ color: 0x7a9a6a, roughness: 0.8, metalness: 0.05, fog: false });
 
 // Emissive window / LED materials – shared so a single update lights every building
 export const MAT_HOUSING_WINDOW = new THREE.MeshStandardMaterial({
@@ -245,6 +248,48 @@ function createLeisureMesh(): THREE.Group {
 	return group;
 }
 
+function createMetroStationMesh(): THREE.Group {
+	const group = new THREE.Group();
+	// Rectangular station building
+	const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.35, 0.6), MAT_METRO);
+	body.position.y = 0.175;
+	// Entrance arch
+	const arch = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.1), MAT_CHIMNEY);
+	arch.position.set(0, 0.2, 0.35);
+	group.add(body, arch);
+	group.scale.setScalar(BUILDING_SCALE);
+	enableShadows(group);
+	return group;
+}
+
+function createTrainStationMesh(): THREE.Group {
+	const group = new THREE.Group();
+	// Main hall
+	const hall = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.8), MAT_TRAIN);
+	hall.position.y = 0.3;
+	// Arched roof
+	const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8, 1, false, 0, Math.PI), MAT_WIND_POLE);
+	roof.rotation.z = Math.PI / 2;
+	roof.position.y = 0.65;
+	group.add(hall, roof);
+	group.scale.setScalar(BUILDING_SCALE);
+	enableShadows(group);
+	return group;
+}
+
+function createCyclePathMesh(): THREE.Group {
+	const group = new THREE.Group();
+	// Simple post with cycle symbol
+	const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), MAT_CHIMNEY);
+	post.position.y = 0.25;
+	const sign = new THREE.Mesh(new THREE.CircleGeometry(0.1, 8), MAT_CYCLE);
+	sign.position.set(0, 0.5, 0.01);
+	group.add(post, sign);
+	group.scale.setScalar(BUILDING_SCALE);
+	enableShadows(group);
+	return group;
+}
+
 function createParkMesh(): THREE.Group {
 	const group = new THREE.Group();
 	// Ground disc
@@ -277,7 +322,11 @@ export type BuildingType =
 	| 'commercial'
 	| 'school'
 	| 'leisure'
-	| 'park';
+	| 'park'
+	| 'road'
+	| 'metro'
+	| 'train'
+	| 'cyclePath';
 
 const MESH_CREATORS: Record<BuildingType, () => THREE.Group> = {
 	housing: createHousingMesh,
@@ -292,6 +341,10 @@ const MESH_CREATORS: Record<BuildingType, () => THREE.Group> = {
 	school: createSchoolMesh,
 	leisure: createLeisureMesh,
 	park: createParkMesh,
+	metro: createMetroStationMesh,
+	train: createTrainStationMesh,
+	cyclePath: createCyclePathMesh,
+	road: createCyclePathMesh, // Road is edge-based; this mesh is unused but required by type
 };
 
 export function createBuildingMesh(type: BuildingType): THREE.Group {
@@ -559,6 +612,8 @@ export function buildingTypeFromSimEntity(entity: SimEntity): BuildingType {
 			return 'leisure';
 		case EntityType.Park:
 			return 'park';
+		case EntityType.Transport:
+			return 'metro'; // default transport visual
 		default:
 			return 'housing';
 	}
@@ -591,6 +646,14 @@ export function simEntityTypeFromBuildingType(bt: BuildingType): { entityType: s
 			return { entityType: EntityType.Leisure };
 		case 'park':
 			return { entityType: EntityType.Park };
+		case 'metro':
+			return { entityType: EntityType.Transport };
+		case 'train':
+			return { entityType: EntityType.Transport };
+		case 'cyclePath':
+			return { entityType: EntityType.Transport };
+		case 'road':
+			return { entityType: EntityType.Transport };
 	}
 }
 
@@ -607,6 +670,10 @@ export const BUILDING_LABELS: Record<BuildingType, string> = {
 	school: 'School',
 	leisure: 'Leisure',
 	park: 'Park',
+	metro: 'Metro Station',
+	train: 'Train Station',
+	cyclePath: 'Cycle Path',
+	road: 'Road',
 };
 
 // ── Night-time building lights ───────────────────────────────
