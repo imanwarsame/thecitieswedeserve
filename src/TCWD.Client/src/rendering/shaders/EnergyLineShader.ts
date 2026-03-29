@@ -1,8 +1,6 @@
 export const EnergyLineShader = {
 	uniforms: {
 		uTime: { value: 0 },
-		uLineLength: { value: 1 },
-		uTimeOffset: { value: 0 },      // random per-line offset for desync
 		uColor: { value: null },         // THREE.Color
 		uOpacity: { value: 0.4 },
 		uPulseSpeed: { value: 0.4 },     // travel speed once a pulse is active
@@ -12,19 +10,21 @@ export const EnergyLineShader = {
 	},
 
 	vertexShader: /* glsl */ `
-		attribute float lineDistance;
-		varying float vDist;
+		attribute float aSegmentT;   // 0.0 at segment start, 1.0 at segment end
+		attribute float aTimeOffset; // per-segment random phase offset
+
+		varying float vSegmentT;
+		varying float vTimeOffset;
 
 		void main() {
-			vDist = lineDistance;
+			vSegmentT   = aSegmentT;
+			vTimeOffset = aTimeOffset;
 			gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 		}
 	`,
 
 	fragmentShader: /* glsl */ `
 		uniform float uTime;
-		uniform float uLineLength;
-		uniform float uTimeOffset;
 		uniform vec3  uColor;
 		uniform float uOpacity;
 		uniform float uPulseSpeed;
@@ -32,7 +32,8 @@ export const EnergyLineShader = {
 		uniform float uPulseBright;
 		uniform float uDarkness;
 
-		varying float vDist;
+		varying float vSegmentT;
+		varying float vTimeOffset;
 
 		// cheap hash for per-pulse variation
 		float hash(float n) {
@@ -43,22 +44,21 @@ export const EnergyLineShader = {
 			float alpha = uOpacity;
 			vec3  col   = uColor;
 
-			float norm = vDist / uLineLength;   // 0→1 along line
-			float dot  = 0.0;
+			float dot = 0.0;
 
 			// 2 gentle pulses, each on a long random cycle (~2-4s)
 			for (int i = 0; i < 2; i++) {
 				float fi     = float(i);
-				float seed   = uTimeOffset + fi * 5.31;
+				float seed   = vTimeOffset + fi * 5.31;
 				// each pulse has its own cycle duration: 2-4 seconds
 				float cycle  = 2.0 + hash(seed) * 2.0;
-				float t      = mod(uTime + hash(seed + 1.0) * 50.0, cycle); // where we are in this cycle
+				float t      = mod(uTime * uPulseSpeed + hash(seed + 1.0) * 50.0, cycle);
 				// pulse travels during the first 40% of the cycle, then quiet
 				float travel = t / (cycle * 0.4);
 				float pos    = clamp(travel, 0.0, 1.0);
 				// only visible while travelling (pos < 1)
 				float visible = step(travel, 1.0);
-				float d      = abs(norm - pos);
+				float d      = abs(vSegmentT - pos);
 				dot += smoothstep(uPulseSize, 0.0, d) * visible;
 			}
 

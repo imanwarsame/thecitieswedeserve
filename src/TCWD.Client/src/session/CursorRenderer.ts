@@ -8,8 +8,8 @@ interface CursorData {
   lastUpdate: number;
 }
 
-const CURSOR_RADIUS = 2.5;
-const CURSOR_Y = 0.08;
+const CURSOR_RADIUS = 8;
+const CURSOR_Y = 0.15;
 const STALE_MS = 3000;
 
 /**
@@ -86,7 +86,7 @@ export class CursorRenderer {
     tex.needsUpdate = true;
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.85, depthWrite: false });
     const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(5, 1.25, 1);
+    sprite.scale.set(14, 3.5, 1);
     return sprite;
   }
 
@@ -124,7 +124,7 @@ export class CursorRenderer {
       // Smooth lerp
       cursor.mesh.position.lerp(cursor.target, 0.15);
       cursor.label.position.copy(cursor.mesh.position);
-      cursor.label.position.y += 2.5;
+      cursor.label.position.y += 6;
     }
   }
 

@@ -8,16 +8,16 @@ import type { SimulationBridge } from '../simulation/bridge/SimulationBridge';
 
 /**
  * Draws energy-flow connections between power plants and consumers.
- * Each line uses a custom shader with directional dashes and a
- * travelling pulse to visualise energy flow (plant → consumer).
+ * All line segments are merged into a single LineSegments draw call
+ * with a shared shader material for minimal GPU overhead.
  */
 export class InfrastructureRenderer {
 	private group: THREE.Group;
 	private scene: THREE.Scene;
 	private bridge: SimulationBridge;
 	private entityManager: EntityManager;
-	private lines: THREE.Line[] = [];
-	private materials: THREE.ShaderMaterial[] = [];
+	private linesMesh: THREE.LineSegments | null = null;
+	private material: THREE.ShaderMaterial | null = null;
 	private elapsed = 0;
 	private bgLum = new THREE.Color();
 
@@ -44,8 +44,9 @@ export class InfrastructureRenderer {
 	/** Advance shader time each frame. */
 	update(delta: number): void {
 		this.elapsed += delta;
+		if (!this.material) return;
 
-		// Derive darkness from scene background luminance (0 = bright day, 1 = dark night)
+		// Derive darkness from scene background luminance
 		let darkness = 0.0;
 		const bg = this.scene.background;
 		if (bg && (bg as THREE.Color).isColor) {
@@ -55,10 +56,8 @@ export class InfrastructureRenderer {
 			darkness = 1.0 - hsl.l;
 		}
 
-		for (const mat of this.materials) {
-			mat.uniforms.uTime.value = this.elapsed;
-			mat.uniforms.uDarkness.value = darkness;
-		}
+		this.material.uniforms.uTime.value = this.elapsed;
+		this.material.uniforms.uDarkness.value = darkness;
 	}
 
 	dispose(): void {
@@ -71,30 +70,6 @@ export class InfrastructureRenderer {
 	}
 
 	// ── Internals ──────────────────────────────────────────
-
-	private createLineMaterial(lineLength: number): THREE.ShaderMaterial {
-		const mat = new THREE.ShaderMaterial({
-			uniforms: {
-				uTime:        { value: this.elapsed },
-				uLineLength:  { value: lineLength },
-				uTimeOffset:  { value: Math.random() * 20 },
-				uColor:       { value: new THREE.Color(0x888888) },
-				uOpacity:     { value: EnergyLineShader.uniforms.uOpacity.value },
-				uPulseSpeed:  { value: EnergyLineShader.uniforms.uPulseSpeed.value },
-				uPulseSize:   { value: EnergyLineShader.uniforms.uPulseSize.value },
-				uPulseBright: { value: EnergyLineShader.uniforms.uPulseBright.value },
-				uDarkness:    { value: 0 },
-			},
-			vertexShader: EnergyLineShader.vertexShader,
-			fragmentShader: EnergyLineShader.fragmentShader,
-			transparent: true,
-			depthWrite: false,
-			polygonOffset: true,
-			polygonOffsetFactor: -4,
-			polygonOffsetUnits: -4,
-		});
-		return mat;
-	}
 
 	private rebuild = (): void => {
 		this.clear();
@@ -120,35 +95,78 @@ export class InfrastructureRenderer {
 			consumers.push(pos);
 		}
 
-		// Connect each plant → consumer (star topology, direction matters)
+		// Include pre-existing Forma building meshes as consumers
+		for (const pos of this.bridge.getFormaConsumerPositions()) {
+			consumers.push(pos);
+		}
+
+		if (plants.length === 0 || consumers.length === 0) return;
+
+		// Build all segments into a single geometry
 		const LINE_Y = 0.15;
+		const segmentCount = plants.length * consumers.length;
+		const positions   = new Float32Array(segmentCount * 6); // 2 points × 3 floats
+		const segmentTs   = new Float32Array(segmentCount * 2); // 0 at start, 1 at end
+		const timeOffsets = new Float32Array(segmentCount * 2); // random per-segment
+		let idx = 0;
+		let attrIdx = 0;
+
 		for (const plantPos of plants) {
 			for (const consumerPos of consumers) {
-				const start = new THREE.Vector3(plantPos.x, LINE_Y, plantPos.z);
-				const end = new THREE.Vector3(consumerPos.x, LINE_Y, consumerPos.z);
-				const lineLength = start.distanceTo(end);
+				positions[idx++] = plantPos.x;
+				positions[idx++] = LINE_Y;
+				positions[idx++] = plantPos.z;
+				positions[idx++] = consumerPos.x;
+				positions[idx++] = LINE_Y;
+				positions[idx++] = consumerPos.z;
 
-				const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
-				const material = this.createLineMaterial(lineLength);
-				const line = new THREE.Line(geometry, material);
-				line.computeLineDistances(); // populates lineDistance attribute
-
-				this.lines.push(line);
-				this.materials.push(material);
-				this.group.add(line);
+				const offset = Math.random() * 50;
+				segmentTs[attrIdx]   = 0.0;
+				timeOffsets[attrIdx] = offset;
+				attrIdx++;
+				segmentTs[attrIdx]   = 1.0;
+				timeOffsets[attrIdx] = offset;
+				attrIdx++;
 			}
 		}
+
+		const geometry = new THREE.BufferGeometry();
+		geometry.setAttribute('position',    new THREE.BufferAttribute(positions, 3));
+		geometry.setAttribute('aSegmentT',   new THREE.BufferAttribute(segmentTs, 1));
+		geometry.setAttribute('aTimeOffset', new THREE.BufferAttribute(timeOffsets, 1));
+
+		this.material = new THREE.ShaderMaterial({
+			uniforms: {
+				uTime:        { value: this.elapsed },
+				uColor:       { value: new THREE.Color(0x888888) },
+				uOpacity:     { value: EnergyLineShader.uniforms.uOpacity.value },
+				uPulseSpeed:  { value: EnergyLineShader.uniforms.uPulseSpeed.value },
+				uPulseSize:   { value: EnergyLineShader.uniforms.uPulseSize.value },
+				uPulseBright: { value: EnergyLineShader.uniforms.uPulseBright.value },
+				uDarkness:    { value: 0 },
+			},
+			vertexShader: EnergyLineShader.vertexShader,
+			fragmentShader: EnergyLineShader.fragmentShader,
+			transparent: true,
+			depthWrite: false,
+			polygonOffset: true,
+			polygonOffsetFactor: -4,
+			polygonOffsetUnits: -4,
+		});
+
+		this.linesMesh = new THREE.LineSegments(geometry, this.material);
+		this.group.add(this.linesMesh);
 	};
 
 	private clear(): void {
-		for (const line of this.lines) {
-			line.geometry.dispose();
+		if (this.linesMesh) {
+			this.linesMesh.geometry.dispose();
+			this.group.remove(this.linesMesh);
+			this.linesMesh = null;
 		}
-		for (const mat of this.materials) {
-			mat.dispose();
+		if (this.material) {
+			this.material.dispose();
+			this.material = null;
 		}
-		this.lines = [];
-		this.materials = [];
-		this.group.clear();
 	}
 }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { IsometricCamera } from './IsometricCamera';
 import { EngineConfig } from '../app/config';
+import { isTouchDevice } from '../core/Mobile';
 
 const PAN_SPEED = 2000;
 const ZOOM_SPEED = 0.1;
@@ -11,6 +12,11 @@ const ROTATE_SPEED = 0.004;
 const ROTATION_SPRING = 0.08;
 const MAX_YAW_OFFSET = Math.PI / 4;   // ±45°
 const MAX_PITCH_OFFSET = Math.PI / 8; // ±22.5°
+
+// Touch gesture thresholds
+const TOUCH_PAN_SPEED = 3000;
+const PINCH_ZOOM_SPEED = 0.008;
+const TWO_FINGER_ROTATE_SPEED = 0.006;
 
 export class CameraController {
 	private isoCamera!: IsometricCamera;
@@ -42,6 +48,13 @@ export class CameraController {
 
 	private followTarget: THREE.Object3D | null = null;
 
+	// Touch gesture state
+	private activeTouches = new Map<number, { x: number; y: number }>();
+	private lastPinchDist = 0;
+	private lastPinchAngle = 0;
+	private lastTouchCenter = new THREE.Vector2();
+	private touchGesture: 'none' | 'pan' | 'pinch' = 'none';
+
 	// Reusable vectors to avoid per-frame allocations
 	private _lookDir = new THREE.Vector3();
 	private _right = new THREE.Vector3();
@@ -57,6 +70,9 @@ export class CameraController {
 	private onKeyDown: (e: KeyboardEvent) => void = () => {};
 	private onKeyUp: (e: KeyboardEvent) => void = () => {};
 	private onContextMenu: (e: Event) => void = () => {};
+	private onTouchStart: (e: TouchEvent) => void = () => {};
+	private onTouchMove: (e: TouchEvent) => void = () => {};
+	private onTouchEnd: (e: TouchEvent) => void = () => {};
 
 	init(isoCamera: IsometricCamera, domElement: HTMLElement): void {
 		this.isoCamera = isoCamera;
@@ -163,6 +179,10 @@ export class CameraController {
 		this.domElement.removeEventListener('pointerup', this.onPointerUp);
 		this.domElement.removeEventListener('wheel', this.onWheel);
 		this.domElement.removeEventListener('contextmenu', this.onContextMenu);
+		this.domElement.removeEventListener('touchstart', this.onTouchStart);
+		this.domElement.removeEventListener('touchmove', this.onTouchMove);
+		this.domElement.removeEventListener('touchend', this.onTouchEnd);
+		this.domElement.removeEventListener('touchcancel', this.onTouchEnd);
 		window.removeEventListener('keydown', this.onKeyDown);
 		window.removeEventListener('keyup', this.onKeyUp);
 	}
@@ -177,7 +197,36 @@ export class CameraController {
 		return { right: this._right, forward: this._forward };
 	}
 
+	// ── Touch helpers ────────────────────────────────────────
+
+	private getTouchCenter(touches: TouchList): THREE.Vector2 {
+		let cx = 0, cy = 0;
+		for (let i = 0; i < touches.length; i++) {
+			cx += touches[i].clientX;
+			cy += touches[i].clientY;
+		}
+		return new THREE.Vector2(cx / touches.length, cy / touches.length);
+	}
+
+	private getTouchDistance(touches: TouchList): number {
+		if (touches.length < 2) return 0;
+		const dx = touches[0].clientX - touches[1].clientX;
+		const dy = touches[0].clientY - touches[1].clientY;
+		return Math.sqrt(dx * dx + dy * dy);
+	}
+
+	private getTouchAngle(touches: TouchList): number {
+		if (touches.length < 2) return 0;
+		return Math.atan2(
+			touches[1].clientY - touches[0].clientY,
+			touches[1].clientX - touches[0].clientX,
+		);
+	}
+
+	// ── Event binding ────────────────────────────────────────
+
 	private bindEvents(): void {
+		// ── Mouse / pointer events (desktop) ─────────────────
 		this.onPointerDown = (e: PointerEvent) => {
 			// ── Touch input ──────────────────────────────────────────────
 			if (e.pointerType === 'touch') {
@@ -328,6 +377,119 @@ export class CameraController {
 			e.preventDefault();
 		};
 
+		// ── Touch events (mobile) ────────────────────────────
+		this.onTouchStart = (e: TouchEvent) => {
+			e.preventDefault(); // prevent scroll / zoom by browser
+
+			const touches = e.touches;
+			for (let i = 0; i < touches.length; i++) {
+				this.activeTouches.set(touches[i].identifier, {
+					x: touches[i].clientX,
+					y: touches[i].clientY,
+				});
+			}
+
+			if (touches.length === 1) {
+				// Single finger — pan
+				this.touchGesture = 'pan';
+				this.lastTouchCenter.set(touches[0].clientX, touches[0].clientY);
+			} else if (touches.length >= 2) {
+				// Two+ fingers — pinch zoom + rotate
+				this.touchGesture = 'pinch';
+				this.lastPinchDist = this.getTouchDistance(touches);
+				this.lastPinchAngle = this.getTouchAngle(touches);
+				this.lastTouchCenter = this.getTouchCenter(touches);
+				this.isRotating = true;
+			}
+		};
+
+		this.onTouchMove = (e: TouchEvent) => {
+			e.preventDefault();
+			const touches = e.touches;
+
+			if (this.touchGesture === 'pan' && touches.length === 1) {
+				// Single-finger pan
+				if (!this.panEnabled) return;
+				const dx = touches[0].clientX - this.lastTouchCenter.x;
+				const dy = touches[0].clientY - this.lastTouchCenter.y;
+				this.lastTouchCenter.set(touches[0].clientX, touches[0].clientY);
+
+				const panScale = TOUCH_PAN_SPEED / (this.targetZoom * this.domElement.clientHeight);
+				const { right, forward } = this.getGroundPlaneAxes();
+				this.targetLookAt.addScaledVector(right, -dx * panScale);
+				this.targetLookAt.addScaledVector(forward, dy * panScale);
+
+			} else if (touches.length >= 2) {
+				// Upgrade gesture to pinch if a second finger arrives
+				if (this.touchGesture !== 'pinch') {
+					this.touchGesture = 'pinch';
+					this.lastPinchDist = this.getTouchDistance(touches);
+					this.lastPinchAngle = this.getTouchAngle(touches);
+					this.lastTouchCenter = this.getTouchCenter(touches);
+					this.isRotating = true;
+					return;
+				}
+
+				// Pinch zoom
+				if (this.zoomEnabled) {
+					const dist = this.getTouchDistance(touches);
+					const delta = dist - this.lastPinchDist;
+					this.targetZoom = THREE.MathUtils.clamp(
+						this.targetZoom + delta * PINCH_ZOOM_SPEED * this.targetZoom,
+						EngineConfig.camera.minZoom,
+						EngineConfig.camera.maxZoom,
+					);
+					this.lastPinchDist = dist;
+				}
+
+				// Two-finger rotation
+				const angle = this.getTouchAngle(touches);
+				const angleDelta = angle - this.lastPinchAngle;
+				this.targetRotationYaw = THREE.MathUtils.clamp(
+					this.targetRotationYaw + angleDelta / TWO_FINGER_ROTATE_SPEED,
+					-MAX_YAW_OFFSET,
+					MAX_YAW_OFFSET,
+				);
+				this.lastPinchAngle = angle;
+
+				// Two-finger pan (center movement)
+				if (this.panEnabled) {
+					const center = this.getTouchCenter(touches);
+					const dx = center.x - this.lastTouchCenter.x;
+					const dy = center.y - this.lastTouchCenter.y;
+					this.lastTouchCenter.copy(center);
+
+					const panScale = TOUCH_PAN_SPEED / (this.targetZoom * this.domElement.clientHeight);
+					const { right, forward } = this.getGroundPlaneAxes();
+					this.targetLookAt.addScaledVector(right, -dx * panScale);
+					this.targetLookAt.addScaledVector(forward, dy * panScale);
+				}
+			}
+		};
+
+		this.onTouchEnd = (e: TouchEvent) => {
+			// Remove ended touches
+			const remaining = e.touches;
+			this.activeTouches.clear();
+			for (let i = 0; i < remaining.length; i++) {
+				this.activeTouches.set(remaining[i].identifier, {
+					x: remaining[i].clientX,
+					y: remaining[i].clientY,
+				});
+			}
+
+			if (remaining.length === 0) {
+				this.touchGesture = 'none';
+				this.isRotating = false;
+			} else if (remaining.length === 1) {
+				// Downgraded from pinch to single-finger pan
+				this.touchGesture = 'pan';
+				this.isRotating = false;
+				this.lastTouchCenter.set(remaining[0].clientX, remaining[0].clientY);
+			}
+		};
+
+		// Bind desktop events
 		this.domElement.addEventListener('pointerdown', this.onPointerDown);
 		this.domElement.addEventListener('pointermove', this.onPointerMove);
 		this.domElement.addEventListener('pointerup', this.onPointerUp);
@@ -335,6 +497,14 @@ export class CameraController {
 		this.domElement.addEventListener('contextmenu', this.onContextMenu);
 		window.addEventListener('keydown', this.onKeyDown);
 		window.addEventListener('keyup', this.onKeyUp);
+
+		// Bind touch events
+		if (isTouchDevice) {
+			this.domElement.addEventListener('touchstart', this.onTouchStart, { passive: false });
+			this.domElement.addEventListener('touchmove', this.onTouchMove, { passive: false });
+			this.domElement.addEventListener('touchend', this.onTouchEnd);
+			this.domElement.addEventListener('touchcancel', this.onTouchEnd);
+		}
 	}
 
 	private handleArrowKeys(delta: number): void {

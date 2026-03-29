@@ -5,7 +5,9 @@ import { HudShell } from './ui/layout/HudShell';
 import { BuildToolbar } from './ui/controls/BuildToolbar';
 import { CommandBorder } from './ui/components/CommandBorder';
 import { EntityTooltip } from './ui/controls/EntityTooltip';
+import { MobileActions } from './ui/controls/MobileActions';
 import { DebugPanel } from './ui/controls/DebugPanel';
+import { ViewportSettings } from './ui/controls/ViewportSettings';
 import { EngineConfig } from './app/config';
 import { CollabBridge } from './session/CollabBridge';
 import type { Engine } from './core/Engine';
@@ -45,7 +47,9 @@ function App() {
 				{engine && <HudShell />}
 				{engine && <BuildToolbar />}
 				{engine && <EntityTooltip />}
+				{engine && <MobileActions />}
 				{engine && <CommandBorder />}
+				{engine && <ViewportSettings />}
 				{engine && EngineConfig.debug && <DebugPanel />}
 			</div>
 		</EngineContext.Provider>

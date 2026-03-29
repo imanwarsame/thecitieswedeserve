@@ -1,4 +1,5 @@
 import type { MaterialPreset } from '../rendering/MaterialRegistry';
+import type { BuildingType } from '../simulation/bridge/BuildingFactory';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,6 +26,8 @@ export interface ModelEntry {
 	preload?: boolean;
 	/** If true, the GLB contains animations that should be played. Default false. */
 	animated?: boolean;
+	/** Maps this model to a simulation BuildingType so its meshes register as sim entities. */
+	simulationType?: BuildingType;
 }
 
 export type ModelCategory =
@@ -108,6 +111,7 @@ export const AssetCatalog: ModelEntry[] = [
 		scale: 1,
 		materialPreset: 'forma-buildings',
 		preload: true,
+		simulationType: 'office',
 	},
 	{
 		id: 'comercial',
@@ -117,6 +121,7 @@ export const AssetCatalog: ModelEntry[] = [
 		scale: 1,
 		materialPreset: 'forma-buildings',
 		preload: true,
+		simulationType: 'commercial',
 	},
 	{
 		id: 'housing',
@@ -126,6 +131,27 @@ export const AssetCatalog: ModelEntry[] = [
 		scale: 1,
 		materialPreset: 'forma-buildings',
 		preload: true,
+		simulationType: 'housing',
+	},
+	{
+		id: 'leasure',
+		path: '/models/buildings/leasure.glb',
+		label: 'Leisure',
+		category: 'buildings',
+		scale: 1,
+		materialPreset: 'forma-buildings',
+		preload: true,
+		simulationType: 'leisure',
+	},
+	{
+		id: 'school',
+		path: '/models/buildings/school.glb',
+		label: 'School',
+		category: 'buildings',
+		scale: 1,
+		materialPreset: 'forma-buildings',
+		preload: true,
+		simulationType: 'school',
 	},
 
 ];
@@ -185,7 +211,7 @@ export const DefaultMaterialPresets: MaterialPreset[] = [
 	{
 		name: 'forma-water',
 		meshMaterials: {
-			'*': 'glass',
+			'*': 'water',
 		},
 	},
 	{

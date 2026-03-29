@@ -33,6 +33,7 @@ export class GridRenderer {
 	private cellFillMesh: THREE.Mesh | null = null;
 	private hexCapMesh: THREE.Mesh | null = null;
 	private cliffMesh: THREE.Mesh | null = null;
+	private waterMaskMesh: THREE.Mesh | null = null;
 	private delaunayDebugMesh: THREE.LineSegments | null = null;
 	private centerPointsMesh: THREE.Points | null = null;
 
@@ -275,6 +276,43 @@ export class GridRenderer {
 		return this.centerPointsMesh;
 	}
 
+	/* ── water cell mask (white fill behind water to hide grid) ───── */
+
+	buildWaterMask(grid: OrganicGrid, waterCells: Set<number>): THREE.Mesh | null {
+		if (waterCells.size === 0) return null;
+
+		const positions: number[] = [];
+
+		for (const cell of grid.cells) {
+			if (!waterCells.has(cell.index)) continue;
+			const cx = cell.center.x;
+			const cz = cell.center.y;
+			const verts = cell.vertices;
+
+			for (let i = 0; i < verts.length; i++) {
+				const a = verts[i];
+				const b = verts[(i + 1) % verts.length];
+				// Fan triangle: center → b → a
+				positions.push(cx, -0.005, cz);
+				positions.push(b.x, -0.005, b.y);
+				positions.push(a.x, -0.005, a.y);
+			}
+		}
+
+		const geometry = new THREE.BufferGeometry();
+		geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+		geometry.computeVertexNormals();
+
+		const material = new THREE.MeshBasicMaterial({
+			color: 0xffffff,
+			depthWrite: true,
+		});
+
+		this.waterMaskMesh = new THREE.Mesh(geometry, material);
+		this.waterMaskMesh.name = 'waterMask';
+		return this.waterMaskMesh;
+	}
+
 	/* ── utilities ─────────────────────────────────────────────────── */
 
 	setOpacity(o: number): void {
@@ -289,7 +327,7 @@ export class GridRenderer {
 
 	dispose(): void {
 		for (const mesh of [this.edgeMesh, this.cellFillMesh, this.hexCapMesh,
-			this.cliffMesh, this.delaunayDebugMesh, this.centerPointsMesh]) {
+			this.cliffMesh, this.waterMaskMesh, this.delaunayDebugMesh, this.centerPointsMesh]) {
 			if (mesh) {
 				mesh.geometry.dispose();
 				const mat = mesh.material;

@@ -106,7 +106,7 @@ export function TransportOverlayPanel() {
 				onMouseEnter={() => setPanelOpen(true)}
 				title="Transport Flow Overlay (F)"
 			>
-				<Layers size={14} strokeWidth={2} />
+				<Layers size={12} strokeWidth={1.8} />
 				<span>Flow</span>
 			</button>
 

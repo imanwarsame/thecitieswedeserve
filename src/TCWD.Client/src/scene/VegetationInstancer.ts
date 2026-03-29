@@ -37,16 +37,16 @@ export class VegetationInstancer {
 	init(parent: THREE.Object3D): void {
 		const count = TREE_POSITIONS.length / 2;
 
-		// Materials — monochrome gray matching project palette
+		// Materials — pastel green foliage with light bark
 		const trunkMat = new THREE.MeshStandardMaterial({
-			color: 0xb8b8b8,
+			color: 0xc8beb4,
 			roughness: 0.9,
 			metalness: 0.0,
 		});
 		patchMaterialUniforms(trunkMat);
 
 		const canopyMat = new THREE.MeshStandardMaterial({
-			color: 0xd0d0d0,
+			color: 0xb8d8b8,
 			roughness: 0.95,
 			metalness: 0.0,
 		});

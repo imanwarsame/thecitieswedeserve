@@ -3,6 +3,7 @@ import { buildGrid, type BuiltGrid } from '../../grid/GridBuilder';
 import { GridPlacement } from '../../grid/GridPlacement';
 import { HousingSystem } from '../HousingSystem';
 import { HousingController } from '../HousingController';
+import { HousingConfig } from '../HousingConfig';
 import { events } from '../../core/Events';
 
 /**
@@ -89,9 +90,9 @@ describe('Click flow integration', () => {
 
 	it('respects maxLayers limit', () => {
 		controller.setAction('build');
-		for (let i = 0; i < 25; i++) {
+		for (let i = 0; i < 35; i++) {
 			events.emit('grid:cellClicked', { cellIndex: centerCell });
 		}
-		expect(housing.getHeight(centerCell)).toBe(20); // maxLayers = 20
+		expect(housing.getHeight(centerCell)).toBe(HousingConfig.maxLayers);
 	});
 });

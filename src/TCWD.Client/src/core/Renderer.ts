@@ -3,21 +3,8 @@ import { EngineConfig } from '../app/config';
 
 export class Renderer {
 	private renderer!: THREE.WebGLRenderer;
-	private backend: 'WebGPU' | 'WebGL2' = 'WebGL2';
 
 	async init(canvas: HTMLCanvasElement): Promise<void> {
-		if (EngineConfig.renderer.useWebGPU && 'gpu' in navigator) {
-			try {
-				const adapter = await (navigator as Navigator & { gpu: GPU }).gpu.requestAdapter();
-				if (adapter) {
-					this.backend = 'WebGPU';
-					console.log('[Renderer] WebGPU adapter found — but Three.js WebGPU renderer requires additional setup. Falling back to WebGL2 for stability.');
-				}
-			} catch {
-				console.log('[Renderer] WebGPU not available, falling back to WebGL2.');
-			}
-		}
-
 		this.renderer = new THREE.WebGLRenderer({
 			canvas,
 			antialias: EngineConfig.renderer.antialias,
@@ -27,14 +14,11 @@ export class Renderer {
 		this.renderer.shadowMap.enabled = EngineConfig.renderer.shadows;
 		this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 		this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-		// Tone mapping is handled by the post-processing OutputPass.
-		// Setting it here would cause double tone mapping.
 		this.renderer.toneMapping = THREE.NoToneMapping;
-		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, EngineConfig.renderer.maxPixelRatio));
 		this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
-		this.backend = 'WebGL2';
-		console.log(`[Renderer] Initialized with ${this.backend} backend.`);
+		console.log('[Renderer] Initialized (WebGL2).');
 	}
 
 	render(scene: THREE.Scene, camera: THREE.Camera): void {
@@ -48,10 +32,6 @@ export class Renderer {
 	dispose(): void {
 		this.renderer?.dispose();
 		console.log('[Renderer] Disposed.');
-	}
-
-	getBackend(): string {
-		return this.backend;
 	}
 
 	getWebGLRenderer(): THREE.WebGLRenderer {
