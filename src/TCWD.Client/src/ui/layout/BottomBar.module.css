@@ -1,10 +1,23 @@
 .bar {
 	pointer-events: auto;
-	grid-column: 1 / -1;
-	padding: 8px 16px;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 15;
+	padding: 8px 12px;
+	padding-bottom: max(8px, env(safe-area-inset-bottom));
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #f0f0f0;
-	border-top: 1px solid rgba(180, 180, 180, 0.3);
+	gap: 12px;
+	background: rgba(244, 244, 244, 0.97);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border-top: 1px solid rgba(140, 140, 140, 0.2);
+	box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.viewSlider {
+	flex-shrink: 0;
 }

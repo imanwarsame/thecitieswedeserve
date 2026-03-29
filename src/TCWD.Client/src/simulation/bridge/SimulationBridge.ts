@@ -98,6 +98,20 @@ export class SimulationBridge {
 		events.emit('transport:roadPlaced', { fromCell, toCell });
 	}
 
+	/** Draw a metro link between two station cells (any distance). */
+	addMetroLink(fromCell: number, toCell: number): void {
+		if (!this.transportModule) return;
+		this.transportModule.addMetroLink(fromCell, toCell);
+		events.emit('transport:transitLinkPlaced', { fromCell, toCell, mode: 'metro' });
+	}
+
+	/** Draw a train link between two station cells (any distance). */
+	addTrainLink(fromCell: number, toCell: number): void {
+		if (!this.transportModule) return;
+		this.transportModule.addTrainLink(fromCell, toCell);
+		events.emit('transport:transitLinkPlaced', { fromCell, toCell, mode: 'train' });
+	}
+
 	addBuilding(type: BuildingType, cellIndex: number): Entity | null {
 		if (!this.gridPlacement.isCellFree(cellIndex)) return null;
 
