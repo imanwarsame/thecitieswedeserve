@@ -308,6 +308,25 @@ export class SimulationBridge {
 
 	// ── Lifecycle ────────────────────────────────────────────
 
+	/** Soft reset: clear all placed buildings, transport, and sim state without unsubscribing events. */
+	clearAll(): void {
+		// Stop all animation mixers
+		for (const mixer of this.mixers.values()) mixer.stopAllAction();
+		this.mixers.clear();
+
+		// Clear bidirectional maps
+		this.renderToSim.clear();
+		this.simToRender.clear();
+		this.entityBuildingTypes.clear();
+		this.housingSimIds.clear();
+
+		// Reset headless simulation engine (removes all entities, resets clock)
+		this.engine.reset();
+		this.lastState = this.engine.getState();
+
+		// Reset transport: clear entity-cell map; network is re-inited by Engine.
+	}
+
 	dispose(): void {
 		events.off('world:hourChanged', this.onHourChanged);
 		events.off('housing:placed', this.onHousingPlaced);
