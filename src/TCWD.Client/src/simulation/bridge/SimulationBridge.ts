@@ -418,11 +418,12 @@ export class SimulationBridge {
 		return map;
 	}
 
-	/** Map of cell index → annual energy consumption (kWh) for every occupied cell. */
+	/** Map of cell index → current-hour energy consumption (kWh) for every occupied cell. */
 	getCellEnergyMap(): Map<number, number> {
 		const map = new Map<number, number>();
 		const entities = this.engine.getEntities();
 		const entityById = new Map(entities.map(e => [e.id, e]));
+		const hour = this.lastState.clock.hour;
 
 		// Entities placed via addBuilding
 		for (const [renderId, simId] of this.renderToSim) {
@@ -430,14 +431,14 @@ export class SimulationBridge {
 			if (!renderEnt || renderEnt.cellIndex < 0) continue;
 			const simEnt = entityById.get(simId);
 			if (!simEnt) continue;
-			map.set(renderEnt.cellIndex, entityEnergyKWh(simEnt));
+			map.set(renderEnt.cellIndex, entityEnergyAtHour(simEnt, hour));
 		}
 
 		// WFC housing cells
 		for (const [cellIndex, simId] of this.housingSimIds) {
 			const simEnt = entityById.get(simId);
 			if (!simEnt) continue;
-			map.set(cellIndex, entityEnergyKWh(simEnt));
+			map.set(cellIndex, entityEnergyAtHour(simEnt, hour));
 		}
 
 		return map;
@@ -594,17 +595,91 @@ export class SimulationBridge {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-/** Extract the annual energy consumption (kWh) from any simulation entity. */
-function entityEnergyKWh(entity: SimEntity): number {
+// Hourly load profiles (24 values, 0–23h). Each value is a 0–1 multiplier
+// applied to the entity's base consumption so different buildings peak at
+// different times of day.
+
+/** Housing: low overnight, morning + evening peaks. */
+const PROFILE_HOUSING = [
+	0.3, 0.2, 0.2, 0.2, 0.2, 0.3, 0.5, 0.8,
+	0.7, 0.5, 0.4, 0.4, 0.5, 0.5, 0.4, 0.5,
+	0.6, 0.8, 1.0, 0.9, 0.8, 0.6, 0.5, 0.4,
+];
+
+/** Office: ramps up 8am, full load 9–17, drops off evening. */
+const PROFILE_OFFICE = [
+	0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.3,
+	0.7, 1.0, 1.0, 1.0, 0.9, 1.0, 1.0, 1.0,
+	0.9, 0.6, 0.3, 0.15, 0.1, 0.1, 0.1, 0.1,
+];
+
+/** Commercial / retail: peaks midday–evening. */
+const PROFILE_COMMERCIAL = [
+	0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.2,
+	0.5,  0.7,  0.9,  1.0,  1.0,  1.0,  1.0, 0.9,
+	0.9,  0.8,  0.7,  0.5,  0.3,  0.15, 0.1, 0.05,
+];
+
+/** School: active 8–16. */
+const PROFILE_SCHOOL = [
+	0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.3,
+	0.8,  1.0,  1.0,  1.0,  0.9,  1.0,  1.0, 0.8,
+	0.3,  0.1,  0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+];
+
+/** Leisure: afternoon + evening peaks. */
+const PROFILE_LEISURE = [
+	0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1,
+	0.2,  0.3,  0.5,  0.6,  0.7,  0.7,  0.8,  0.9,
+	1.0,  1.0,  1.0,  0.9,  0.8,  0.6,  0.3,  0.1,
+];
+
+/** Data centre: near-constant (24/7), slight cooling bump mid-afternoon. */
+const PROFILE_DATACENTRE = [
+	0.9, 0.9, 0.85, 0.85, 0.85, 0.85, 0.9, 0.9,
+	0.95, 0.95, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+	0.95, 0.95, 0.95, 0.9, 0.9, 0.9, 0.9, 0.9,
+];
+
+/** Transport: morning + evening rush hours. */
+const PROFILE_TRANSPORT = [
+	0.1, 0.05, 0.05, 0.05, 0.05, 0.1, 0.3, 0.7,
+	1.0, 0.8,  0.5,  0.4,  0.4,  0.4, 0.5, 0.6,
+	0.8, 1.0,  0.9,  0.6,  0.4,  0.3, 0.2, 0.1,
+];
+
+/** Park: daylight lighting only. */
+const PROFILE_PARK = [
+	0.6, 0.6, 0.6, 0.6, 0.5, 0.3, 0.1, 0.05,
+	0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+	0.1, 0.2, 0.4, 0.7, 0.8, 0.8, 0.7, 0.6,
+];
+
+function profileForEntity(entity: SimEntity): number[] {
+	switch (entity.type) {
+		case EntityType.Housing:      return PROFILE_HOUSING;
+		case EntityType.Office:       return PROFILE_OFFICE;
+		case EntityType.Commercial:   return PROFILE_COMMERCIAL;
+		case EntityType.School:       return PROFILE_SCHOOL;
+		case EntityType.Leisure:      return PROFILE_LEISURE;
+		case EntityType.DataCentre:   return PROFILE_DATACENTRE;
+		case EntityType.Transport:    return PROFILE_TRANSPORT;
+		case EntityType.Park:         return PROFILE_PARK;
+		default:                      return PROFILE_OFFICE;
+	}
+}
+
+/** Base annual energy consumption (kWh) for an entity (time-invariant). */
+function entityBaseKWh(entity: SimEntity): number {
 	switch (entity.type) {
 		case EntityType.Housing:
 			return entity.units * entity.avgConsumptionKWh;
 		case EntityType.DataCentre:
-			return entity.itLoadMW * entity.pueRatio * 8_760 * 1_000; // MW → kWh/yr
+			return entity.itLoadMW * entity.pueRatio * 8_760 * 1_000;
 		case EntityType.EnergyPlant:
-			return 0; // producer, not consumer
+			return 0;
 		case EntityType.Transport:
-			return entity.peakDemandMW * 8_760 * 1_000 * 0.4; // rough avg load factor
+			return entity.peakDemandMW * 8_760 * 1_000 * 0.4;
 		case EntityType.Office:
 		case EntityType.Commercial:
 		case EntityType.School:
@@ -614,4 +689,13 @@ function entityEnergyKWh(entity: SimEntity): number {
 		default:
 			return 0;
 	}
+}
+
+/** Energy consumption at a specific hour (0–23), scaled by the hourly profile. */
+function entityEnergyAtHour(entity: SimEntity, hour: number): number {
+	const base = entityBaseKWh(entity);
+	if (base === 0) return 0;
+	const profile = profileForEntity(entity);
+	const h = Math.max(0, Math.min(23, Math.floor(hour)));
+	return base * profile[h];
 }
