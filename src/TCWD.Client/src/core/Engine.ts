@@ -294,6 +294,42 @@ export class Engine {
 		console.log('[Engine] Stopped.');
 	}
 
+	/** Remove every user-placed element (buildings, housing, roads, imported models) and reset to a blank slate. */
+	clearAll(): void {
+		const gameScene = this.sceneManager.getActiveScene();
+
+		// 1. Deselect everything
+		this.deselectCell();
+		this.selectionManager.clearSelection();
+		this._placementMode = null;
+		this._roadStartCell = -1;
+		this.hoveredCellIndex = -1;
+
+		// 2. Clear simulation bridge (entities ↔ sim mappings, resets sim engine)
+		this.simulationBridge.clearAll();
+
+		// 3. Clear 3D entities
+		gameScene.getEntityManager().clear();
+
+		// 4. Clear grid placement (occupied cells)
+		gameScene.getGridPlacement().clearAll();
+
+		// 5. Clear housing (voxel grid + meshes)
+		this.housingSystem.dispose();
+
+		// 6. Re-initialise transport network from grid (clears roads, metro, train)
+		this.transportModule.init(this.grid.cells);
+
+		// 7. Clear Forma / imported model meshes
+		gameScene.clearFormaModels();
+
+		// 8. Force renderers to rebuild (they'll find nothing to draw)
+		events.emit('simulation:tick', this.simulationBridge.getState());
+		events.emit('placement:modeChanged', null);
+
+		console.log('[Engine] Cleared all user content.');
+	}
+
 	pause(): void {
 		this.time.pause();
 	}

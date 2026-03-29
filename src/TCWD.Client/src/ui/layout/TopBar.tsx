@@ -1,11 +1,13 @@
 import { useWorldClock } from '../hooks/useWorldClock';
 import { useTimeController } from '../hooks/useTimeController';
+import { useEngine } from '../hooks/useEngine';
 import { EnergyBar } from '../controls/EnergyDashboard';
 import { CityBar } from '../controls/CityDashboard';
 import { SessionControls } from '../controls/SessionControls';
 import { SeasonControls } from '../controls/SeasonControls';
 import { formatWorldHour } from '../utils/formatWorldHour';
-import { Play, Pause, Clock } from 'lucide-react';
+import { Play, Pause, Clock, Trash2 } from 'lucide-react';
+import { useCallback } from 'react';
 import styles from './TopBar.module.css';
 
 const SPEED_PRESETS = [
@@ -17,6 +19,12 @@ const SPEED_PRESETS = [
 export function TopBar() {
 	const { hour, phase, dayCount } = useWorldClock();
 	const { paused, speed, tc } = useTimeController();
+	const engine = useEngine();
+
+	const handleClearAll = useCallback(() => {
+		if (!window.confirm('Clear everything and start from a blank slate?')) return;
+		engine.clearAll();
+	}, [engine]);
 
 	return (
 		<div className={styles.topBar}>
@@ -61,6 +69,13 @@ export function TopBar() {
 				</div>
 
 				<div className={styles.rowRight}>
+					<button
+						className={styles.iconBtn}
+						onClick={handleClearAll}
+						title="Clear All"
+					>
+						<Trash2 size={18} strokeWidth={2} />
+					</button>
 					<SessionControls />
 				</div>
 			</div>
