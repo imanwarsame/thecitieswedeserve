@@ -3,10 +3,10 @@
 .root {
 	position: fixed;
 	bottom: 12px;
-	left: 12px;
+	left: 100px;
 	z-index: 16;
 	pointer-events: auto;
-	display: none; /* hidden on desktop — TransportOverlayPanel handles flow there */
+	display: flex;
 	flex-direction: column-reverse;
 	align-items: flex-start;
 	gap: 6px;
@@ -17,7 +17,7 @@
 
 @media (max-width: 600px) {
 	.root {
-		display: flex;
+		left: 12px;
 		/* sit above the mobile BottomBar + build toolbar */
 		bottom: 120px;
 	}

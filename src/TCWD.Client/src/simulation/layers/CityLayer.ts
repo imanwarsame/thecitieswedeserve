@@ -1,7 +1,7 @@
 import type { Entity } from '../entities/types.ts';
 import type { ClockState } from '../engine/Clock.ts';
 import type { SimulationConfig } from '../config/types.ts';
-import type { CityMetrics, EnergyLayerOutput } from '../metrics/types.ts';
+import type { CityMetrics, EnergyLayerOutput, TransportMetrics } from '../metrics/types.ts';
 import type { Layer, LayerOutputMap } from './Layer.ts';
 import { computeCityMetrics } from '../models/city.ts';
 
@@ -9,10 +9,10 @@ import { computeCityMetrics } from '../models/city.ts';
 
 /**
  * Aggregates city-wide KPIs (GDP, land value, health, crime, tourism)
- * from entity state and upstream energy-layer output.
+ * from entity state and upstream energy + transport layer outputs.
  *
- * Must be registered after the EnergyLayer so that energy metrics
- * are available in `upstreamOutputs`.
+ * Must be registered after EnergyLayer and TransportLayer so that
+ * both metric sets are available in `upstreamOutputs`.
  */
 export class CityLayer implements Layer<CityMetrics> {
 	compute(
@@ -22,6 +22,7 @@ export class CityLayer implements Layer<CityMetrics> {
 		upstreamOutputs: LayerOutputMap,
 	): CityMetrics {
 		const energyOutput = upstreamOutputs['energy'] as EnergyLayerOutput;
+		const transport = upstreamOutputs['transport'] as TransportMetrics | undefined;
 
 		return computeCityMetrics(
 			energyOutput.energy,
@@ -29,6 +30,8 @@ export class CityLayer implements Layer<CityMetrics> {
 			entities,
 			config,
 			clock.yearIndex,
+			transport,
+			clock.hour,
 		);
 	}
 }

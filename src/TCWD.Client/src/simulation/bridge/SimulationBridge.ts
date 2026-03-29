@@ -17,6 +17,7 @@ import { events } from '../../core/Events';
 import { Entity } from '../../entities/Entity';
 import { EntityManager } from '../../entities/EntityManager';
 import { GridPlacement } from '../../grid/GridPlacement';
+import type { GridQuery } from '../../grid/GridQuery';
 import type { WorldClock } from '../../gameplay/WorldClock';
 import type { ModelFactory } from '../../assets/ModelFactory';
 import type { HousingSystem } from '../../housing/HousingSystem';
@@ -97,66 +98,68 @@ export class SimulationBridge {
 	// ── Forma baseline entities ─────────────────────────────
 
 	/**
-	 * Register pre-existing Forma GLB meshes as simulation entities.
-	 * Each manifest entry creates one simulation entity whose parameters
-	 * are scaled by the number of meshes in that GLB (≈ number of buildings).
+	 * Register pre-existing Forma GLB meshes as individual simulation entities.
+	 * Each mesh in every manifest entry becomes its own Entity + SimEntity pair,
+	 * mapped to the nearest grid cell — behaving like a user-placed building.
 	 */
 	registerFormaEntities(manifest: readonly FormaManifestEntry[]): void {
+		const grid = this.gridPlacement;
+
 		for (const entry of manifest) {
 			const n = entry.meshCount;
 			if (n === 0) continue;
 
-			let simEntity: SimEntity;
-			switch (entry.simulationType) {
-				case 'housing':
-					simEntity = createHousing({
-						name: `Forma Housing (${n} meshes)`,
-						units: n * 50,
-						avgConsumptionKWh: 4_500,
-					});
-					break;
-				case 'commercial':
-					simEntity = createCommercial({
-						name: `Forma Commercial (${n} meshes)`,
-						floorArea: n * 800,
-						avgConsumptionKWh: n * 200_000,
-					});
-					break;
-				case 'office':
-					simEntity = createOffice({
-						name: `Forma Office (${n} meshes)`,
-						floorArea: n * 1_000,
-						employeeCount: n * 100,
-						avgConsumptionKWh: n * 250_000,
-					});
-					break;
-				case 'school':
-					simEntity = createSchool({
-						name: `Forma School (${n} meshes)`,
-						studentCapacity: n * 500,
-						avgConsumptionKWh: n * 400_000,
-					});
-					break;
-				case 'leisure':
-					simEntity = createLeisure({
-						name: `Forma Leisure (${n} meshes)`,
-						visitorCapacity: n * 300,
-						avgConsumptionKWh: n * 350_000,
-					});
-					break;
-				default:
-					continue;
-			}
+			let registered = 0;
+			for (let i = 0; i < n; i++) {
+				const mesh = entry.meshes[i];
+				const pos = entry.positions[i];
+				if (!mesh || !pos) continue;
 
-			this.engine.addEntity(simEntity);
-			this.formaSimIds.push(simEntity.id);
+				// Create individual simulation entity
+				const simEntity = this.createSimEntityForType(entry.simulationType, entry.catalogId);
+				if (!simEntity) continue;
 
-			// Store mesh positions as consumer endpoints for power lines
-			for (const pos of entry.positions) {
+				this.engine.addEntity(simEntity);
+				this.formaSimIds.push(simEntity.id);
+
+				// Find nearest free grid cell
+				const cell = grid.findFreeCellNear(pos.x, pos.z);
+				const cellIndex = cell ? cell.index : -1;
+
+				// Create 3D Entity wrapper (mesh stays in Forma group — not re-parented)
+				const entity = new Entity({
+					name: simEntity.name,
+					catalogId: entry.catalogId,
+					mesh,
+					position: pos,
+					cellIndex,
+					simulationId: simEntity.id,
+					externalMesh: true,
+				});
+
+				this.entityManager.spawnExternal(entity);
+
+				if (cellIndex >= 0) {
+					grid.occupyCell(cellIndex);
+				}
+
+				// Bidirectional mapping
+				this.renderToSim.set(entity.id, simEntity.id);
+				this.simToRender.set(simEntity.id, entity.id);
+				this.entityBuildingTypes.set(entity.id, entry.simulationType);
+
+				// Store position as consumer endpoint for power lines
 				this.formaConsumerPositions.push(pos.clone());
+
+				// Map to transport
+				if (this.transportModule && cellIndex >= 0) {
+					this.transportModule.mapEntityToCell(simEntity.id, cellIndex);
+				}
+
+				registered++;
 			}
 
-			console.log(`[SimBridge] Registered Forma "${entry.catalogId}" → ${simEntity.type} (${n} meshes, id=${simEntity.id})`);
+			console.log(`[SimBridge] Registered ${registered} Forma "${entry.catalogId}" entities as ${entry.simulationType}`);
 		}
 
 		// Recompute so dashboard reflects the baseline immediately
@@ -166,9 +169,64 @@ export class SimulationBridge {
 		}
 	}
 
+	/** Create an individual simulation entity for a Forma building mesh. */
+	private createSimEntityForType(type: BuildingType, catalogId: string): SimEntity | null {
+		switch (type) {
+			case 'housing':
+				return createHousing({ name: `Forma ${catalogId}`, units: 50, avgConsumptionKWh: 4_500 });
+			case 'commercial':
+				return createCommercial({ name: `Forma ${catalogId}`, floorArea: 800, avgConsumptionKWh: 200_000 });
+			case 'office':
+				return createOffice({ name: `Forma ${catalogId}`, floorArea: 1_000, employeeCount: 100, avgConsumptionKWh: 250_000 });
+			case 'school':
+				return createSchool({ name: `Forma ${catalogId}`, studentCapacity: 500, avgConsumptionKWh: 400_000 });
+			case 'leisure':
+				return createLeisure({ name: `Forma ${catalogId}`, visitorCapacity: 300, avgConsumptionKWh: 350_000 });
+			default:
+				return null;
+		}
+	}
+
 	/** World-space positions of Forma building meshes (for infrastructure power lines). */
 	getFormaConsumerPositions(): THREE.Vector3[] {
 		return this.formaConsumerPositions;
+	}
+
+	// ── Forma road registration ───────────────────────────────
+
+	/**
+	 * Register pre-existing Forma road meshes as transport edges.
+	 * Each road mesh position is mapped to the nearest grid cell.
+	 * Adjacent cells that both contain road meshes get a road edge,
+	 * enabling Road+Cycle transport routing through the baseline network.
+	 */
+	registerFormaRoads(roadPositions: readonly THREE.Vector3[], gridQuery: GridQuery): void {
+		if (!this.transportModule) return;
+		if (roadPositions.length === 0) return;
+
+		// Map each road mesh position to a grid cell
+		const roadCells = new Set<number>();
+		for (const pos of roadPositions) {
+			const cellIndex = gridQuery.findCell(pos.x, pos.z);
+			if (cellIndex >= 0) {
+				roadCells.add(cellIndex);
+			}
+		}
+
+		// For each pair of adjacent road cells, add a road edge
+		let edgesAdded = 0;
+		for (const cellIndex of roadCells) {
+			const cell = gridQuery.getCell(cellIndex);
+			if (!cell) continue;
+			for (const neighborIndex of cell.neighbors) {
+				if (roadCells.has(neighborIndex)) {
+					this.transportModule.addRoad(cellIndex, neighborIndex);
+					edgesAdded++;
+				}
+			}
+		}
+
+		console.log(`[SimBridge] Registered ${roadCells.size} Forma road cells, ${edgesAdded} road edges`);
 	}
 
 	// ── Building management ──────────────────────────────────
@@ -340,6 +398,63 @@ export class SimulationBridge {
 		return undefined;
 	}
 
+	/** Map of cell index → BuildingType for every occupied cell. */
+	getCellLandUseMap(): Map<number, BuildingType> {
+		const map = new Map<number, BuildingType>();
+
+		// Entities placed via addBuilding (have a render Entity with a cellIndex)
+		for (const [renderId, bt] of this.entityBuildingTypes) {
+			const entity = this.entityManager.get(renderId);
+			if (entity && entity.cellIndex >= 0) {
+				map.set(entity.cellIndex, bt);
+			}
+		}
+
+		// WFC housing cells
+		for (const cellIndex of this.housingSimIds.keys()) {
+			map.set(cellIndex, 'housing');
+		}
+
+		return map;
+	}
+
+	/** Map of cell index → annual energy consumption (kWh) for every occupied cell. */
+	getCellEnergyMap(): Map<number, number> {
+		const map = new Map<number, number>();
+		const entities = this.engine.getEntities();
+		const entityById = new Map(entities.map(e => [e.id, e]));
+
+		// Entities placed via addBuilding
+		for (const [renderId, simId] of this.renderToSim) {
+			const renderEnt = this.entityManager.get(renderId);
+			if (!renderEnt || renderEnt.cellIndex < 0) continue;
+			const simEnt = entityById.get(simId);
+			if (!simEnt) continue;
+			map.set(renderEnt.cellIndex, entityEnergyKWh(simEnt));
+		}
+
+		// WFC housing cells
+		for (const [cellIndex, simId] of this.housingSimIds) {
+			const simEnt = entityById.get(simId);
+			if (!simEnt) continue;
+			map.set(cellIndex, entityEnergyKWh(simEnt));
+		}
+
+		return map;
+	}
+
+	/** Map of cell index → 3D mesh for non-housing placed entities. */
+	getCellEntityMeshMap(): Map<number, THREE.Object3D> {
+		const map = new Map<number, THREE.Object3D>();
+		for (const [renderId] of this.renderToSim) {
+			const entity = this.entityManager.get(renderId);
+			if (entity && entity.cellIndex >= 0 && entity.mesh) {
+				map.set(entity.cellIndex, entity.mesh);
+			}
+		}
+		return map;
+	}
+
 	getSimEntityId(renderEntityId: string): string | undefined {
 		return this.renderToSim.get(renderEntityId);
 	}
@@ -401,6 +516,8 @@ export class SimulationBridge {
 		this.simToRender.clear();
 		this.entityBuildingTypes.clear();
 		this.housingSimIds.clear();
+		this.formaSimIds.length = 0;
+		this.formaConsumerPositions.length = 0;
 
 		// Reset headless simulation engine (removes all entities, resets clock)
 		this.engine.reset();
@@ -473,4 +590,28 @@ export class SimulationBridge {
 		this.lastState = this.engine.recompute();
 		events.emit('simulation:tick', this.lastState);
 	};
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+/** Extract the annual energy consumption (kWh) from any simulation entity. */
+function entityEnergyKWh(entity: SimEntity): number {
+	switch (entity.type) {
+		case EntityType.Housing:
+			return entity.units * entity.avgConsumptionKWh;
+		case EntityType.DataCentre:
+			return entity.itLoadMW * entity.pueRatio * 8_760 * 1_000; // MW → kWh/yr
+		case EntityType.EnergyPlant:
+			return 0; // producer, not consumer
+		case EntityType.Transport:
+			return entity.peakDemandMW * 8_760 * 1_000 * 0.4; // rough avg load factor
+		case EntityType.Office:
+		case EntityType.Commercial:
+		case EntityType.School:
+		case EntityType.Leisure:
+		case EntityType.Park:
+			return entity.avgConsumptionKWh;
+		default:
+			return 0;
+	}
 }

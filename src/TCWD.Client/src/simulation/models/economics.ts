@@ -55,6 +55,16 @@ export function computeEconomics(
 	// Burden factor: 1.0 when costs are zero, approaching 0.5 at very high costs
 	const energyCostBurden = 1 / (1 + costPerMWh / 100);
 
+	// ── Grid stability penalty ─────────────────────────────
+	// Brownouts (stability < 1.0) directly suppress economic output.
+	// Below 0.9 the effect accelerates (businesses close, productivity drops).
+	const stability = energyMetrics.gridStability;
+	const stabilityFactor = stability >= 1.0
+		? 1.0
+		: stability >= 0.9
+			? 0.9 + (stability - 0.9)		// linear 0.9–1.0
+			: Math.max(0.5, stability);		// floor at 0.5 for severe shortages
+
 	// ── Tax revenue (hourly slice) ──────────────────────────
 	// Per housing unit: ~$2,000/year → ~$0.23/hour
 	const housingTaxPerHour = (housingUnits * 2_000) / 8_760;
@@ -63,11 +73,12 @@ export function computeEconomics(
 	// Slight boost per transport hub
 	const transportTaxPerHour = (transportHubs * 500_000) / 8_760;
 
-	// Adjust by cost burden and year-over-year growth (1.5 % annual)
+	// Adjust by cost burden, grid stability, and year-over-year growth (1.5 % annual)
 	const yearGrowth = Math.pow(1.015, yearIndex);
 	const taxRevenue =
 		(housingTaxPerHour + dcTaxPerHour + transportTaxPerHour) *
 		energyCostBurden *
+		stabilityFactor *
 		yearGrowth;
 
 	// ── GDP contribution (hourly slice) ─────────────────────
@@ -80,6 +91,7 @@ export function computeEconomics(
 
 	const gdpContribution =
 		(baseGDPPerHour * infraMultiplier + energySectorOutput - carbonTaxPaid) *
+		stabilityFactor *
 		yearGrowth;
 
 	return {
