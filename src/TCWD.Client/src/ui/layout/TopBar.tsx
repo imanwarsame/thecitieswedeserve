@@ -82,8 +82,8 @@ export function TopBar() {
 				</div>
 			</div>
 
-			{/* Info bars — floating pills on desktop, inline rows on mobile */}
-			<div className={styles.floatingBars}>
+			{/* Info bars — stacked top-right */}
+			<div className={`${styles.floatingBar} ${styles.floatingBarRight}`}>
 				<div className={`${styles.row} ${styles.rowEnd}`}>
 					<div className={styles.rowFull}><EnergyBar /></div>
 				</div>
