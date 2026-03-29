@@ -74,7 +74,16 @@
       "Bash(node -e \"const m = require.resolve\\(''three/examples/jsm/utils/BufferGeometryUtils.js'', {paths:[''/c/Users/ARZE/github/thecitieswedeserve/src/TCWD.Client/node_modules'']}\\); console.log\\(m\\)\")",
       "Bash(pkill -f vite)",
       "Bash(lsof -ti:5173)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(lsof -ti:5173,5174,5175,3000)",
+      "Bash(netstat -ano)",
+      "Read(//c/Users/ARZE/github/thecitieswedeserve/**)",
+      "Bash(xargs -I{} taskkill /PID {} /F)",
+      "Bash(taskkill /PID 62988 /F)",
+      "Bash(taskkill /PID 97752 /F)",
+      "Bash(taskkill //PID 62988 //F)",
+      "Bash(taskkill //PID 97752 //F)",
+      "Bash(railway version:*)"
     ]
   }
 }
