@@ -93,9 +93,9 @@ export class SimulationEngine {
 		// can read upstream outputs via the LayerOutputMap.
 		this.registry = new LayerRegistry();
 		this.registry.register('energy', new EnergyLayer());
-		this.registry.register('city', new CityLayer());
 		this.transportLayer = new TransportLayer();
 		this.registry.register('transport', this.transportLayer);
+		this.registry.register('city', new CityLayer());
 		this.registry.register('water', new WaterLayer());
 
 		this.entities = [...entities];

@@ -7,6 +7,7 @@ import type { MaterialRegistry } from '../rendering/MaterialRegistry';
 export class EntityManager {
 	private entities = new Map<string, Entity>();
 	private cellToEntity = new Map<number, Entity>();
+	private meshToEntity = new Map<THREE.Object3D, Entity>();
 	private entityGroup: THREE.Group;
 	private materialRegistry: MaterialRegistry | null = null;
 
@@ -28,6 +29,32 @@ export class EntityManager {
 
 		if (entity.mesh) {
 			this.entityGroup.add(entity.mesh);
+			this.meshToEntity.set(entity.mesh, entity);
+		}
+
+		this.entities.set(entity.id, entity);
+		if (entity.cellIndex >= 0) {
+			this.cellToEntity.set(entity.cellIndex, entity);
+		}
+		events.emit('entity:spawned', entity);
+		return entity;
+	}
+
+	/**
+	 * Register an entity whose mesh is already parented elsewhere (e.g. Forma GLB group).
+	 * The mesh is NOT re-parented to the entity group, but the entity participates in
+	 * all lookups (by id, cell, and mesh).
+	 */
+	spawnExternal(entity: Entity): Entity {
+		if (this.entities.has(entity.id)) {
+			console.warn(`[EntityManager] Entity "${entity.id}" already exists.`);
+			return entity;
+		}
+
+		entity.init();
+
+		if (entity.mesh) {
+			this.meshToEntity.set(entity.mesh, entity);
 		}
 
 		this.entities.set(entity.id, entity);
@@ -43,7 +70,13 @@ export class EntityManager {
 		if (!entity) return;
 
 		if (entity.mesh) {
-			this.entityGroup.remove(entity.mesh);
+			this.meshToEntity.delete(entity.mesh);
+			if (entity.externalMesh) {
+				// External mesh: remove from its current parent (Forma group)
+				entity.mesh.parent?.remove(entity.mesh);
+			} else {
+				this.entityGroup.remove(entity.mesh);
+			}
 			if (this.materialRegistry) {
 				this.materialRegistry.disposeModelMaterials(entity.mesh);
 			}
@@ -102,6 +135,7 @@ export class EntityManager {
 		for (const [id] of this.entities) {
 			this.remove(id);
 		}
+		this.meshToEntity.clear();
 	}
 
 	count(): number {
@@ -114,9 +148,6 @@ export class EntityManager {
 
 	/** Resolve a THREE.Object3D (entity root mesh) back to its owning Entity. */
 	getEntityByMesh(mesh: THREE.Object3D): Entity | undefined {
-		for (const entity of this.entities.values()) {
-			if (entity.mesh === mesh) return entity;
-		}
-		return undefined;
+		return this.meshToEntity.get(mesh);
 	}
 }

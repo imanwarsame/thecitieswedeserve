@@ -28,6 +28,8 @@ export interface FormaManifestEntry {
 	meshCount: number;
 	/** World-space positions of individual meshes (computed after centering transform). */
 	positions: THREE.Vector3[];
+	/** References to individual meshes so each can become its own entity. */
+	meshes: THREE.Mesh[];
 }
 
 const GROUPS = ['environment', 'terrain', 'entity', 'effects', 'debug'] as const;
@@ -50,6 +52,7 @@ export class GameScene {
 	private vegetation: VegetationInstancer;
 	private formaGroup: THREE.Group | null = null;
 	private formaManifest: FormaManifestEntry[] = [];
+	private formaRoadPositions: THREE.Vector3[] = [];
 
 	constructor(assetManager: AssetManager, grid: BuiltGrid, materialRegistry: MaterialRegistry, modelFactory: ModelFactory, geometryFactory: GeometryFactory) {
 		this.root = new THREE.Scene();
@@ -181,6 +184,11 @@ export class GameScene {
 		return this.formaManifest;
 	}
 
+	/** World-space positions of Forma road meshes (for transport network registration). */
+	getFormaRoadPositions(): readonly THREE.Vector3[] {
+		return this.formaRoadPositions;
+	}
+
 	initEnvironmentMap(renderer: THREE.WebGLRenderer): void {
 		this.lighting.initEnvironmentMap(renderer, this.root);
 	}
@@ -197,6 +205,7 @@ export class GameScene {
 
 		// Track which models have simulation mappings (positions collected after centering)
 		const simModels: { id: string; simulationType: BuildingType; model: THREE.Object3D }[] = [];
+		let roadsModel: THREE.Object3D | null = null;
 
 		let loaded = 0;
 		for (const id of formaIds) {
@@ -254,6 +263,9 @@ export class GameScene {
 				if (entry.simulationType) {
 					simModels.push({ id, simulationType: entry.simulationType, model });
 				}
+				if (id === 'roads') {
+					roadsModel = model;
+				}
 
 				console.log(`[GameScene] Created model "${id}" — children: ${model.children.length}`);
 			} catch (e) {
@@ -295,11 +307,13 @@ export class GameScene {
 		const meshBox = new THREE.Box3();
 		for (const { id, simulationType, model } of simModels) {
 			const positions: THREE.Vector3[] = [];
+			const meshes: THREE.Mesh[] = [];
 			model.traverse((child) => {
 				if (child instanceof THREE.Mesh) {
 					meshBox.setFromObject(child);
 					if (!meshBox.isEmpty()) {
 						positions.push(meshBox.getCenter(new THREE.Vector3()));
+						meshes.push(child);
 					}
 				}
 			});
@@ -308,7 +322,21 @@ export class GameScene {
 				simulationType,
 				meshCount: positions.length,
 				positions,
+				meshes,
 			});
+		}
+
+		// Collect road mesh world-space positions for transport network registration
+		if (roadsModel) {
+			roadsModel.traverse((child) => {
+				if (child instanceof THREE.Mesh) {
+					meshBox.setFromObject(child);
+					if (!meshBox.isEmpty()) {
+						this.formaRoadPositions.push(meshBox.getCenter(new THREE.Vector3()));
+					}
+				}
+			});
+			console.log(`[GameScene] Collected ${this.formaRoadPositions.length} road mesh positions`);
 		}
 
 

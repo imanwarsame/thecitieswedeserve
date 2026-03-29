@@ -7,8 +7,8 @@ export class RenderPipeline {
 	private renderer: Renderer;
 	private postProcessing: PostProcessing;
 	private enabled: boolean;
-	/** Overlay scene rendered after the EffectComposer to bypass all post-effects. */
-	private overlayScene: THREE.Scene | null = null;
+	/** Overlay scenes rendered after the EffectComposer to bypass all post-effects. */
+	private overlayScenes: THREE.Scene[] = [];
 
 	constructor(renderer: Renderer) {
 		this.renderer = renderer;
@@ -25,17 +25,19 @@ export class RenderPipeline {
 	render(scene: THREE.Scene, camera: THREE.Camera): void {
 		if (this.enabled) {
 			this.postProcessing.render();
-			// Render overlay AFTER the composer so it is unaffected by GTAO / bloom.
-			if (this.overlayScene) {
-				this.postProcessing.renderOverlay(this.overlayScene, camera);
+			// Render overlays AFTER the composer so they are unaffected by GTAO / bloom.
+			for (const os of this.overlayScenes) {
+				this.postProcessing.renderOverlay(os, camera);
 			}
 		} else {
 			this.renderer.render(scene, camera);
-			if (this.overlayScene) {
+			if (this.overlayScenes.length > 0) {
 				const webgl = this.renderer.getWebGLRenderer();
 				webgl.autoClearColor = false;
 				webgl.autoClearDepth = false;
-				webgl.render(this.overlayScene, camera);
+				for (const os of this.overlayScenes) {
+					webgl.render(os, camera);
+				}
 				webgl.autoClearColor = true;
 				webgl.autoClearDepth = true;
 			}
@@ -43,7 +45,9 @@ export class RenderPipeline {
 	}
 
 	setOverlayScene(scene: THREE.Scene): void {
-		this.overlayScene = scene;
+		if (!this.overlayScenes.includes(scene)) {
+			this.overlayScenes.push(scene);
+		}
 	}
 
 	resize(width: number, height: number): void {

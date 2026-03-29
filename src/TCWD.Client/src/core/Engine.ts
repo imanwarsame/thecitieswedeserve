@@ -19,6 +19,7 @@ import { HOUSING_COLORS } from '../rendering/Palette';
 import { InfrastructureRenderer } from '../rendering/InfrastructureRenderer';
 import { TransportRenderer } from '../rendering/TransportRenderer';
 import { FlowOverlayRenderer } from '../rendering/FlowOverlayRenderer';
+import { ZoneOverlayRenderer } from '../rendering/ZoneOverlayRenderer';
 import { TransportModule } from '../simulation/transport/TransportModule';
 import { ModelFactory } from '../assets/ModelFactory';
 import { AssetCatalog, DefaultMaterialPresets } from '../assets/AssetCatalog';
@@ -57,6 +58,7 @@ export class Engine {
 	private transportModule!: TransportModule;
 	private transportRenderer!: TransportRenderer;
 	private flowOverlayRenderer!: FlowOverlayRenderer;
+	private zoneOverlayRenderer!: ZoneOverlayRenderer;
 	private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 	private raycaster = new THREE.Raycaster();
 	private hoveredCellIndex = -1;
@@ -182,6 +184,13 @@ export class Engine {
 		this.transportModule.init(this.grid.cells);
 		this.simulationBridge.setTransportModule(this.transportModule);
 
+		// Register pre-existing Forma road meshes as transport edges
+		// so the baseline road network enables Road+Cycle routing.
+		const formaRoadPositions = gameScene.getFormaRoadPositions();
+		if (formaRoadPositions.length > 0) {
+			this.simulationBridge.registerFormaRoads(formaRoadPositions, this.grid.query);
+		}
+
 		// Infrastructure power-line visualisation
 		this.infrastructureRenderer = new InfrastructureRenderer(
 			gameScene.getGroup('effects'),
@@ -207,6 +216,14 @@ export class Engine {
 		// bypassing GTAO / bloom darkening that was suppressing the ribbon visibility.
 		this.renderPipeline.setOverlayScene(this.flowOverlayRenderer.getOverlayScene());
 
+		// Zone overlay — land-use / energy-use cell colouring (toggleable)
+		this.zoneOverlayRenderer = new ZoneOverlayRenderer(
+			this.simulationBridge,
+			this.grid.cells,
+			housingGroup,
+		);
+		this.renderPipeline.setOverlayScene(this.zoneOverlayRenderer.getOverlayScene());
+
 		this.loop = new Loop(this.renderPipeline, gameScene.root, camera, this.time);
 
 		this.loop.register((delta, unscaledDelta) => {
@@ -224,6 +241,7 @@ export class Engine {
 			this.infrastructureRenderer.update(delta);
 			this.transportRenderer.update();
 			this.flowOverlayRenderer.update(delta);
+			this.zoneOverlayRenderer.update(delta);
 			// Use unscaledDelta so animations play regardless of game time speed
 			this.simulationBridge.updateAnimations(unscaledDelta);
 
@@ -252,14 +270,22 @@ export class Engine {
 		});
 		this.resizeObserver.observe(canvas);
 
-		// Delete/Backspace removes selected Forma mesh; Ctrl+Z/Y for undo/redo
+		// Delete/Backspace removes selected entity or Forma mesh; Ctrl+Z/Y for undo/redo
 		this.onDeleteKey = (e: KeyboardEvent) => {
 			const tag = (e.target as HTMLElement).tagName;
 			if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
 			if (e.key === 'Delete' || e.key === 'Backspace') {
 				const selected = this.selectionManager.getSelected();
-				if (selected && selected instanceof THREE.Mesh) {
+				if (!selected) return;
+
+				// Check if the selection belongs to a registered entity
+				const entity = this.sceneManager.getActiveScene().getEntityManager().getEntityByMesh(selected);
+				if (entity) {
+					this.simulationBridge.removeBuilding(entity.id);
+					this.selectionManager.clearSelection();
+					console.log(`[Engine] Deleted entity: ${entity.name}`);
+				} else if (selected instanceof THREE.Mesh) {
 					selected.geometry.dispose();
 					if (selected.parent) selected.parent.remove(selected);
 					this.selectionManager.clearSelection();
@@ -298,6 +324,7 @@ export class Engine {
 		this.simulationBridge?.dispose();
 		this.transportRenderer?.dispose();
 		this.flowOverlayRenderer?.dispose();
+		this.zoneOverlayRenderer?.dispose();
 		this.infrastructureRenderer?.dispose();
 		this.selectionManager?.dispose();
 		this.input?.dispose();
@@ -442,6 +469,10 @@ export class Engine {
 
 	getFlowOverlayRenderer(): FlowOverlayRenderer {
 		return this.flowOverlayRenderer;
+	}
+
+	getZoneOverlayRenderer(): ZoneOverlayRenderer {
+		return this.zoneOverlayRenderer;
 	}
 
 	getHousingSystem(): HousingSystem {
@@ -605,7 +636,21 @@ export class Engine {
 			// Shift+Click: remove a Forma model mesh under cursor
 			if (this.input.shiftDown && this.input.consumeClick()) {
 				this.raycaster.setFromCamera(this.input.mouse, camera);
-				gameScene.removeFormaMeshAt(this.raycaster);
+				// Check if the target mesh is a registered entity (Forma building)
+				const shiftHits = this.raycaster.intersectObject(gameScene.root, true);
+				let removedEntity = false;
+				if (shiftHits.length > 0) {
+					const hitMesh = shiftHits[0].object;
+					const ownedEntity = gameScene.getEntityManager().getEntityByMesh(hitMesh);
+					if (ownedEntity) {
+						this.simulationBridge.removeBuilding(ownedEntity.id);
+						this.selectionManager.clearSelection();
+						removedEntity = true;
+					}
+				}
+				if (!removedEntity) {
+					gameScene.removeFormaMeshAt(this.raycaster);
+				}
 				return;
 			}
 
