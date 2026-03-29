@@ -27,61 +27,63 @@ export function TopBar() {
 	}, [engine]);
 
 	return (
-		<div className={styles.topBar}>
-			{/* Row 1 — playback controls + time + session */}
-			<div className={styles.row}>
-				<div className={styles.rowLeft}>
-					<button
-						className={styles.iconBtn}
-						onClick={() => paused ? tc.play() : tc.pause()}
-						title={paused ? 'Play (Space)' : 'Pause (Space)'}
-					>
-						{paused
-							? <Play size={18} strokeWidth={2} />
-							: <Pause size={18} strokeWidth={2} />
-						}
-					</button>
+		<>
+			<div className={styles.topBar}>
+				{/* Row 1 — playback controls + time + session */}
+				<div className={styles.row}>
+					<div className={styles.rowLeft}>
+						<button
+							className={styles.iconBtn}
+							onClick={() => paused ? tc.play() : tc.pause()}
+							title={paused ? 'Play (Space)' : 'Pause (Space)'}
+						>
+							{paused
+								? <Play size={18} strokeWidth={2} />
+								: <Pause size={18} strokeWidth={2} />
+							}
+						</button>
 
-					<div className={styles.speeds}>
-						{SPEED_PRESETS.map(p => (
-							<button
-								key={p.label}
-								className={`${styles.speedBtn} ${speed === p.value && !paused ? styles.speedActive : ''}`}
-								onClick={() => { tc.play(); tc.setSpeed(p.value); }}
-							>
-								{p.label}
-							</button>
-						))}
+						<div className={styles.speeds}>
+							{SPEED_PRESETS.map(p => (
+								<button
+									key={p.label}
+									className={`${styles.speedBtn} ${speed === p.value && !paused ? styles.speedActive : ''}`}
+									onClick={() => { tc.play(); tc.setSpeed(p.value); }}
+								>
+									{p.label}
+								</button>
+							))}
+						</div>
+
+						<span className={styles.sep} />
+
+						<span className={styles.clock}>
+							<Clock size={15} strokeWidth={2} />
+							{formatWorldHour(hour)}
+						</span>
+
+						<span className={styles.phase}>{phase}</span>
+
+						<span className={styles.day}>D{dayCount + 1}</span>
+
+						<SeasonControls />
 					</div>
 
-					<span className={styles.sep} />
-
-					<span className={styles.clock}>
-						<Clock size={15} strokeWidth={2} />
-						{formatWorldHour(hour)}
-					</span>
-
-					<span className={styles.phase}>{phase}</span>
-
-					<span className={styles.day}>D{dayCount + 1}</span>
-
-					<SeasonControls />
-				</div>
-
-				<div className={styles.rowRight}>
-					<button
-						className={styles.iconBtn}
-						onClick={handleClearAll}
-						title="Clear All"
-					>
-						<Trash2 size={18} strokeWidth={2} />
-					</button>
-					<SessionControls />
+					<div className={styles.rowRight}>
+						<button
+							className={styles.iconBtn}
+							onClick={handleClearAll}
+							title="Clear All"
+						>
+							<Trash2 size={18} strokeWidth={2} />
+						</button>
+						<SessionControls />
+					</div>
 				</div>
 			</div>
 
-			{/* Info bars — floating pills on desktop, inline rows on mobile */}
-			<div className={styles.floatingBars}>
+			{/* Info bars — stacked top-right */}
+			<div className={`${styles.floatingBar} ${styles.floatingBarRight}`}>
 				<div className={`${styles.row} ${styles.rowEnd}`}>
 					<div className={styles.rowFull}><EnergyBar /></div>
 				</div>
@@ -89,6 +91,6 @@ export function TopBar() {
 					<div className={styles.rowFull}><CityBar /></div>
 				</div>
 			</div>
-		</div>
+		</>
 	);
 }

@@ -54,7 +54,19 @@ export class SessionStore {
     return true;
   }
 
+  async saveYDoc(id: string, state: Uint8Array): Promise<void> {
+    const key = 'ydoc:' + id;
+    const ttl = await this.redis.ttl(KEY_PREFIX + id);
+    await this.redis.set(key, Buffer.from(state), 'EX', ttl > 0 ? ttl : SESSION_TTL);
+  }
+
+  async loadYDoc(id: string): Promise<Uint8Array | null> {
+    const buf = await this.redis.getBuffer('ydoc:' + id);
+    return buf ? new Uint8Array(buf) : null;
+  }
+
   async deleteSession(id: string): Promise<boolean> {
+    await this.redis.del('ydoc:' + id);
     const count = await this.redis.del(KEY_PREFIX + id);
     return count > 0;
   }

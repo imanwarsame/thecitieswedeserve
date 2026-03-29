@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from 'socket.io';
 import { SessionStore } from './SessionStore.js';
+import { YjsRoomManager } from './YjsRoomManager.js';
 import { sessionsRouter } from './routes/sessions.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -19,6 +20,8 @@ const store = new SessionStore();
 const io = new Server(httpServer, {
   cors: { origin: CLIENT_URL },
 });
+
+const roomManager = new YjsRoomManager(io, store);
 
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json());
@@ -81,6 +84,11 @@ io.on('connection', (socket) => {
     sessionUsers.get(sessionId)!.set(socket.id, userInfo);
 
     socket.join(sessionId);
+
+    // Yjs: create/restore doc and bind socket
+    await roomManager.getOrCreateDoc(sessionId);
+    roomManager.bindSocket(socket, sessionId);
+
     socket.emit('session-joined', { sessionId, role: 'creator', user: userInfo });
     io.to(sessionId).emit('users-updated', getUserList(sessionId));
   });
@@ -100,11 +108,9 @@ io.on('connection', (socket) => {
 
     socket.join(sessionId);
 
-    // Request full state from creator
-    const creatorSocketId = sessionCreators.get(sessionId);
-    if (creatorSocketId) {
-      io.to(creatorSocketId).emit('state-request', { requesterId: socket.id });
-    }
+    // Yjs: ensure doc exists and bind socket (sends full state to joiner)
+    await roomManager.getOrCreateDoc(sessionId);
+    roomManager.bindSocket(socket, sessionId);
 
     socket.emit('session-joined', { sessionId, role: 'collaborator', user: userInfo });
     io.to(sessionId).emit('users-updated', getUserList(sessionId));
@@ -130,13 +136,13 @@ io.on('connection', (socket) => {
     sessionUsers.get(sessionId)!.set(socket.id, userInfo);
 
     socket.join(sessionId);
+
+    // Yjs: restore doc and bind socket
+    await roomManager.getOrCreateDoc(sessionId);
+    roomManager.bindSocket(socket, sessionId);
+
     socket.emit('session-joined', { sessionId, role: 'creator', user: userInfo });
     io.to(sessionId).emit('users-updated', getUserList(sessionId));
-  });
-
-  // Creator sends full state to a specific joiner
-  socket.on('state-response', (data: { targetId: string; state: unknown }) => {
-    io.to(data.targetId).emit('sync-state', data.state);
   });
 
   // Name change
@@ -160,13 +166,9 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Scene deltas — broadcast to everyone else in the room
-  socket.on('scene-delta', (delta: unknown) => {
-    if (!currentSession) return;
-    socket.to(currentSession).emit('scene-delta', delta);
-  });
-
   socket.on('disconnect', () => {
+    // Unbind Yjs listeners
+    roomManager.unbindSocket(socket);
     if (!currentSession) return;
     const sid = currentSession;
 
@@ -182,6 +184,7 @@ io.on('connection', (socket) => {
           io.to(sid).emit('session-closed', 'Creator left — session ended.');
           sessionCreators.delete(sid);
           sessionUsers.delete(sid);
+          await roomManager.destroyRoom(sid);
           await store.deleteSession(sid);
         }
       }, CREATOR_GRACE_MS);
