@@ -16,6 +16,7 @@ export const FlowLineShader = {
 	uniforms: {
 		uTime:     { value: 0 },
 		uDarkness: { value: 0.0 }, // 0 = bright day, 1 = dark night
+		uFade:     { value: 1.0 }, // cross-fade controller
 	},
 
 	vertexShader: /* glsl */ `
@@ -38,6 +39,7 @@ export const FlowLineShader = {
 	fragmentShader: /* glsl */ `
 		uniform float uTime;
 		uniform float uDarkness;
+		uniform float uFade;
 
 		varying float vSegmentT;
 		varying float vFlow;
@@ -65,25 +67,27 @@ export const FlowLineShader = {
 			// Base opacity scales slightly with flow
 			float alpha = 0.30 + flow * 0.38;
 
-			// Travelling pulse — speed and cycle duration scale with flow intensity
-			// Low flow: slow, sparse pulses  |  High flow: fast, frequent pulses
-			float speed = 0.35 + flow * 1.30;
-			float cycle = 2.6  - flow * 1.0;  // 1.6–2.6 s cycle
+			// Travelling dot — speed and cycle scale gently with flow.
+			// Dot moves at a leisurely walking pace at low flow and a brisk
+			// but non-jarring pace at high flow.  No strobe: a single small dot
+			// per segment, never flashing the whole segment at once.
+			float speed = 0.30 + flow * 0.80;
+			float cycle = 3.0  - flow * 0.8;  // 2.2–3.0 s cycle
 			float t     = mod(uTime * speed + vTimeOffset, cycle);
 			float pos   = t / cycle;           // 0→1 position along segment
 
 			float d         = abs(vSegmentT - pos);
-			d               = min(d, 1.0 - d); // wrap so pulse re-enters cleanly
-			float pulseSize = 0.09;
+			d               = min(d, 1.0 - d); // wrap
+			float pulseSize = 0.07;
 			float pulse     = smoothstep(pulseSize, 0.0, d);
 
-			// Day: slightly darken pulse for contrast on light bg
-			// Night: brighten so it glows against dark bg
-			float bright = mix(-0.10, 0.26, uDarkness);
+			// Day: subtle contrast;  Night: gentle glow
+			float bright = mix(-0.08, 0.20, uDarkness);
 			col   += pulse * bright;
-			alpha += pulse * (0.38 - flow * 0.15); // pulse contribution smaller at high flow
+			// Dot adds a modest opacity nudge only (no full-opacity flash)
+			alpha += pulse * 0.18;
 
-			gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
+			gl_FragColor = vec4(col, clamp(alpha * uFade, 0.0, 1.0));
 		}
 	`,
 };

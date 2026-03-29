@@ -33,7 +33,7 @@ export function TransportOverlayPanel() {
 	// ── Keyboard shortcut: T to toggle overlay ───────────────────────────────
 	const handleKey = useCallback((e: KeyboardEvent) => {
 		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-		if (e.key === 't' || e.key === 'T') {
+		if (e.key === 'f' || e.key === 'F') {
 			setOverlayOn(v => {
 				const next = !v;
 				engine.getFlowOverlayRenderer().setVisible(next);
@@ -85,7 +85,7 @@ export function TransportOverlayPanel() {
 				className={`${styles.toggleBtn} ${overlayOn ? styles.toggleBtnActive : ''}`}
 				onClick={toggleOverlay}
 				onMouseEnter={() => setPanelOpen(true)}
-				title="Transport Flow Overlay (T)"
+				title="Transport Flow Overlay (F)"
 			>
 				<Layers size={14} strokeWidth={2} />
 				<span>Flow</span>
@@ -110,7 +110,7 @@ export function TransportOverlayPanel() {
 									className={styles.checkbox}
 								/>
 								{overlayOn ? 'On' : 'Off'}
-								<span className={styles.hint}> — press T</span>
+								<span className={styles.hint}> — press F</span>
 							</label>
 						</div>
 					</div>

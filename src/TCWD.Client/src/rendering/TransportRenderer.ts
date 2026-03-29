@@ -82,15 +82,29 @@ export class TransportRenderer {
 		let metroOff = 0;
 		let trainOff = 0;
 
-		// Explicit roads → ribbon quads
+		// Explicit roads → ribbon quads + round end-caps
+		const roadEndpoints = new Set<number>();
 		for (const key of network.getExplicitRoads()) {
 			const [aStr, bStr] = key.split('-');
-			const cellA = this.cells[Number(aStr)];
-			const cellB = this.cells[Number(bStr)];
+			const a = Number(aStr);
+			const b = Number(bStr);
+			roadEndpoints.add(a);
+			roadEndpoints.add(b);
+			const cellA = this.cells[a];
+			const cellB = this.cells[b];
 			if (!cellA || !cellB) continue;
 			roadOff = pushRibbon(
 				cellA.center.x, cellA.center.y,
 				cellB.center.x, cellB.center.y,
+				ROAD_HALF_WIDTH, INFRA_Y, roadVerts, roadIdx, roadOff,
+			);
+		}
+		// Disc at each road cell centre — fills intersections and rounds termini
+		for (const idx of roadEndpoints) {
+			const cell = this.cells[idx];
+			if (!cell) continue;
+			roadOff = pushDisc(
+				cell.center.x, cell.center.y,
 				ROAD_HALF_WIDTH, INFRA_Y, roadVerts, roadIdx, roadOff,
 			);
 		}
@@ -100,6 +114,14 @@ export class TransportRenderer {
 			if (!network.hasMetro(idx)) continue;
 			const edges = network.getEdges(idx);
 			if (!edges) continue;
+			// Station disc at each metro cell
+			const stationA = this.cells[idx];
+			if (stationA) {
+				metroOff = pushDisc(
+					stationA.center.x, stationA.center.y,
+					METRO_HALF_WIDTH, INFRA_Y, metroVerts, metroIdx, metroOff,
+				);
+			}
 			for (const [neighbor] of edges) {
 				if (neighbor <= idx) continue;
 				if (!network.hasMetro(neighbor)) continue;
@@ -119,6 +141,14 @@ export class TransportRenderer {
 			if (!network.hasTrain(idx)) continue;
 			const edges = network.getEdges(idx);
 			if (!edges) continue;
+			// Station disc at each train cell
+			const stationA = this.cells[idx];
+			if (stationA) {
+				trainOff = pushDisc(
+					stationA.center.x, stationA.center.y,
+					TRAIN_HALF_WIDTH, INFRA_Y, trainVerts, trainIdx, trainOff,
+				);
+			}
 			for (const [neighbor] of edges) {
 				if (neighbor <= idx) continue;
 				if (!network.hasTrain(neighbor)) continue;
@@ -207,4 +237,29 @@ function pushRibbon(
 	indices.push(o, o + 1, o + 2, o + 1, o + 3, o + 2);
 
 	return vertexOffset + 4;
+}
+
+/**
+ * Push a circular disc (triangle fan) centred at (cx, cz) at height y.
+ * Used as round end-caps and junction fills for all infrastructure types.
+ */
+function pushDisc(
+	cx: number, cz: number,
+	radius: number,
+	y: number,
+	verts: number[],
+	indices: number[],
+	vertexOffset: number,
+): number {
+	const N = 12; // segments — gives a smooth circle at typical road widths
+	verts.push(cx, y, cz); // centre vertex
+	for (let i = 0; i < N; i++) {
+		const angle = (i / N) * Math.PI * 2;
+		verts.push(cx + Math.cos(angle) * radius, y, cz + Math.sin(angle) * radius);
+	}
+	const o = vertexOffset;
+	for (let i = 0; i < N; i++) {
+		indices.push(o, o + 1 + i, o + 1 + (i + 1) % N);
+	}
+	return vertexOffset + N + 1;
 }

@@ -111,4 +111,12 @@ export class EntityManager {
 	getEntityAtCell(cellIndex: number): Entity | null {
 		return this.cellToEntity.get(cellIndex) ?? null;
 	}
+
+	/** Resolve a THREE.Object3D (entity root mesh) back to its owning Entity. */
+	getEntityByMesh(mesh: THREE.Object3D): Entity | undefined {
+		for (const entity of this.entities.values()) {
+			if (entity.mesh === mesh) return entity;
+		}
+		return undefined;
+	}
 }

@@ -103,6 +103,9 @@ export class Entity {
 		if (!this.mesh) return;
 		this.mesh.position.copy(this.position);
 		this.mesh.rotation.copy(this.rotation);
-		this.mesh.scale.copy(this.scale);
+		// Do not override mesh scale — procedural meshes bake their own scale
+		// (e.g. BUILDING_SCALE), and GLB models are scaled by ModelFactory.
+		// Entity.scale is unused at runtime; preserving mesh scale avoids
+		// cell-filling buildings appearing disproportionately large.
 	}
 }
