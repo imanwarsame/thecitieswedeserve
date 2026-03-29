@@ -1,16 +1,15 @@
 import * as THREE from 'three';
 import { events } from '../core/Events';
-import { TransportMode } from '../simulation/transport/types';
 import type { TransportModule } from '../simulation/transport/TransportModule';
 import type { VoronoiCell } from '../grid/types';
 
 // ── Transport Renderer ──────────────────────────────────────
 //
-// Draws two layers:
-// 1. Explicit infrastructure (player-placed roads, metro cells, train cells)
-//    — solid mesh-based ribbons, always visible.
-// 2. ABM flow overlay (trip volume per edge) — faint lines, only on
-//    edges that have actual transport infrastructure.
+// Draws player-placed transport infrastructure as solid mesh ribbons
+// (roads, metro, train) — always visible, independent of the flow overlay.
+//
+// Population-flow / congestion visualisation is handled separately by
+// FlowOverlayRenderer, which can be toggled on/off by the user.
 
 const INFRA_COLORS: Record<string, number> = {
 	road: 0x999999,
@@ -18,23 +17,14 @@ const INFRA_COLORS: Record<string, number> = {
 	train: 0xaa5555,
 };
 
-const FLOW_COLORS: Record<TransportMode, number> = {
-	[TransportMode.Road]: 0x888888,
-	[TransportMode.Cycle]: 0x66aa55,
-	[TransportMode.Metro]: 0x5566cc,
-	[TransportMode.Train]: 0xaa5555,
-};
-
 const INFRA_Y = 0.15;
-const FLOW_Y = 0.25;
-const ROAD_HALF_WIDTH = 1.2;   // ribbon half-width in world units
+const ROAD_HALF_WIDTH  = 1.2;  // ribbon half-width in world units
 const METRO_HALF_WIDTH = 0.8;
 const TRAIN_HALF_WIDTH = 0.8;
 
 export class TransportRenderer {
 	private group = new THREE.Group();
 	private meshes: THREE.Mesh[] = [];
-	private lines: THREE.LineSegments[] = [];
 	private disposables: THREE.Material[] = [];
 	private transportModule: TransportModule;
 	private cells: readonly VoronoiCell[];
@@ -74,7 +64,6 @@ export class TransportRenderer {
 	private rebuild(): void {
 		this.clear();
 		this.buildInfrastructureMeshes();
-		this.buildFlowLines();
 	}
 
 	// ── 1. Infrastructure: mesh-based ribbons ───────────────
@@ -172,40 +161,6 @@ export class TransportRenderer {
 		}
 	}
 
-	// ── 2. ABM flow overlay ─────────────────────────────────
-
-	private buildFlowLines(): void {
-		const visuals = this.transportModule.getVisualEdges(this.cells);
-		if (visuals.length === 0) return;
-
-		const byMode = new Map<TransportMode, number[]>();
-		for (const v of visuals) {
-			let positions = byMode.get(v.mode);
-			if (!positions) {
-				positions = [];
-				byMode.set(v.mode, positions);
-			}
-			positions.push(v.fromX, FLOW_Y, v.fromZ, v.toX, FLOW_Y, v.toZ);
-		}
-
-		for (const [mode, positions] of byMode) {
-			const mat = new THREE.LineBasicMaterial({
-				color: FLOW_COLORS[mode],
-				transparent: true,
-				opacity: 0.2,
-				depthWrite: false,
-			});
-			this.disposables.push(mat);
-
-			const geo = new THREE.BufferGeometry();
-			geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-			const line = new THREE.LineSegments(geo, mat);
-			line.frustumCulled = false;
-			this.lines.push(line);
-			this.group.add(line);
-		}
-	}
-
 	// ── Cleanup ─────────────────────────────────────────────
 
 	private clear(): void {
@@ -213,14 +168,9 @@ export class TransportRenderer {
 			m.geometry.dispose();
 			this.group.remove(m);
 		}
-		for (const l of this.lines) {
-			l.geometry.dispose();
-			this.group.remove(l);
-		}
 		for (const d of this.disposables) d.dispose();
-		this.meshes = [];
-		this.lines = [];
-		this.disposables = [];
+		this.meshes       = [];
+		this.disposables  = [];
 	}
 }
 

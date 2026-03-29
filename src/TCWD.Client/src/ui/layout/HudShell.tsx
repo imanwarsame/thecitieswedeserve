@@ -1,5 +1,6 @@
 import { TopBar } from './TopBar';
 import { ViewRadiusControl } from '../controls/ViewRadiusControl';
+import { TransportOverlayPanel } from '../controls/TransportOverlayPanel';
 import styles from './HudShell.module.css';
 
 export function HudShell() {
@@ -7,6 +8,7 @@ export function HudShell() {
 		<div className={styles.shell}>
 			<TopBar />
 			<ViewRadiusControl />
+			<TransportOverlayPanel />
 		</div>
 	);
 }
