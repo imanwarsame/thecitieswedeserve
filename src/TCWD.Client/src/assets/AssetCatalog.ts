@@ -44,6 +44,27 @@ export type ModelCategory =
 // Catalog
 // ---------------------------------------------------------------------------
 
+/**
+ * Central registry of all model assets available to the game.
+ *
+ * To add a new GLB/GLTF model:
+ * 1. Place the file in `public/models/<category>/`
+ * 2. Add an entry below
+ * 3. (Optional) Define a MaterialPreset in MaterialPresets.ts
+ *
+ * Example:
+ * ```ts
+ * {
+ *   id: 'house-small',
+ *   path: '/models/residential/house-small.glb',
+ *   label: 'Small House',
+ *   category: 'residential',
+ *   scale: 1,
+ *   materialPreset: 'house-wooden',
+ *   preload: true,
+ * }
+ * ```
+ */
 export const AssetCatalog: ModelEntry[] = [
 	// ---- Infrastructure ----
 	{
@@ -56,7 +77,7 @@ export const AssetCatalog: ModelEntry[] = [
 		animated: true,
 	},
 
-	// ---- Roads ----
+	// ---- Roads (Forma / Rhino export – 546 meshes, material: FormaRoads) ----
 	{
 		id: 'roads',
 		path: '/models/roads/roads.glb',
@@ -67,7 +88,7 @@ export const AssetCatalog: ModelEntry[] = [
 		preload: true,
 	},
 
-	// ---- Water ----
+	// ---- Water (Rhino/Blender export – 8 meshes, blue rgba) ----
 	{
 		id: 'water',
 		path: '/models/water/water.glb',
@@ -78,7 +99,7 @@ export const AssetCatalog: ModelEntry[] = [
 		preload: true,
 	},
 
-	// ---- Buildings ----
+	// ---- Buildings (Forma / Rhino export – material: FormaBuildings) ----
 	{
 		id: 'buildings',
 		path: '/models/buildings/buildings.glb',
@@ -107,22 +128,17 @@ export const AssetCatalog: ModelEntry[] = [
 		preload: true,
 	},
 
-	// ---- Vegetation ----
-	{
-		id: 'vegetation',
-		path: '/models/vegetation/vegetation.glb',
-		label: 'Vegetation',
-		category: 'nature',
-		scale: 1,
-		materialPreset: 'nature',
-		preload: true,
-	},
 ];
 
 // ---------------------------------------------------------------------------
 // Material presets for models
 // ---------------------------------------------------------------------------
 
+/**
+ * Default material presets for common model types.
+ * Each preset maps mesh name patterns to MaterialRegistry keys.
+ * Register these with MaterialRegistry.definePreset() at init.
+ */
 export const DefaultMaterialPresets: MaterialPreset[] = [
 	{
 		name: 'building-generic',
@@ -158,24 +174,25 @@ export const DefaultMaterialPresets: MaterialPreset[] = [
 			'*': 'structure',
 		},
 	},
+	// ---- Forma-specific presets (matched to actual GLB material names) ----
 	{
 		name: 'forma-roads',
 		meshMaterials: {
-			'FormaRoads': 'road',
-			'*': 'road',
+			'FormaRoads': 'ground',
+			'*': 'ground',
 		},
 	},
 	{
 		name: 'forma-water',
 		meshMaterials: {
-			'*': 'water',
+			'*': 'glass',
 		},
 	},
 	{
 		name: 'forma-buildings',
 		meshMaterials: {
-			'FormaBuildings': 'building-white',
-			'*': 'building-white',
+			'FormaBuildings': 'structure',
+			'*': 'structure',
 		},
 	},
 ];

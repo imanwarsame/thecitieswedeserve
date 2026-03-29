@@ -8,6 +8,7 @@ import { CityLayer } from '../layers/CityLayer.ts';
 import { TransportLayer } from '../layers/TransportLayer.ts';
 import { WaterLayer } from '../layers/WaterLayer.ts';
 import type { Entity } from '../entities/types.ts';
+import type { TransportModule } from '../transport/TransportModule.ts';
 import type {
 	EnergyMetrics,
 	EconomicMetrics,
@@ -55,6 +56,7 @@ const NULL_TRANSPORT: TransportMetrics = {
 	averageCommuteMins: 0,
 	congestionIndex: 0,
 	evAdoptionRate: 0,
+	modalSplit: {},
 };
 
 const NULL_WATER: WaterMetrics = {
@@ -70,6 +72,7 @@ export class SimulationEngine {
 	private readonly config: SimulationConfig;
 	private readonly clock: Clock;
 	private readonly registry: LayerRegistry;
+	private readonly transportLayer: TransportLayer;
 
 	private entities: Entity[];
 	private currentEnergy: EnergyMetrics;
@@ -91,7 +94,8 @@ export class SimulationEngine {
 		this.registry = new LayerRegistry();
 		this.registry.register('energy', new EnergyLayer());
 		this.registry.register('city', new CityLayer());
-		this.registry.register('transport', new TransportLayer());
+		this.transportLayer = new TransportLayer();
+		this.registry.register('transport', this.transportLayer);
 		this.registry.register('water', new WaterLayer());
 
 		this.entities = [...entities];
@@ -149,6 +153,11 @@ export class SimulationEngine {
 	/** Return a shallow copy of the current entity list. */
 	getEntities(): Entity[] {
 		return [...this.entities];
+	}
+
+	/** Inject the transport module so the transport layer can produce real metrics. */
+	setTransportModule(module: TransportModule): void {
+		this.transportLayer.setModule(module);
 	}
 
 	/**

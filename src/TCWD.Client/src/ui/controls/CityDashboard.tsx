@@ -11,7 +11,7 @@ function pct(n: number): string {
 	return `${(n * 100).toFixed(0)}%`;
 }
 
-export function CityDashboard() {
+export function CityBar() {
 	const { state } = useSimulation();
 	const { city } = state;
 
