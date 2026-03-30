@@ -41,6 +41,7 @@ const sessionCreators = new Map<string, string>(); // sessionId → socketId
 // Grace period timers for creator disconnects (allows refresh without destroying session)
 const creatorGraceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const CREATOR_GRACE_MS = 10_000; // 10 seconds to rejoin
+const MAX_SESSION_USERS = 10;
 
 // Track users per session: sessionId → Map<socketId, UserInfo>
 interface UserInfo { id: string; name: string; color: string }
@@ -89,7 +90,7 @@ io.on('connection', (socket) => {
     await roomManager.getOrCreateDoc(sessionId);
     roomManager.bindSocket(socket, sessionId);
 
-    socket.emit('session-joined', { sessionId, role: 'creator', user: userInfo });
+    socket.emit('session-joined', { sessionId, role: 'creator', user: userInfo, maxUsers: MAX_SESSION_USERS });
     io.to(sessionId).emit('users-updated', getUserList(sessionId));
   });
 
@@ -97,6 +98,12 @@ io.on('connection', (socket) => {
     const session = await store.getSession(sessionId);
     if (!session) {
       socket.emit('session-error', 'Session not found or expired');
+      return;
+    }
+
+    const currentCount = sessionUsers.get(sessionId)?.size ?? 0;
+    if (currentCount >= MAX_SESSION_USERS) {
+      socket.emit('session-error', `Session is full (max ${MAX_SESSION_USERS} users)`);
       return;
     }
 
@@ -112,7 +119,7 @@ io.on('connection', (socket) => {
     await roomManager.getOrCreateDoc(sessionId);
     roomManager.bindSocket(socket, sessionId);
 
-    socket.emit('session-joined', { sessionId, role: 'collaborator', user: userInfo });
+    socket.emit('session-joined', { sessionId, role: 'collaborator', user: userInfo, maxUsers: MAX_SESSION_USERS });
     io.to(sessionId).emit('users-updated', getUserList(sessionId));
   });
 
@@ -141,7 +148,7 @@ io.on('connection', (socket) => {
     await roomManager.getOrCreateDoc(sessionId);
     roomManager.bindSocket(socket, sessionId);
 
-    socket.emit('session-joined', { sessionId, role: 'creator', user: userInfo });
+    socket.emit('session-joined', { sessionId, role: 'creator', user: userInfo, maxUsers: MAX_SESSION_USERS });
     io.to(sessionId).emit('users-updated', getUserList(sessionId));
   });
 

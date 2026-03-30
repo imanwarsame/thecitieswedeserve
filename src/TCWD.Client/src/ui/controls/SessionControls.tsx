@@ -77,7 +77,7 @@ export function SessionControls() {
       <button
         className={styles.avatarGroup}
         onClick={() => setShowPanel(!showPanel)}
-        title={`${collab.users.length} user${collab.users.length > 1 ? 's' : ''} connected`}
+        title={`${collab.users.length}/${collab.maxUsers} users connected`}
       >
         {collab.users.map(u => {
           const initials = u.name
@@ -100,9 +100,23 @@ export function SessionControls() {
 
       {showPanel && (
         <div className={styles.panel}>
+          <div className={styles.capacityRow}>
+            <span className={styles.capacityLabel}>
+              {collab.users.length}/{collab.maxUsers} users
+            </span>
+            {collab.users.length >= collab.maxUsers && (
+              <span className={styles.capacityFull}>Full</span>
+            )}
+          </div>
+
           <div className={styles.urlRow}>
             <code className={styles.url}>{collab.shareUrl}</code>
-            <button className={styles.copyBtn} onClick={handleCopy} title="Copy link">
+            <button
+              className={styles.copyBtn}
+              onClick={handleCopy}
+              title={collab.users.length >= collab.maxUsers ? 'Session is full' : 'Copy link'}
+              disabled={collab.users.length >= collab.maxUsers}
+            >
               {copied
                 ? <Check size={10} strokeWidth={2.5} />
                 : <Copy size={10} strokeWidth={2} />

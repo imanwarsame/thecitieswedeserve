@@ -87,8 +87,36 @@
   transition: background 0.12s ease;
 }
 
-.copyBtn:hover {
+.copyBtn:hover:not(:disabled) {
   background: rgba(180, 180, 180, 0.25);
+}
+
+.copyBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.capacityRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.capacityLabel {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 9px;
+  color: rgba(60, 60, 60, 0.55);
+}
+
+.capacityFull {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(200, 80, 80, 0.85);
+  background: rgba(200, 80, 80, 0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
 .avatarGroup {

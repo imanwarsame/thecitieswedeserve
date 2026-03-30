@@ -38,6 +38,7 @@ export interface CollabState {
   users: UserInfo[];
   me: UserInfo | null;
   error: string | null;
+  maxUsers: number;
 }
 
 export function useCollabSession() {
@@ -50,6 +51,7 @@ export function useCollabSession() {
     users: [],
     me: null,
     error: null,
+    maxUsers: 10,
   });
 
   const getSocket = useCallback(() => {
@@ -63,7 +65,7 @@ export function useCollabSession() {
   }, []);
 
   const setupListeners = useCallback((socket: Socket, role: CollabRole) => {
-    socket.on('session-joined', (data: { sessionId: string; role: string; user: UserInfo }) => {
+    socket.on('session-joined', (data: { sessionId: string; role: string; user: UserInfo; maxUsers?: number }) => {
       const shareUrl = `${window.location.origin}/s/${data.sessionId}`;
 
       // Update browser URL to /s/:sessionId
@@ -77,6 +79,7 @@ export function useCollabSession() {
         shareUrl,
         me: data.user,
         error: null,
+        maxUsers: data.maxUsers ?? 10,
       }));
     });
 
@@ -93,7 +96,7 @@ export function useCollabSession() {
       events.emit('collab:socketDisconnected');
       setState({
         active: false, sessionId: null, role: null,
-        shareUrl: null, users: [], me: null, error: 'Session ended by creator.',
+        shareUrl: null, users: [], me: null, error: 'Session ended by creator.', maxUsers: 10,
       });
       events.emit('collab:sessionClosed');
       socket.disconnect();
@@ -163,7 +166,7 @@ export function useCollabSession() {
     window.history.replaceState(null, '', '/');
     setState({
       active: false, sessionId: null, role: null,
-      shareUrl: null, users: [], me: null, error: null,
+      shareUrl: null, users: [], me: null, error: null, maxUsers: 10,
     });
   }, []);
 
