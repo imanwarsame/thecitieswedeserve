@@ -1,1 +1,6 @@
-docs/sprints/
+# Claude Code
+.claude/
+
+# Docs & sprint plans
+docs/
+sprint-plan-*.md
